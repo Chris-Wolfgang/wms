@@ -167,14 +167,28 @@ function Invoke-Check
     $added = @(& git diff --name-only --diff-filter=A "$BaseRef...HEAD")
     if ($LASTEXITCODE -ne 0) { throw "git diff --diff-filter=A against $BaseRef failed" }
     $addedFragments = @($added | Where-Object { $_ -match "^$([regex]::Escape($FragmentDir))/" -and $_ -notmatch '/README\.md$' })
-    $waived = ($Labels -split ',' | ForEach-Object { $_.Trim() }) -contains 'no-changelog'
+    $labelList = @($Labels -split ',' | ForEach-Object { $_.Trim() })
+    $waived = $labelList -contains 'no-changelog'
+    $docsWaived = $labelList -contains 'no-docs'
+
+    # E85.10: a feature or breaking change ships with its documentation. Any added fragment of those types
+    # must be accompanied by a documentation change in the same PR (docs/, the docfx site, or a top-level
+    # *.md such as README/CHANGELOG), unless the 'no-docs' label states why none is needed.
+    $docsChanged = @($changed | Where-Object { $_ -match '^(docs/|docfx_project/|[^/]+\.md$)' })
+    $userFacingFragments = @($fragments | Where-Object { $_.Type -in @('feature', 'breaking') -and $addedFragments -contains $_.RelPath })
 
     Write-Host "src/ files changed: $($srcChanged.Count); fragments added: $($addedFragments.Count); no-changelog label: $waived"
+    Write-Host "feature/breaking fragments added: $($userFacingFragments.Count); docs files changed: $($docsChanged.Count); no-docs label: $docsWaived"
 
     $failed = $bad.Count -gt 0
     if ($srcChanged.Count -gt 0 -and $addedFragments.Count -eq 0 -and -not $waived)
     {
         Write-Host "::error::This PR changes src/ but adds no changelog fragment. Add $FragmentDir/<change-name>.md (see $FragmentDir/README.md) or apply the 'no-changelog' label."
+        $failed = $true
+    }
+    if ($userFacingFragments.Count -gt 0 -and $docsChanged.Count -eq 0 -and -not $docsWaived)
+    {
+        Write-Host "::error::This PR adds a feature/breaking fragment ($(($userFacingFragments | ForEach-Object { $_.Name }) -join ', ')) but changes no documentation. Document the change under docs/ or the docfx site in this PR, or apply the 'no-docs' label with a reason."
         $failed = $true
     }
     if ($failed) { exit 1 }

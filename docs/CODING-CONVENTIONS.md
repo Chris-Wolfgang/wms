@@ -108,6 +108,21 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
 - Screens and reports use query classes projecting to records (`AsNoTracking`), not repositories. Handler
   unit tests use hand-written fakes of the repository interfaces.
 
+## Read models and caching (E1.12, ADR 0003)
+
+- Screens and reports read through one query class per read in Infrastructure (`OpenReleasesQuery`): LINQ
+  projection with `AsNoTracking` straight to the API record. Hand-written SQL only inside that class when a
+  plan requires it; a rollup table only when the raw tables are measurably too slow. Never a repository.
+- Caching is per instance and in memory: `VersionedCache<T>` (`Wolfgang.Wms.Core.Caching`) rebuilds its
+  value only when `IRowVersionSource` reports a higher `row_version` for the watched tables, probed at most
+  once per poll interval. No shared cache component; the database is the truth.
+- HTTP caching is validation, never time-based: a resource's `ETag` is its `row_version`
+  (`EntityTag.FromRowVersion`), a list's is max `row_version` + count (`EntityTag.FromCollection`), and
+  `ConditionalResults.NotModifiedOr` answers a matching `If-None-Match` with `304` from the version column
+  alone. API responses send `Cache-Control: private, no-cache` (`CacheControl.Api`); content-hashed static
+  assets send `public, max-age=31536000, immutable` (`CacheControl.StaticAsset`). Never `no-store`, never
+  `max-age` on data.
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value

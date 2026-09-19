@@ -1,0 +1,124 @@
+# Documentation check (E85.11, E85.12)
+#
+# Nightly: build the docfx site without deploying (the reusable docfx.yaml, deploy_to_pages=false) and check
+# every link in the Markdown sources. Each concern reports through scripts/report-failure.ps1 under its own
+# workflow name (docs-build, docs-links) so one issue per failure signature is opened, updated on repeats and
+# closed by the next green run. Issue-only: no notification channel.
+
+name: Docs Check
+
+on:
+  schedule:
+    - cron: '23 5 * * *'   # nightly 05:23 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the issue actions without creating, commenting or closing anything'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: "Build documentation (no deploy)"
+    permissions:
+      contents: write  # docfx.yaml's job declares write; its deploy steps are skipped by deploy_to_pages=false
+    # `$/` self-repository syntax is preferred; actionlint rejects it until rhysd/actionlint#732 ships.
+    uses: ./.github/workflows/docfx.yaml  # zizmor: ignore[self-repository]
+    with:
+      deploy_to_pages: false
+      deploy_as_latest: false
+
+  build-report:
+    name: "Report documentation build outcome"
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: scripts/report-failure.ps1
+          sparse-checkout-cone-mode: false
+
+      - name: Open or update the docs-build issue
+        if: needs.build.result == 'failure'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '' }}
+        run: |
+          $flags = @()
+          if ($env:DRY_RUN) { $flags += '-DryRun' }
+          pwsh ./scripts/report-failure.ps1 -Repository $env:GITHUB_REPOSITORY -Workflow docs-build -Outcome failed `
+            -Signature docfx -Title 'Documentation build failed' -Labels docs `
+            -SuggestedFix 'Run docfx on docfx_project/docfx.json locally against main; fix the page, toc or XML doc it names, and open a PR.' @flags
+
+      - name: Close the docs-build issue after a clean run
+        if: needs.build.result == 'success'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '' }}
+        run: |
+          $flags = @()
+          if ($env:DRY_RUN) { $flags += '-DryRun' }
+          pwsh ./scripts/report-failure.ps1 -Repository $env:GITHUB_REPOSITORY -Workflow docs-build -Outcome succeeded @flags
+
+  links:
+    name: "Link check"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Check links in Markdown sources
+        id: lychee
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8  # v2.9.0
+        with:
+          args: --no-progress --max-retries 2 --accept 200,201,202,204,206,301,302,303,307,308,429 --exclude localhost --exclude 'example\.com' README.md CONTRIBUTING.md SECURITY.md 'docs/**/*.md' 'changelog/**/*.md' 'docfx_project/**/*.md'
+          format: markdown
+          output: lychee.md
+          fail: true
+          token: ${{ github.token }}
+
+      - name: Open or update the docs-links issue
+        if: failure() && steps.lychee.outcome == 'failure'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '' }}
+        run: |
+          $flags = @()
+          if ($env:DRY_RUN) { $flags += '-DryRun' }
+          pwsh ./scripts/report-failure.ps1 -Repository $env:GITHUB_REPOSITORY -Workflow docs-links -Outcome failed `
+            -Signature broken-links -Title 'Broken links in documentation' -BodyPath lychee.md -Labels docs `
+            -SuggestedFix 'Rewrite or remove each link listed above (a moved target inside this repository is a mechanical fix); open a PR.' @flags
+
+      - name: Close the docs-links issue after a clean run
+        if: success()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '' }}
+        run: |
+          $flags = @()
+          if ($env:DRY_RUN) { $flags += '-DryRun' }
+          pwsh ./scripts/report-failure.ps1 -Repository $env:GITHUB_REPOSITORY -Workflow docs-links -Outcome succeeded @flags

@@ -66,8 +66,13 @@ M:System.Net.WebClient.UploadString(System.String,System.String); Use 'HttpClien
 # Obsolete/Insecure Serialization
 T:System.Runtime.Serialization.Formatters.Binary.BinaryFormatter; Insecure and deprecated - use System.Text.Json.JsonSerializer instead
 T:System.Runtime.Serialization.Formatters.Soap.SoapFormatter; Insecure and deprecated - use System.Text.Json.JsonSerializer instead
-# DateTime Anti-patterns - Prefer DateTimeOffset for timezone safety
-P:System.DateTime.Now; Use 'DateTimeOffset.UtcNow' or 'DateTimeOffset.Now' for timezone-aware operations
+# DateTime Anti-patterns - UTC DateTimeOffset everywhere except display; the clock is an injected TimeProvider (E1.14)
+P:System.DateTime.Now; Use an injected 'TimeProvider' ('GetUtcNow()'); DateTimeOffset, never DateTime
+P:System.DateTime.UtcNow; Use an injected 'TimeProvider' ('GetUtcNow()'); DateTimeOffset, never DateTime
+P:System.DateTime.Today; Use an injected 'TimeProvider' and the site's TimeZoneInfo to derive a date
+P:System.DateTimeOffset.Now; Use an injected 'TimeProvider' ('GetUtcNow()'); local time only at display
+P:System.DateTimeOffset.UtcNow; Use an injected 'TimeProvider' ('GetUtcNow()') so time can be controlled in tests
+P:System.TimeZoneInfo.Local; Use the site's TimeZoneInfo from settings; the server's zone is not the warehouse's
 # Synchronous Parallel operations - Use async alternatives
 M:System.Threading.Tasks.Parallel.For(System.Int32,System.Int32,System.Action{System.Int32}); Synchronous - prefer async concurrency patterns (e.g., 'Task.WhenAll()', dataflow). On .NET 6+ targets, 'Parallel.ForEachAsync()' is also available.
 M:System.Threading.Tasks.Parallel.For(System.Int32,System.Int32,System.Threading.Tasks.ParallelOptions,System.Action{System.Int32}); Synchronous - prefer async concurrency patterns (e.g., 'Task.WhenAll()', dataflow). On .NET 6+ targets, 'Parallel.ForEachAsync()' is also available.

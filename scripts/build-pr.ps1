@@ -88,6 +88,12 @@ else {
 if (-not $SkipTests -and $failed.Count -eq 0) {
     Write-Step "Step 2: Run Tests (all target frameworks)"
 
+    # Results from an earlier run would be merged into this run's coverage report and could
+    # hide or invent misses; start every run from a clean slate.
+    foreach ($stale in @('TestResults', 'CoverageReport')) {
+        if (Test-Path $stale) { Remove-Item $stale -Recurse -Force }
+    }
+
     # Mirrors pr.yaml's Stage 2 TFM parity check (guard 3). Findings are
     # warnings (exit 0); a non-zero exit means the evaluation itself broke and
     # is a failure here exactly as it is in CI.

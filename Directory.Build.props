@@ -50,6 +50,29 @@
     <IsTrimmable Condition="'$(IsTrimmable)' == '' and '$(_WmsAnalyzeAot)' == 'true'">true</IsTrimmable>
   </PropertyGroup>
 
+  <!-- E85.4: versions come from the git tag. MinVer stamps Version/FileVersion/InformationalVersion
+       from the nearest `vX.Y.Z` tag (`0.x.y-alpha.0.N` between tags, N = commit height; 0.1.0-alpha.0.N
+       before the first tag). Nothing in a csproj carries a version. AssemblyVersion is pinned to
+       WmsAssemblyVersion and moves only when binary compatibility breaks, to the version of the release
+       that broke it (0.1.0.0 -> 0.27.0.0, later 2.0.0.0). MinVer overwrites AssemblyVersion during its own
+       target, so the pin is re-applied right after it. See docs/DELIVERY-PROCESS.md. -->
+  <PropertyGroup>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerDefaultPreReleaseIdentifiers>alpha.0</MinVerDefaultPreReleaseIdentifiers>
+    <MinVerMinimumMajorMinor>0.1</MinVerMinimumMajorMinor>
+    <WmsAssemblyVersion>0.1.0.0</WmsAssemblyVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <Target Name="WmsPinAssemblyVersion" AfterTargets="MinVer">
+    <PropertyGroup>
+      <AssemblyVersion>$(WmsAssemblyVersion)</AssemblyVersion>
+    </PropertyGroup>
+  </Target>
+
   <ItemGroup>
     <!-- Include BannedSymbols.txt as AdditionalFiles for BannedApiAnalyzers -->
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />

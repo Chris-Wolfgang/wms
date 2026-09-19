@@ -368,6 +368,11 @@ dotnet_diagnostic.CA2007.severity = warning  # .NET Analyzer: Use ConfigureAwait
 dotnet_diagnostic.MA0004.severity = suggestion  # Meziantou: Use ConfigureAwait
 dotnet_diagnostic.S3216.severity = suggestion   # SonarAnalyzer: ConfigureAwait
 
+# E1.14: no hard-coded UI strings. CA1303 flags a literal passed to a parameter
+# marked [Localizable(true)]; the naming heuristic stays off so exception
+# messages are not caught. Razor markup is checked by the E82 Web stories.
+dotnet_diagnostic.CA1303.severity = warning  # .NET Analyzer: Do not pass literals as localized parameters
+
 # Test projects - relaxed naming, no doc requirements
 [tests/**/*.cs]
 # Allow Test_Method_Names_With_Underscores

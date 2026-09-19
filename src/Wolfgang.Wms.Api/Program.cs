@@ -1,6 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using System.Text.Json;
+using Wolfgang.Wms.Core.Api;
 using Wolfgang.Wms.Core.Localization;
 using Wolfgang.Wms.Core.Modules;
 
@@ -16,6 +17,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 builder.Services.AddWmsLocalization();
 
+// E82.2: one API, path-versioned (/api/v0/...), one OpenAPI document per version (/openapi/v0.json).
+builder.Services.AddWmsApiVersioning();
+
 // Modules register here explicitly (ADR 0001): services.AddPickingModule() etc. No assembly scanning.
 builder.Services.AddWmsModules();
 
@@ -24,7 +28,10 @@ var app = builder.Build();
 app.UseWmsRequestLocalization();
 
 app.MapGet("/", () => "Wolfgang.Wms API");
-app.MapWmsModules();
+
+// Every module endpoint lives under the versioned root; nothing is mapped on `app` directly (E82.1).
+var api = app.MapWmsApi();
+api.MapWmsModules();
 
 app.Run();
 

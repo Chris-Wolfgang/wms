@@ -1,0 +1,9 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Wolfgang.Wms API",
+    "description": "Unstable contract for product 0.x: breaking changes ship in place, each with a \u0060breaking\u0060 changelog fragment.",
+    "version": "0"
+  },
+  "paths": {}
+}

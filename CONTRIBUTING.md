@@ -1,6 +1,6 @@
-# Contributing to {{PROJECT_NAME}}
+# Contributing to Wolfgang.Wms
 
-Thank you for your interest in contributing to **{{PROJECT_NAME}}**! We welcome contributions to help improve this project.
+Thank you for your interest in contributing to **Wolfgang.Wms**! We welcome contributions to help improve this project.
 
 ## How Can You Contribute?
 

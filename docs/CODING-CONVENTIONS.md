@@ -56,11 +56,27 @@ server applies. To keep that true:
   IL scan rejects calls into `System.IO`, `System.Net`, `System.Data`, `System.Diagnostics.Process`, and
   `System.Threading.Tasks` from any Domain method.
 
+## Async rules (E1.7)
+
+A blocked server thread is a picker waiting at a bin, so:
+
+| Rule | Enforced by |
+|------|-------------|
+| I/O methods are async and return `Task<T>` / `ValueTask<T>` | review; `VSTHRD200` names them `…Async` |
+| No sync-over-async: no `.Result`, `.Wait()`, `.GetAwaiter().GetResult()` | `BannedSymbols.txt` (build error) |
+| No `async void`, no blocking waits inside async code | `VSTHRD100`/`VSTHRD101`, `VSTHRD002` |
+| No `out` parameters on async methods | C# compiler (CS1988) |
+| Expected failures return `Result<T>` instead of throwing | `Wolfgang.TryPattern`; review |
+| Pure Domain rules stay synchronous | `DomainPurityTests` (no `Task`/`ValueTask` members in Domain) |
+| Return the task directly when nothing follows the `await` | `AsyncFixer01` (off in test projects, where `await` is needed for `Assert.ThrowsAsync`) |
+| `ValueTask` on hot paths (scan, deposit, task-list) | review; `CA2012` guards misuse |
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value
 equality. EF entities and sqlite-net table models are classes because their frameworks need mutation and
-parameterless constructors.
+parameterless constructors. Mutable DTOs are rejected at review; a `record` with `init`-only members is the
+default shape for anything that crosses the API or the journal.
 
 ## Dependencies (E1.8)
 

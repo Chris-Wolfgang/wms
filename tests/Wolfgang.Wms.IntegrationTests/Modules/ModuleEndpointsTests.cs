@@ -12,7 +12,8 @@ namespace Wolfgang.Wms.IntegrationTests.Modules;
 
 /// <summary>
 /// E1.10: a module registered through <c>AddWmsModule</c> has its endpoints mapped by the host's
-/// <c>MapWmsModules()</c>; nothing is discovered by scanning.
+/// <c>MapWmsModules()</c>; nothing is discovered by scanning. Modules map relative paths; the host places them
+/// under the versioned API root (E82.2), so <c>/sample/ping</c> is served at <c>/api/v0/sample/ping</c>.
 /// </summary>
 public sealed class ModuleEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -35,11 +36,11 @@ public sealed class ModuleEndpointsTests : IClassFixture<WebApplicationFactory<P
             (
                 ModuleDescriptor
                     .Create("SampleModule")
-                    .WithEndpoints(app => app.MapGet("/api/sample/ping", () => "pong"))
+                    .WithEndpoints(app => app.MapGet("/sample/ping", () => "pong"))
             )));
         using var client = host.CreateClient();
 
-        using var response = await client.GetAsync(new Uri("/api/sample/ping", UriKind.Relative));
+        using var response = await client.GetAsync(new Uri("/api/v0/sample/ping", UriKind.Relative));
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -53,7 +54,7 @@ public sealed class ModuleEndpointsTests : IClassFixture<WebApplicationFactory<P
     {
         using var client = _factory.CreateClient();
 
-        using var response = await client.GetAsync(new Uri("/api/sample/ping", UriKind.Relative));
+        using var response = await client.GetAsync(new Uri("/api/v0/sample/ping", UriKind.Relative));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

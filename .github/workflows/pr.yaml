@@ -417,6 +417,115 @@ jobs:
           pwsh ./scripts/changelog.ps1 check -BaseRef $env:BASE_SHA -Labels $env:PR_LABELS
 
   # ============================================================================
+  # OPENAPI DIFF (E82.2): compare each committed docs/api/openapi-v<n>.json with
+  # the base branch's copy. A breaking change fails the job for every version
+  # listed in docs/api/frozen.txt (none before product 1.0); for the others the
+  # diff is only reported. The changelog is posted as ONE PR comment per
+  # document, updated on every push. Only JSON is read from the PR head - no PR
+  # code runs - so this is safe under pull_request_target. Add the document
+  # name to the matrix when a new version is served.
+  # ============================================================================
+  openapi-diff:
+    name: "OpenAPI Diff"
+    runs-on: ubuntu-latest
+    needs: detect-projects
+    if: github.repository != 'Chris-Wolfgang/repo-template' && needs.detect-projects.outputs.has-projects == 'true'
+    permissions:
+      contents: read
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        document: [v0]
+    env:
+      DOCUMENT: ${{ matrix.document }}
+    steps:
+      - name: Checkout PR head (docs/api only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          persist-credentials: false
+          path: pr
+          sparse-checkout: docs/api
+          sparse-checkout-cone-mode: false
+
+      - name: Checkout base (docs/api only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          path: base
+          sparse-checkout: docs/api
+          sparse-checkout-cone-mode: false
+
+      - name: Classify the document
+        id: classify
+        shell: bash
+        run: |
+          revision="pr/docs/api/openapi-$DOCUMENT.json"
+          base="base/docs/api/openapi-$DOCUMENT.json"
+          state=unchanged
+          if [ ! -f "$revision" ]; then state=absent
+          elif [ ! -f "$base" ]; then state=new
+          elif ! cmp -s "$base" "$revision"; then state=changed
+          fi
+          frozen=false
+          if [ -f pr/docs/api/frozen.txt ] && grep -Eq "^\s*$DOCUMENT\s*$" pr/docs/api/frozen.txt; then frozen=true; fi
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          echo "frozen=$frozen" >> "$GITHUB_OUTPUT"
+          echo "$DOCUMENT: $state (frozen: $frozen)"
+
+      - name: Breaking changes (fails only for a frozen version)
+        id: breaking
+        if: steps.classify.outputs.state == 'changed'
+        uses: oasdiff/oasdiff-action/breaking@5e81b5c380accc6b523f9d32a637ca630e33620b  # v0.1.17
+        with:
+          base: base/docs/api/openapi-${{ matrix.document }}.json
+          revision: pr/docs/api/openapi-${{ matrix.document }}.json
+          fail-on: ${{ steps.classify.outputs.frozen == 'true' && 'ERR' || '' }}
+          review: false
+
+      - name: Changelog
+        if: steps.classify.outputs.state == 'changed'
+        uses: oasdiff/oasdiff-action/changelog@5e81b5c380accc6b523f9d32a637ca630e33620b  # v0.1.17
+        with:
+          base: base/docs/api/openapi-${{ matrix.document }}.json
+          revision: pr/docs/api/openapi-${{ matrix.document }}.json
+          output-to-file: changelog.md
+
+      - name: Post or update the PR comment
+        if: always() && steps.classify.outputs.state != 'unchanged' && steps.classify.outputs.state != 'absent'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          STATE: ${{ steps.classify.outputs.state }}
+          FROZEN: ${{ steps.classify.outputs.frozen }}
+          BREAKING_OUTCOME: ${{ steps.breaking.outcome }}
+        run: |
+          marker="<!-- openapi-diff: $DOCUMENT -->"
+          {
+            echo "$marker"
+            echo "### OpenAPI \`$DOCUMENT\` — $STATE$( [ "$FROZEN" = true ] && echo ' (frozen: breaking changes fail this PR)' || echo ' (unstable: breaking changes allowed with a `breaking` fragment)' )"
+            echo
+            if [ "$STATE" = new ]; then
+              echo "New document; nothing to compare against on the base branch."
+            elif [ -s changelog.md ]; then
+              cat changelog.md
+            else
+              echo "No API-level changes (formatting or description only)."
+            fi
+            echo
+            echo "🤖 Generated with [Claude Code](https://claude.com/claude-code) — \`openapi-diff\` job"
+          } > comment.md
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | contains(\"$marker\")) | .id" | head -n 1)
+          if [ -n "$existing" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -F body=@comment.md > /dev/null
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -F body=@comment.md > /dev/null
+          fi
+
+  # ============================================================================
   # INSPECTCODE: JetBrains ReSharper InspectCode parallel to the test stages.
   # Runs concurrently with Stage 1 / 2 / 3 (no `needs:` on a test job) so it
   # doesn't extend wall-clock — typically 3–5 min vs the slowest stage.

@@ -177,7 +177,8 @@ if (-not $SkipTests -and $failed.Count -eq 0) {
                 }
                 $testOutput = Get-Content $testLog -Raw
                 Remove-Item $testLog -Force -ErrorAction SilentlyContinue
-                if ($testOutput -match 'No test is available' -or $testOutput -notmatch '(?i)total:\s*[1-9][0-9]*') {
+                # verbosity=normal prints "Total tests: N"; minimal (pr.yaml) prints "Total: N" — accept both.
+                if ($testOutput -match 'No test is available' -or $testOutput -notmatch '(?i)total(?: tests)?:\s*[1-9][0-9]*') {
                     Write-Fail "  Zero tests ran for $fw — the test adapter found nothing to execute (missing/incompatible xunit.runner.visualstudio for this TFM?)"
                     $failed += "Tests (${fw}: zero ran)"
                     break

@@ -79,6 +79,7 @@ public sealed class ProjectLayoutTests
 
 
     [Theory]
+    [InlineData("src/Wolfgang.Wms.Android/Wolfgang.Wms.Android.csproj")]
     [InlineData("src/Wolfgang.Wms.Api/Wolfgang.Wms.Api.csproj")]
     [InlineData("src/Wolfgang.Wms.Worker/Wolfgang.Wms.Worker.csproj")]
     [InlineData("src/Wolfgang.Wms.Simulator/Wolfgang.Wms.Simulator.csproj")]

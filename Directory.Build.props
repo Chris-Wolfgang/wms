@@ -41,6 +41,13 @@
          not match. -->
     <_RelativeProjectDir>$([MSBuild]::EnsureTrailingSlash($([MSBuild]::MakeRelative($(MSBuildThisFileDirectory), $(MSBuildProjectDirectory)))).Replace('\', '/'))</_RelativeProjectDir>
     <GenerateDocumentationFile Condition="'$(GenerateDocumentationFile)' == '' and $(_RelativeProjectDir.StartsWith('src/'))">true</GenerateDocumentationFile>
+
+    <!-- E1.9: AOT and trim analyzers on every non-UI product project so reflection use fails the build.
+         Excluded: the Blazor Server console (.Web), the MAUI handheld (.Android), tests and benchmarks.
+         Infrastructure (EF Core) keeps the analyzers but is rooted (not trimmed) at publish time. -->
+    <_WmsAnalyzeAot Condition="$(_RelativeProjectDir.StartsWith('src/')) and !$(MSBuildProjectName.EndsWith('.Web')) and !$(MSBuildProjectName.EndsWith('.Android'))">true</_WmsAnalyzeAot>
+    <IsAotCompatible Condition="'$(IsAotCompatible)' == '' and '$(_WmsAnalyzeAot)' == 'true'">true</IsAotCompatible>
+    <IsTrimmable Condition="'$(IsTrimmable)' == '' and '$(_WmsAnalyzeAot)' == 'true'">true</IsTrimmable>
   </PropertyGroup>
 
   <ItemGroup>

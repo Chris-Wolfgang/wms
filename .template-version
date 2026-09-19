@@ -1,0 +1,22 @@
+{
+  "template": "Chris-Wolfgang/repo-template",
+  "commit": "c8704e51e05713f45ac86c47908f1f8bc686d0cb",
+  "updated": "2026-09-19",
+  "placeholders": {
+    "COPYRIGHT_HOLDER": "Chris Wolfgang",
+    "DOCS_URL": "https://Chris-Wolfgang.github.io/wms/",
+    "GITHUB_OWNER": "Chris-Wolfgang",
+    "GITHUB_REPO_URL": "https://github.com/Chris-Wolfgang/wms",
+    "GITHUB_USERNAME": "@Chris-Wolfgang",
+    "LICENSE_TYPE": "TBD",
+    "NUGET_STATUS": "Coming soon to NuGet.org",
+    "PACKAGE_NAME": "Wolfgang.Wms",
+    "PROJECT_DESCRIPTION": "Warehouse management system (Wolfgang.Wms): picking module",
+    "PROJECT_NAME": "Wolfgang.Wms",
+    "REPO_NAME": "wms",
+    "TEMPLATE_REPO_NAME": "repo-template",
+    "TEMPLATE_REPO_OWNER": "Chris-Wolfgang",
+    "YEAR": "2026"
+  },
+  "note": "Written by scripts/setup.ps1 and scripts/upgrade.ps1; the template commit this repository last took template-managed files from, and the placeholder values setup used."
+}

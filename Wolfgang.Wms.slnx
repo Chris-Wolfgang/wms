@@ -1,0 +1,94 @@
+<Solution>
+  <Folder Name="/.root/">
+    <File Path="BannedSymbols.txt" />
+    <File Path="CHANGELOG.md" />
+    <File Path="CODE_OF_CONDUCT.md" />
+    <File Path="CONTRIBUTING.md" />
+    <File Path="coverlet.runsettings" />
+    <File Path="Directory.Build.props" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+    <File Path="REPO-INSTRUCTIONS.md" />
+    <File Path="SECURITY.md" />
+    <File Path="TEMPLATE-PLACEHOLDERS.md" />
+  </Folder>
+  <Folder Name="/.root/.githooks/">
+    <File Path=".githooks/pre-commit" />
+  </Folder>
+  <Folder Name="/.root/.github/">
+    <File Path=".github/CODEOWNERS" />
+    <File Path=".github/copilot-instructions.md" />
+    <File Path=".github/dependabot.yml" />
+    <File Path=".github/pull_request_template.md" />
+  </Folder>
+  <Folder Name="/.root/.github/ISSUE_TEMPLATE/">
+    <File Path=".github/ISSUE_TEMPLATE/BUG_REPORT.yaml" />
+    <File Path=".github/ISSUE_TEMPLATE/feature_request.yaml" />
+    <File Path=".github/ISSUE_TEMPLATE/maintenance-task.yaml" />
+  </Folder>
+  <Folder Name="/.root/.github/license-audit/">
+    <File Path=".github/license-audit/allowed-licenses.json" />
+    <File Path=".github/license-audit/ignored-packages.json" />
+    <File Path=".github/license-audit/package-overrides.json" />
+    <File Path=".github/license-audit/url-license-mappings.json" />
+  </Folder>
+  <Folder Name="/.root/.github/requirements/">
+    <File Path=".github/requirements/semgrep.in" />
+    <File Path=".github/requirements/semgrep.txt" />
+    <File Path=".github/requirements/zizmor.in" />
+    <File Path=".github/requirements/zizmor.txt" />
+  </Folder>
+  <Folder Name="/.root/.github/workflows/">
+    <File Path=".github/workflows/actions-audit.yaml" />
+    <File Path=".github/workflows/benchmarks.yaml" />
+    <File Path=".github/workflows/build-all-versions.yaml" />
+    <File Path=".github/workflows/codeql.yaml" />
+    <File Path=".github/workflows/docfx.yaml" />
+    <File Path=".github/workflows/license-audit.yaml" />
+    <File Path=".github/workflows/pr.yaml" />
+    <File Path=".github/workflows/release.yaml" />
+    <File Path=".github/workflows/sbom.yaml" />
+    <File Path=".github/workflows/scorecard.yaml" />
+    <File Path=".github/workflows/security-alerts.yml" />
+    <File Path=".github/workflows/semgrep.yaml" />
+    <File Path=".github/workflows/sourcelink.yaml" />
+    <File Path=".github/workflows/stryker.yaml" />
+  </Folder>
+  <Folder Name="/.root/changelog/unreleased/">
+    <File Path="changelog/unreleased/README.md" />
+  </Folder>
+  <Folder Name="/.root/docs/">
+    <File Path="docs/DOCFX-VERSION-PICKER.md" />
+    <File Path="docs/README-FORMATTING.md" />
+    <File Path="docs/RELEASE-WORKFLOW-SETUP.md" />
+    <File Path="docs/repository-baseline.md" />
+    <File Path="docs/STACKED-PRS.md" />
+    <File Path="docs/WORKFLOW_SECURITY.md" />
+  </Folder>
+  <Folder Name="/.root/scripts/">
+    <File Path="scripts/audit-repos.ps1" />
+    <File Path="scripts/build-pr.ps1" />
+    <File Path="scripts/changelog.ps1" />
+    <File Path="scripts/Fix-BranchRuleset.ps1" />
+    <File Path="scripts/format.ps1" />
+    <File Path="scripts/pin-actions.ps1" />
+    <File Path="scripts/restack.ps1" />
+    <File Path="scripts/security-alerts.ps1" />
+    <File Path="scripts/Setup-BranchRuleset.ps1" />
+    <File Path="scripts/Setup-GitHubPages.ps1" />
+    <File Path="scripts/Setup-Labels.ps1" />
+    <File Path="scripts/Setup-Maintenance.ps1" />
+    <File Path="scripts/setup.ps1" />
+    <File Path="scripts/tfm-parity.ps1" />
+    <File Path="scripts/upgrade.ps1" />
+    <File Path="scripts/Validate-DocsDeploy.ps1" />
+  </Folder>
+  <Folder Name="/.root/scripts/templates/">
+    <File Path="scripts/templates/maintenance-parent-body.md" />
+  </Folder>
+  <Folder Name="/benchmarks/" />
+  <Folder Name="/examples/" />
+  <Folder Name="/src/" />
+  <Folder Name="/tests/" />
+</Solution>
+

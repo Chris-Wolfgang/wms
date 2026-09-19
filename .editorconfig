@@ -332,8 +332,8 @@ dotnet_diagnostic.SA1638.severity = none
 dotnet_diagnostic.SA1639.severity = none
 dotnet_diagnostic.SA1640.severity = none
 dotnet_diagnostic.SA1641.severity = none
-file_header_template = unset
-
+file_header_template = Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
+dotnet_diagnostic.IDE0073.severity = warning
 # Disable overly strict formatting rules globally
 dotnet_diagnostic.SA1505.severity = none
 dotnet_diagnostic.SA1508.severity = none

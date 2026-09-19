@@ -1,0 +1,4 @@
+# OpenAPI versions whose contract is frozen (E82.2): one document name per line (v1, v2...).
+# CI (openapi-diff in pr.yaml) fails a PR that breaks any version listed here and only reports
+# the diff for the others. WmsApi.Frozen (Wolfgang.Wms.Core.Api) is the code-side list; the
+# FrozenVersionsFileTests keep the two identical. Empty until product 1.0 freezes v1.

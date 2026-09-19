@@ -11,7 +11,9 @@
 *.sln.docstates
 *.env
 # Claude Code
-.claude/
+# Local Claude Code state stays out; the repo-versioned skill checklists (E85.6) are tracked.
+.claude/*
+!.claude/skills/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

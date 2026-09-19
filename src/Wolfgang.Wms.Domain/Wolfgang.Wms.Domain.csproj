@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Wolfgang.TryPattern" Version="0.4.1" />
+  </ItemGroup>
+
 </Project>

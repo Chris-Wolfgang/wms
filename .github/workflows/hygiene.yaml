@@ -1,0 +1,82 @@
+# Repository hygiene (E85.11, E85.12)
+#
+# Weekly: changelog fragments older than 30 days, skipped tests without an open tracking issue, feature
+# flags past their removal release (scripts/hygiene.ps1). Findings fail the run and become ONE issue keyed
+# by workflow + signature (scripts/report-failure.ps1), closed by the next green run; the same run upserts
+# the weekly summary of automated issues open longer than 7 days. Issue-only: no notification channel.
+
+name: Hygiene
+
+on:
+  schedule:
+    - cron: '11 4 * * 1'   # Mondays 04:11 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the issue actions without creating, commenting or closing anything'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  hygiene:
+    name: "Hygiene checks"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout default branch (full history for fragment ages and release tags)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run hygiene checks
+        id: checks
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pwsh ./scripts/hygiene.ps1 -Repository $env:GITHUB_REPOSITORY -OutFile hygiene.md
+
+      - name: Open or update the hygiene issue
+        if: failure() && steps.checks.outcome == 'failure'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '' }}
+        run: |
+          $flags = @()
+          if ($env:DRY_RUN) { $flags += '-DryRun' }
+          pwsh ./scripts/report-failure.ps1 -Repository $env:GITHUB_REPOSITORY -Workflow hygiene -Outcome failed `
+            -Signature findings -Title 'Hygiene findings' -BodyPath hygiene.md -Labels process `
+            -SuggestedFix 'Release (or delete) stale fragments; un-skip tests or reopen their issues; delete flags past their removal release. Each is an ordinary PR.' @flags
+
+      - name: Close the hygiene issue after a clean run
+        if: success()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '' }}
+        run: |
+          $flags = @()
+          if ($env:DRY_RUN) { $flags += '-DryRun' }
+          pwsh ./scripts/report-failure.ps1 -Repository $env:GITHUB_REPOSITORY -Workflow hygiene -Outcome succeeded @flags
+
+      - name: Weekly summary of automated issues open longer than 7 days
+        if: always()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '' }}
+        run: |
+          $flags = @()
+          if ($env:DRY_RUN) { $flags += '-DryRun' }
+          pwsh ./scripts/report-failure.ps1 -Repository $env:GITHUB_REPOSITORY -Summary -OlderThanDays 7 @flags

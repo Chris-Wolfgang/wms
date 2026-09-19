@@ -41,6 +41,21 @@ A suppression is a decision, and the decision has to be readable next to the cod
   `Wolfgang.Wms.Domain` knows neither DTOs nor entities and defines none of these. The direction is enforced by
   `ConversionMethodPlacementTests`.
 
+## Domain rules (E1.4)
+
+`Wolfgang.Wms.Domain` is shared with the handheld, so a rule the device applies is byte-for-byte the rule the
+server applies. To keep that true:
+
+- Rules are **pure functions**: static methods under `Wolfgang.Wms.Domain.Rules` that take values and return
+  values, with no I/O, no clock, no randomness, no static mutable state. Anything a rule needs (the current
+  time, a setting) is passed in.
+- Expected failures return `Result<T>` / `Result` from `Wolfgang.TryPattern` (E1.7); exceptions are for bugs.
+- Rules stay **synchronous**. Domain has no `Task`/`ValueTask`-returning members.
+- **One test class per rule** in `Wolfgang.Wms.UnitTests`, covering each rule independently.
+- Purity is enforced by `DomainPurityTests`: Domain may reference only an allow-listed set of assemblies, and an
+  IL scan rejects calls into `System.IO`, `System.Net`, `System.Data`, `System.Diagnostics.Process`, and
+  `System.Threading.Tasks` from any Domain method.
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value

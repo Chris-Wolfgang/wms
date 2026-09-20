@@ -58,5 +58,5 @@ public static class AuthSettings
     /// <summary>
     /// Every key, for the module descriptor.
     /// </summary>
-    public static IReadOnlyList<SettingKey> All { get; } = [LockoutThreshold, LockoutDuration, SessionLifetime, IdleTimeout];
+    public static IReadOnlyList<SettingKey> All { get; } = [LockoutThreshold, LockoutDuration, SessionLifetime, IdleTimeout, Http.WmsCors.AllowedOrigins];
 }

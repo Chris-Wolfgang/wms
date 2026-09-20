@@ -11,6 +11,8 @@ using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Json;
 using Wolfgang.Wms.Core.Localization;
+using Wolfgang.Wms.Core.Logging;
+using Wolfgang.Wms.Logging;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
@@ -18,6 +20,9 @@ using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Secrets;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// E12.2: Serilog from Wms:Logging (stdout JSON, file, Event Log, OpenTelemetry); redacted; level switch.
+builder.UseWmsSerilog();
 
 // E1.14: source-generated DataAnnotations validation for minimal-API parameters (AOT-safe), camelCase JSON,
 // resource-file localization with the culture resolved per request.
@@ -43,6 +48,7 @@ builder.Services.AddWmsCompression();
 builder.Services.AddWmsForwardedHeaders(builder.Configuration);
 builder.Services.AddWmsCors();
 builder.Services.AddWmsHealth();   // E12.1: /health/live and /health/ready; the database adds its readiness check
+builder.Services.AddWmsLoggingModule();   // E12.4: GET/POST/DELETE /system/logging(/elevate); the level follows the settings
 
 // E82.7: device groups call .RequireDeviceVersion(); the minimum comes from settings once E12 lands.
 builder.Services.AddWmsDeviceVersioning();
@@ -74,6 +80,7 @@ app.UseWmsCors();
 app.UseWmsCompression();
 app.UseWmsRequestLocalization();
 app.UseWmsAuth();   // E9: rate limiter, authentication, authorization, must-change-password gate
+app.UseWmsCorrelation();   // E12.3: trace id, user, device and route identifiers on every log line of the request
 
 app.MapGet("/", () => "Wolfgang.Wms API").AllowAnonymous();   // the product name, nothing else
 app.MapWmsHealth();   // E12.1: outside the versioned root, anonymous, plain HTTP allowed

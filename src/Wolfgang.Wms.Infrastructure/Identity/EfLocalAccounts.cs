@@ -3,6 +3,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Domain.Settings;
@@ -205,7 +206,9 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
 
     private static LocalUser View(User user)
     {
-        return new LocalUser(user.Id, user.UserName, user.DisplayName, user.MustChangePassword, user.IsLocalAdmin, user.IsDisabled);
+        // E10.1: the local administrator holds every permission everywhere; other users' grants come from their roles (E10.2).
+        IReadOnlyList<string> grants = user.IsLocalAdmin ? [PermissionClaims.OrganizationGrant(PermissionClaims.Wildcard)] : [];
+        return new LocalUser(user.Id, user.UserName, user.DisplayName, user.MustChangePassword, user.IsLocalAdmin, user.IsDisabled, grants);
     }
 
 

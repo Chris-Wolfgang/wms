@@ -140,7 +140,7 @@
         "tags": [
           "wms"
         ],
-        "summary": "Configures a setting at a scope (null value resets); If-Match required when a row exists.",
+        "summary": "Configures a setting at a scope: a value, or a cascade mode (per_site, per_zone, per_sku); both null resets. If-Match required when a row exists.",
         "operationId": "SetSetting",
         "parameters": [
           {
@@ -283,10 +283,17 @@
               "null",
               "string"
             ],
-            "description": "The stored text, or null to reset."
+            "description": "The stored text, or null."
+          },
+          "mode": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The cascade mode\u0027s stored name, or null to keep or set a value."
           }
         },
-        "description": "Body of \u0060PUT /settings/{scope}/{id}/{key}\u0060 (E6.3): the value as stored text. Null resets the scope\r\nto inherit (the same as \u0060DELETE\u0060)."
+        "description": "Body of \u0060PUT /settings/{scope}/{id}/{key}\u0060 (E6.3, E7.2): a value as stored text, or a cascade mode\r\n(\u0060per_site\u0060, \u0060per_zone\u0060, \u0060per_sku\u0060) that delegates the decision downward. Both null resets\r\nthe scope to inherit (the same as \u0060DELETE\u0060); mode \u0060value\u0060 alone does the same."
       },
       "SettingDescriptor": {
         "required": [
@@ -367,6 +374,8 @@
           "configuredValue",
           "effectiveValue",
           "inheritedFrom",
+          "cascadeMode",
+          "allowedModes",
           "rowVersion",
           "updatedBy",
           "updatedAt"
@@ -402,6 +411,17 @@
               "string"
             ],
             "description": "The scope the effective value comes from (\u0060organization\u0060), \u0060default\u0060 for the key\u0027s default, or null when configured here."
+          },
+          "cascadeMode": {
+            "type": "string",
+            "description": "How this scope takes part in the cascade: \u0060value\u0060, or \u0060per_site\u0060/\u0060per_zone\u0060/\u0060per_sku\u0060 when it delegates (E7.2)."
+          },
+          "allowedModes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The modes this key allows at this scope."
           },
           "rowVersion": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",

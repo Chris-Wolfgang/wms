@@ -14,6 +14,7 @@ environment variable with `__` for `:` (`Wms__Database__Provider`). Environment 
 | `Wms:DataProtection:KeyRingPath` | E8.1, below |
 | `Wms:Bootstrap:AdminUserName` | E9.1, docs/AUTH.md: the bootstrap administrator's name (default `admin`); read once |
 | `Urls`, `Kestrel:*`, `AllowedHosts` | ASP.NET Core hosting |
+| `Wms:Hosting:BehindProxy` | E10.6, below |
 | `Logging:*` | log levels; runtime control arrives with E12.4 |
 
 Any other key in an `appsettings*.json` file is ignored, and the host logs one warning at startup naming each
@@ -78,3 +79,12 @@ include them.
 The default implementation is Data Protection over the configured ring; a customer whose security team owns
 credentials registers their own implementation before `AddWmsDataProtection` and the product uses it for the
 connection string, secret settings (E8.3) and everything after. Implementations never log plain text.
+
+## Reverse proxies (E10.6)
+
+| Key | Values | Notes |
+|-----|--------|-------|
+| `Wms:Hosting:BehindProxy` | `true` / `false` (default) | Set to `true` when Caddy, IIS or an ingress terminates TLS in front of the API and the console. The hosts then take the scheme, host and client address from `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-For`, so session cookies are marked secure, HTTPS checks pass and rate limits see real addresses. The proxy must be the only way in and must strip those headers from clients. Left `false`, the headers are ignored. |
+
+Browser apps on other origins are allowed by the `api.cors.allowed_origins` setting (comma-separated
+origins, no path), applied on the next request; nothing is allowed until an origin is listed.

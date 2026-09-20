@@ -51,6 +51,7 @@ public static class SchemaModule
     {
         app.MapGet(Route, async (ISchemaVersionSource source, CancellationToken cancellationToken) =>
                 TypedResults.Ok(await source.GetAsync(cancellationToken).ConfigureAwait(false)))
+            .AllowAnonymous()   // E82.5: an installer probes this before any account exists
             .WithName("GetSchemaStatus")
             .WithSummary("Current and expected database schema version (read-only).");
     }

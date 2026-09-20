@@ -9,6 +9,7 @@ using System;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Logout;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Me;
+using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Permissions;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth
 {
     /// <summary>
@@ -31,6 +32,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Me.MeRequestBuilder Me
         {
             get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Me.MeRequestBuilder(PathParameters, RequestAdapter);
+        }
+        /// <summary>The permissions property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Permissions.PermissionsRequestBuilder Permissions
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Permissions.PermissionsRequestBuilder(PathParameters, RequestAdapter);
         }
         /// <summary>
         /// Instantiates a new <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.AuthRequestBuilder"/> and sets the default values.

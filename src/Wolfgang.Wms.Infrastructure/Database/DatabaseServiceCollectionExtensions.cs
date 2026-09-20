@@ -14,6 +14,7 @@ using Wolfgang.Wms.Infrastructure.Database.Settings;
 using Wolfgang.Wms.Core.Secrets;
 using Wolfgang.Wms.Infrastructure.Secrets;
 using Microsoft.AspNetCore.Identity;
+using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Infrastructure.Identity;
 
@@ -94,6 +95,7 @@ public static class DatabaseServiceCollectionExtensions
         services.AddWmsModules();
         services.TryAddSingleton(provider => new SettingRegistry(provider.GetRequiredService<ModuleCollection>()));   // hosts without the settings module (the worker) still get the accessor
         services.TryAddSingleton<ISettingScopeHierarchy, OrganizationOnlyScopeHierarchy>();
+        services.TryAddSingleton(provider => new PermissionCatalog(provider.GetRequiredService<ModuleCollection>()));   // the roles store's catalog, for hosts without the auth module
         services.TryAddSingleton<IRowVersionSource, MaxRowVersionSource>();   // E1.12: the caches' one invalidation signal
         services.TryAddSingleton<SettingsCache>();
         services.RemoveAll<ISettings>();
@@ -104,6 +106,9 @@ public static class DatabaseServiceCollectionExtensions
         services.RemoveAll<ILocalAccounts>();
         services.AddScoped<ILocalAccounts, EfLocalAccounts>();   // E9: the stored accounts replace the placeholder
         services.AddHostedService<BootstrapAdminCheck>();   // E9.1: after the schema check, the administrator exists
+        services.RemoveAll<IRoles>();
+        services.AddScoped<IRoles, EfRoles>();   // E10.2: the stored roles replace the placeholder
+        services.AddHostedService<BuiltInRolesCheck>();   // E10.2: built-in roles follow the catalog; local administrators hold Administrator
         return services;
     }
 

@@ -6,10 +6,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System;
+using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Assignments;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Logout;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Me;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Permissions;
+using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Roles;
+using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Users;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth
 {
     /// <summary>
@@ -18,6 +21,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class AuthRequestBuilder : BaseRequestBuilder
     {
+        /// <summary>The assignments property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Assignments.AssignmentsRequestBuilder Assignments
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Assignments.AssignmentsRequestBuilder(PathParameters, RequestAdapter);
+        }
         /// <summary>The local property</summary>
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local.LocalRequestBuilder Local
         {
@@ -37,6 +45,16 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Permissions.PermissionsRequestBuilder Permissions
         {
             get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Permissions.PermissionsRequestBuilder(PathParameters, RequestAdapter);
+        }
+        /// <summary>The roles property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Roles.RolesRequestBuilder Roles
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Roles.RolesRequestBuilder(PathParameters, RequestAdapter);
+        }
+        /// <summary>The users property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Users.UsersRequestBuilder Users
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Users.UsersRequestBuilder(PathParameters, RequestAdapter);
         }
         /// <summary>
         /// Instantiates a new <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.AuthRequestBuilder"/> and sets the default values.

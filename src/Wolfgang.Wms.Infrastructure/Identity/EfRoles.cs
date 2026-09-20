@@ -118,7 +118,14 @@ public sealed class EfRoles : IRoles
 
         var role = await RequireRoleAsync(roleId, track: true, cancellationToken).ConfigureAwait(false);
         RequireEditable(role);
-        _context.Set<UserRole>().RemoveRange(await _context.Set<UserRole>().Where(a => a.RoleId == roleId).ToListAsync(cancellationToken).ConfigureAwait(false));
+        var assignments = await _context.Set<UserRole>().Where(a => a.RoleId == roleId).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var now = _timeProvider.GetUtcNow();
+        foreach (var userId in assignments.Select(a => a.UserId).Distinct())
+        {
+            await RevokeSessionsAsync(userId, now, cancellationToken).ConfigureAwait(false);
+        }
+
+        _context.Set<UserRole>().RemoveRange(assignments);
         _context.Set<RolePermission>().RemoveRange(role.Permissions);
         _context.Set<Role>().Remove(role);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -158,6 +165,7 @@ public sealed class EfRoles : IRoles
         assignment.ExpiresAt = expiresAt;
         assignment.UpdatedAt = now;
         assignment.UpdatedBy = updatedBy;
+        await RevokeSessionsAsync(userId, now, cancellationToken).ConfigureAwait(false);   // E10.5: a role change takes effect immediately
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         assignment.Role = role;
         return View(assignment, now);
@@ -173,6 +181,7 @@ public sealed class EfRoles : IRoles
         var assignment = await _context.Set<UserRole>().SingleOrDefaultAsync(a => a.Id == assignmentId, cancellationToken).ConfigureAwait(false)
             ?? throw new AuthException(RoleErrorCodes.AssignmentNotFound, $"Assignment {assignmentId} does not exist.");
         _context.Set<UserRole>().Remove(assignment);
+        await RevokeSessionsAsync(assignment.UserId, _timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -226,6 +235,18 @@ public sealed class EfRoles : IRoles
         await EnsureLocalAdministratorsHoldTheRoleAsync(now, cancellationToken).ConfigureAwait(false);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return created;
+    }
+
+
+
+    private async Task RevokeSessionsAsync(long userId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var user = await _context.Users.SingleOrDefaultAsync(u => u.Id == userId, cancellationToken).ConfigureAwait(false);
+        if (user is not null)
+        {
+            user.SessionsValidAfter = now;
+            user.UpdatedAt = now;
+        }
     }
 
 

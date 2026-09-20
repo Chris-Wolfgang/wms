@@ -81,6 +81,40 @@ The unique index `ux_setting_scope_type_scope_id_key` serves the accessor's look
 scope and key. Nothing writes the table directly: the accessor (E6.3) validates against the registry, writes
 the row, recomputes descendants and audits the change.
 
+## Reading and writing (E6.3)
+
+`ISettings` (`Wolfgang.Wms.Core.Settings`) is the one way to read or change a setting; the console, the API
+and the CLI all go through it, and nothing writes `core.setting` directly.
+
+- `GetAsync(key, scope)` returns the effective value at a scope: its own configured value, else the nearest
+  ancestor's, else the key's default; `T` is inferred from the key. Reads are served from a per-instance
+  snapshot of `core.setting` (`SettingsCache`, ADR 0003) reloaded only when the table's highest
+  `row_version` moves, probed at most every 5 seconds, and dropped outright by this instance's own writes.
+- `SetAsync(key, scope, value, updatedBy)` checks the key is registered, the scope allowed and the value
+  accepted by the validator, stores the invariant text as `configured_value` and `effective_value`, walks
+  the hierarchy down rewriting the effective value of descendants that inherit (a descendant with its own
+  configured value keeps it and shields its subtree, E7.1/E7.2), saves it all in one transaction and
+  invalidates the cache. `ResetAsync` clears the configured value so the scope inherits again and cascades
+  the inherited value the same way. `SetTextAsync`/`FindAsync` are the same operations by name for the API.
+- Failures are `SettingException`s carrying an error code; the module's exception handler answers the
+  matching problem: `settings.unknown_key` (404), `settings.unknown_scope` (400), `settings.scope_not_allowed`
+  (400), `settings.invalid_value` (400), `settings.store_unavailable` (503, before a database is configured;
+  reads then answer defaults).
+- `ISettingScopeHierarchy` supplies parents and children. Until sites, zones and SKUs are entities, the
+  placeholder knows only that a site's parent is the organisation; E7.1 replaces it.
+- Secrets are masked in every `SettingValue`; encryption at rest arrives with E8.3.
+
+| Endpoint | Meaning |
+|----------|---------|
+| `GET /settings/registry` | Every registered setting (E6.1). |
+| `GET /settings/{scope}/{id}` | Every setting at a scope: `configuredValue`, `effectiveValue`, `inheritedFrom` (`organization`, `site:3`, `default` or null when configured here), `rowVersion`, `etag`, `updatedBy`, `updatedAt`. |
+| `GET /settings/{scope}/{id}/{key}` | One setting; the `ETag` header is the stored row's version. |
+| `PUT /settings/{scope}/{id}/{key}` | Body `{ "value": "text" }` (null resets). `If-Match` with the row's tag is required once a row exists (428/412, E5.2); the first write at a scope has no row. |
+| `DELETE /settings/{scope}/{id}/{key}` | Reset to inherit; same `If-Match` rule. |
+
+`{scope}` is `organization` (id 0), `site`, `zone` or `sku`. Writes record the caller as `updatedBy`
+(`anonymous` until E9).
+
 ## Scopes (E6.2, E7)
 
 A value lives at a `SettingScopeRef`: a scope type (`organization`, `site`, `zone`, `sku`) and the id of the

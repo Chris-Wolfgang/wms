@@ -3,6 +3,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Infrastructure\Wolfgang.Wms.Infrastructure.csproj" />
+    <!-- E2.4: both providers' migrations are loaded so the schema endpoint can report the expected version. -->
+    <ProjectReference Include="..\Wolfgang.Wms.Infrastructure.Migrations.SqlServer\Wolfgang.Wms.Infrastructure.Migrations.SqlServer.csproj" />
+    <ProjectReference Include="..\Wolfgang.Wms.Infrastructure.Migrations.PostgreSql\Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Core\Wolfgang.Wms.Core.csproj" />
   </ItemGroup>
 

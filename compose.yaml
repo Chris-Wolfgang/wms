@@ -1,0 +1,161 @@
+# E14.3: the compose stack — SQL Server Express, the API, the console, the worker, Caddy for HTTPS.
+# Configure through .env (copy .env.example) and run scripts/compose-setup.ps1 once: it generates the
+# passwords into docker/secrets/, provisions the database logins, encrypts the connection strings with the
+# shared key ring and runs the migrations. Passwords never sit in .env or in an environment variable.
+name: wms
+
+x-wms-common: &wms-common
+  restart: unless-stopped
+  environment:
+    Wms__Database__Provider: SqlServer
+    Wms__Database__ConnectionString: ${WMS_DB_CONNECTION:-}
+    Wms__DataProtection__KeyRingPath: /keys
+    Wms__Hosting__BehindProxy: "true"
+    Wms__Logging__Stdout: "true"
+    Wms__Logging__Level: ${WMS_LOG_LEVEL:-Information}
+  volumes:
+    - keys:/keys
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+    # The image reads MSSQL_SA_PASSWORD from the environment; this wrapper reads it from the secret file
+    # instead, so the password never appears in `docker inspect` or a compose file.
+    command: ["/bin/bash", "-c", "export MSSQL_SA_PASSWORD=$(cat /run/secrets/sa_password) && exec /opt/mssql/bin/sqlservr"]
+    secrets:
+      - sa_password
+    volumes:
+      - db-data:/var/opt/mssql
+      - backups:/var/opt/mssql/backup
+    healthcheck:
+      # Listening on 1433 is the check: sa is disabled once provisioned, so no login may be assumed here;
+      # db-init and the hosts retry their own connections.
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/localhost/1433' 2>/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # One-shot: the wms database, the migration and runtime logins (passwords from the secret files), then
+  # sa disabled. Idempotent: re-running keeps the logins and re-applies the grants.
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    depends_on:
+      db:
+        condition: service_healthy
+    secrets:
+      - sa_password
+      - migrate_password
+      - runtime_password
+    volumes:
+      - ./docker/db-init.sh:/db-init.sh:ro
+    entrypoint: ["/bin/bash", "/db-init.sh"]
+    restart: "no"
+
+  migrate:
+    build:
+      context: .
+      target: worker
+    image: wms-worker:latest
+    environment:
+      WMS_ROLE: migrate
+      Wms__Database__Provider: SqlServer
+      Wms__Database__ConnectionString: ${WMS_DB_MIGRATE_CONNECTION:-}
+      Wms__DataProtection__KeyRingPath: /keys
+      Wms__Logging__Stdout: "true"
+    volumes:
+      - keys:/keys
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  api:
+    <<: *wms-common
+    build:
+      context: .
+      target: api
+    image: wms-api:latest
+    volumes:
+      - keys:/keys
+      - filedrop:/filedrop
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+
+  worker:
+    <<: *wms-common
+    build:
+      context: .
+      target: worker
+    image: wms-worker:latest
+    environment:
+      WMS_ROLE: ${WMS_WORKER_ROLE:-worker}
+      Wms__Database__Provider: SqlServer
+      Wms__Database__ConnectionString: ${WMS_DB_CONNECTION:-}
+      Wms__DataProtection__KeyRingPath: /keys
+      Wms__Hosting__BehindProxy: "true"
+      Wms__Logging__Stdout: "true"
+      Wms__Logging__Level: ${WMS_LOG_LEVEL:-Information}
+    volumes:
+      - keys:/keys
+      - filedrop:/filedrop
+
+  web:
+    <<: *wms-common
+    build:
+      context: .
+      target: web
+    image: wms-web:latest
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+
+  # HTTPS with a hostname: Caddy issues a certificate (an internal one for localhost, ACME for a public
+  # name) and forwards /api and /health to the API, everything else to the console.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      WMS_HOSTNAME: ${WMS_HOSTNAME:-localhost}
+    ports:
+      - "${WMS_HTTP_PORT:-80}:80"
+      - "${WMS_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
+secrets:
+  sa_password:
+    file: ./docker/secrets/sa_password.txt
+  migrate_password:
+    file: ./docker/secrets/migrate_password.txt
+  runtime_password:
+    file: ./docker/secrets/runtime_password.txt
+
+volumes:
+  db-data:
+  backups:
+  keys:
+  filedrop:
+  caddy-data:
+  caddy-config:

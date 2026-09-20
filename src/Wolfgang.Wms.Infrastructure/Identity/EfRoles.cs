@@ -5,6 +5,7 @@ using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Domain.Keys;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Integrity;
 using Wolfgang.Wms.Infrastructure.Database.Auditing;
 
 namespace Wolfgang.Wms.Infrastructure.Identity;
@@ -19,6 +20,7 @@ public sealed class EfRoles : IRoles
     private readonly WmsDbContext _context;
     private readonly PermissionCatalog _catalog;
     private readonly TimeProvider _timeProvider;
+    private readonly IIntegritySigner _signer;
 
 
 
@@ -26,8 +28,9 @@ public sealed class EfRoles : IRoles
     /// Creates the roles.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public EfRoles(WmsDbContext context, PermissionCatalog catalog, TimeProvider timeProvider)
+    public EfRoles(WmsDbContext context, PermissionCatalog catalog, TimeProvider timeProvider, IIntegritySigner signer)
     {
+        _signer = signer ?? throw new ArgumentNullException(nameof(signer));
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
@@ -195,7 +198,18 @@ public sealed class EfRoles : IRoles
             .AsNoTracking()
             .Where(a => a.UserId == userId && (a.ExpiresAt == null || a.ExpiresAt > now))
             .ToListAsync(cancellationToken).ConfigureAwait(false);
-        return assignments
+        var honoured = new List<UserRole>(assignments.Count);
+        foreach (var assignment in assignments)
+        {
+            // E10.4: an assignment or a role changed outside the application grants nothing.
+            if (await _signer.IsValidAsync(assignment, "core.user_role", cancellationToken).ConfigureAwait(false)
+                && await _signer.IsValidAsync(assignment.Role!, "core.role", cancellationToken).ConfigureAwait(false))
+            {
+                honoured.Add(assignment);
+            }
+        }
+
+        return honoured
             .SelectMany(a => a.Role!.Permissions.Select(p => a.SiteId is { } site ? PermissionClaims.SiteGrant(p.PermissionName, site) : PermissionClaims.OrganizationGrant(p.PermissionName)))
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
@@ -232,6 +246,7 @@ public sealed class EfRoles : IRoles
             }
         }
 
+        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);   // roles first: an assignment is signed with its role's id (E10.4)
         await EnsureLocalAdministratorsHoldTheRoleAsync(now, cancellationToken).ConfigureAwait(false);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return created;

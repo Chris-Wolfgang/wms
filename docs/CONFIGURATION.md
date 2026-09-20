@@ -132,3 +132,9 @@ workers as you like; exactly one executes each job.
 EF Core retries transient faults (E6.4) and transactions are kept to one save. The console in Server
 render mode keeps a circuit per browser tab: behind a load balancer it needs sticky sessions (a few dozen
 supervisors is the expected load; the API is the tier that scales).
+
+## Licensing (E79)
+
+Nothing to configure at bootstrap: the free tier is compiled in, and a paid key is installed through the
+console (stored encrypted as the setting `license.keys`). The model, the keys, the soft limits and the expiry
+behaviour are in docs/LICENSING.md.

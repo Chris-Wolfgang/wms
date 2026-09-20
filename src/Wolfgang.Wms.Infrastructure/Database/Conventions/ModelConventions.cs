@@ -69,11 +69,16 @@ public static class ModelConventions
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
-        var sqlServer = string.Equals(providerName, "Microsoft.EntityFrameworkCore.SqlServer", StringComparison.Ordinal);
+        var sqlServer = string.Equals(providerName, RowVersioning.SqlServer, StringComparison.Ordinal);
+        modelBuilder.HasSequence<long>(RowVersioning.SequenceName, RowVersioning.Schema).StartsAt(1).IncrementsBy(1);
         foreach (var entity in modelBuilder.Model.GetEntityTypes().Where(e => !e.IsOwned()))
         {
             var table = SnakeCase.Of(entity.ClrType.Name);
             entity.SetTableName(table);
+            if (typeof(IVersionedEntity).IsAssignableFrom(entity.ClrType))
+            {
+                ConfigureRowVersion(entity, providerName);
+            }
 
             foreach (var property in entity.GetProperties())
             {
@@ -130,6 +135,7 @@ public static class ModelConventions
             }
 
             VerifyKey(entity, table, violations);
+            VerifyRowVersion(entity, table, violations);
             foreach (var property in entity.GetProperties())
             {
                 VerifyProperty(property, table, violations);
@@ -142,6 +148,48 @@ public static class ModelConventions
         }
 
         return violations;
+    }
+
+
+
+    /// <summary>
+    /// E5.1: <c>row_version</c> is a database-assigned bigint (sequence default on insert, trigger on update),
+    /// the concurrency token, and indexed because it is the sync watermark.
+    /// </summary>
+    private static void ConfigureRowVersion(IMutableEntityType entity, string? providerName)
+    {
+        var property = entity.FindProperty(nameof(IVersionedEntity.RowVersion)) ?? entity.AddProperty(nameof(IVersionedEntity.RowVersion), typeof(long));
+        property.ValueGenerated = ValueGenerated.OnAddOrUpdate;
+        property.IsConcurrencyToken = true;
+        property.SetDefaultValueSql(RowVersioning.DefaultValueSql(providerName));
+        if (entity.FindIndex(property) is null)
+        {
+            entity.AddIndex(property);
+        }
+    }
+
+
+
+    private static void VerifyRowVersion(IEntityType entity, string table, List<string> violations)
+    {
+        if (!typeof(IVersionedEntity).IsAssignableFrom(entity.ClrType))
+        {
+            return;
+        }
+
+        var property = entity.FindProperty(nameof(IVersionedEntity.RowVersion));
+        if (property is null || property.ClrType != typeof(long) || !property.IsConcurrencyToken
+            || property.ValueGenerated != ValueGenerated.OnAddOrUpdate
+            || !string.Equals(property.GetColumnName(), RowVersioning.ColumnName, StringComparison.Ordinal)
+            || string.IsNullOrEmpty(property.GetDefaultValueSql()))
+        {
+            violations.Add($"{table}: versioned entities carry a database-assigned long row_version concurrency token.");
+        }
+
+        if (property is not null && entity.FindIndex(property) is null)
+        {
+            violations.Add($"{table}.row_version: versioned tables index row_version (sync watermark).");
+        }
     }
 
 

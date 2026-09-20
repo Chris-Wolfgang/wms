@@ -49,7 +49,7 @@ public sealed class SettingsRegistryEndpointTests : IClassFixture<WebApplication
         var entries = document.RootElement.EnumerateArray().ToDictionary(e => e.GetProperty("name").GetString()!, e => e, StringComparer.Ordinal);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(["sample.lease_timeout", "sample.level"], entries.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(["sample.lease_timeout", "sample.level"], entries.Keys.Where(k => k.StartsWith("sample.", StringComparison.Ordinal)).Order(StringComparer.Ordinal));   // the host's own modules (auth) list theirs too
         Assert.Equal("Duration", entries["sample.lease_timeout"].GetProperty("kind").GetString());
         Assert.Equal("00:15:00", entries["sample.lease_timeout"].GetProperty("default").GetString());
         Assert.True(entries["sample.lease_timeout"].GetProperty("triggersDeviceResync").GetBoolean());
@@ -62,15 +62,16 @@ public sealed class SettingsRegistryEndpointTests : IClassFixture<WebApplication
 
 
     [Fact]
-    public async Task Registry_is_empty_and_read_only_when_no_module_declares_settings()
+    public async Task Registry_holds_only_the_hosts_own_settings_and_is_read_only_without_other_modules()
     {
         using var client = _factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/api/v0/settings/registry", UriKind.Relative));
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         using var post = await client.PostAsync(new Uri("/api/v0/settings/registry", UriKind.Relative), new StringContent("[]"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("[]", await response.Content.ReadAsStringAsync());
+        Assert.All(document.RootElement.EnumerateArray(), e => Assert.StartsWith("auth.", e.GetProperty("name").GetString(), StringComparison.Ordinal));   // E9: the auth module's settings
         Assert.Equal(HttpStatusCode.MethodNotAllowed, post.StatusCode);
     }
 }

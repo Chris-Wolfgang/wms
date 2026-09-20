@@ -1,6 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using System.Text.Json.Serialization;
+using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
 
@@ -17,6 +18,9 @@ namespace Wolfgang.Wms.Core.Json;
 [JsonSerializable(typeof(SettingValue))]
 [JsonSerializable(typeof(IReadOnlyList<SettingValue>))]
 [JsonSerializable(typeof(SetSettingRequest))]
+[JsonSerializable(typeof(LocalLoginRequest))]
+[JsonSerializable(typeof(ChangePasswordRequest))]
+[JsonSerializable(typeof(SessionInfo))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

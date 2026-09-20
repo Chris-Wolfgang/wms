@@ -100,7 +100,7 @@ public sealed class LocalAccountsUnitTests
 
         Assert.IsType<NoLocalAccounts>(provider.GetRequiredService<ILocalAccounts>());
         Assert.Contains(provider.GetRequiredService<ModuleCollection>().Modules, m => string.Equals(m.Name, "auth", StringComparison.Ordinal));
-        Assert.Equal(["api.cors.allowed_origins", "auth.local.lockout_duration", "auth.local.lockout_threshold", "auth.session.idle_timeout", "auth.session.lifetime"], AuthSettings.All.Select(k => k.Name).Order(StringComparer.Ordinal));
+        Assert.Equal(["api.cors.allowed_origins", "auth.integrity.verify_interval", "auth.local.lockout_duration", "auth.local.lockout_threshold", "auth.session.idle_timeout", "auth.session.lifetime"], AuthSettings.All.Select(k => k.Name).Order(StringComparer.Ordinal));
         Assert.NotNull(AuthSettings.LockoutThreshold.Validate(0));
         Assert.Null(AuthSettings.LockoutThreshold.Validate(5));
         Assert.NotNull(AuthSettings.SessionLifetime.Validate(TimeSpan.FromHours(25)));

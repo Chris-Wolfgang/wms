@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Identity;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Infrastructure.Identity;
+using Wolfgang.Wms.Infrastructure.Integrity;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -82,11 +83,13 @@ public static class DatabaseServiceCollectionExtensions
 
         services.AddWmsAuditing();   // E6.4: AuditTrail options and the on-behalf-of user provider the context needs
         services.AddHostedService<SecretsStartupCheck>();   // E8.2: an encrypted connection string that cannot be decrypted fails here, clearly
+        services.AddWmsIntegritySigning();   // E10.4: rows are signed on save
         services.AddDbContext<WmsDbContext>((provider, builder) =>
         {
             var database = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
             // The protector is resolved only for an encrypted string: the database ring (E8.6) would need this very context.
             Configure(builder, database, database.ConnectionStringIsProtected ? provider.GetRequiredService<ISecretProtector>() : null);
+            builder.AddInterceptors(provider.GetRequiredService<IntegritySigningInterceptor>());
         });
         services.RemoveAll<ISchemaVersionSource>();
         services.AddScoped<ISchemaVersionSource, MigrationsSchemaVersionSource>();
@@ -101,6 +104,15 @@ public static class DatabaseServiceCollectionExtensions
         services.RemoveAll<ISettings>();
         services.AddScoped<ISettings, EfSettings>();   // E6.3: the stored accessor replaces the defaults-only one
         services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead
+        AddIdentity(services, configuration);   // E9, E10: accounts, roles, sessions, integrity
+        return services;
+    }
+
+
+
+    private static void AddIdentity(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddHostedService<IntegrityBackfillCheck>();   // E10.4: before any security row is written, the key exists and pre-existing rows are signed
         services.AddOptions<BootstrapOptions>().Bind(configuration.GetSection(BootstrapOptions.SectionName));
         services.TryAddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
         services.RemoveAll<ILocalAccounts>();
@@ -111,7 +123,6 @@ public static class DatabaseServiceCollectionExtensions
         services.RemoveAll<ISessionRevocations>();
         services.AddScoped<ISessionRevocations, EfSessionRevocations>();   // E10.5: per-user "sessions valid after"
         services.AddHostedService<BuiltInRolesCheck>();   // E10.2: built-in roles follow the catalog; local administrators hold Administrator
-        return services;
     }
 
 

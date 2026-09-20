@@ -1,6 +1,8 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Wolfgang.AuditTrail;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Integrity;
 
 namespace Wolfgang.Wms.Infrastructure.Identity;
 
@@ -8,7 +10,7 @@ namespace Wolfgang.Wms.Infrastructure.Identity;
 /// One row of <c>core.role</c> (E10.2): a named set of catalog permissions. Built-in roles carry their key
 /// and are read-only; their permission sets follow the catalog on every start.
 /// </summary>
-public sealed class Role : IVersionedEntity
+public sealed class Role : IVersionedEntity, ISignedEntity
 {
     /// <summary>Longest role name.</summary>
     public const int NameLength = 128;
@@ -63,4 +65,20 @@ public sealed class Role : IVersionedEntity
 
     /// <summary>The permissions the role grants.</summary>
     public List<RolePermission> Permissions { get; } = [];
+
+
+
+    /// <inheritdoc/>
+    [NotAudited]
+    public string? Signature { get; set; }
+
+
+
+    /// <summary>
+    /// E10.4: the name, the built-in key and the sorted permission names.
+    /// </summary>
+    public string CanonicalContent()
+    {
+        return string.Join('\n', "role", NameNormalized, BuiltInKey ?? string.Empty, string.Join(',', Permissions.Select(p => p.PermissionName).Order(StringComparer.Ordinal)));
+    }
 }

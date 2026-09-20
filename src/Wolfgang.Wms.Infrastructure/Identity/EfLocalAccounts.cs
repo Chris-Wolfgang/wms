@@ -8,6 +8,7 @@ using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Domain.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Integrity;
 
 namespace Wolfgang.Wms.Infrastructure.Identity;
 
@@ -24,6 +25,7 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<EfLocalAccounts> _logger;
     private readonly IRoles _roles;
+    private readonly IIntegritySigner _signer;
 
 
 
@@ -31,8 +33,9 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
     /// Creates the accounts.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public EfLocalAccounts(WmsDbContext context, IPasswordHasher<User> hasher, ISettings settings, TimeProvider timeProvider, ILogger<EfLocalAccounts> logger, IRoles roles)
+    public EfLocalAccounts(WmsDbContext context, IPasswordHasher<User> hasher, ISettings settings, TimeProvider timeProvider, ILogger<EfLocalAccounts> logger, IRoles roles, IIntegritySigner signer)
     {
+        _signer = signer ?? throw new ArgumentNullException(nameof(signer));
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _hasher = hasher ?? throw new ArgumentNullException(nameof(hasher));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -56,6 +59,12 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
             _hasher.VerifyHashedPassword(new User(), _hasher.HashPassword(new User(), "dummy"), password);   // same cost whether the name exists or not
             LogAttempt(_logger, userName, LocalLoginOutcome.InvalidCredentials);
             return LocalLoginResult.Refused(LocalLoginOutcome.InvalidCredentials);
+        }
+
+        if (!await _signer.IsValidAsync(user, UserConfiguration.Schema + "." + UserConfiguration.Table, cancellationToken).ConfigureAwait(false))
+        {
+            LogAttempt(_logger, userName, LocalLoginOutcome.IntegrityFailure);   // E10.4: the row was changed outside the application
+            return LocalLoginResult.Refused(LocalLoginOutcome.IntegrityFailure);
         }
 
         if (user.IsDisabled)

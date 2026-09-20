@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Wolfgang.Wms.Core.Jobs;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Domain.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
@@ -19,7 +20,15 @@ namespace Wolfgang.Wms.Infrastructure.Integrity;
 /// </summary>
 public sealed partial class IntegrityVerificationJob : BackgroundService
 {
+    /// <summary>
+    /// The leader lock name: one instance verifies at a time (E12.6).
+    /// </summary>
+    public const string LockName = "integrity.verify";
+
+
+
     private readonly IServiceScopeFactory _scopes;
+    private readonly ILeaderLock _lock;
     private readonly ILogger<IntegrityVerificationJob> _logger;
 
 
@@ -28,9 +37,10 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
     /// Creates the job.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public IntegrityVerificationJob(IServiceScopeFactory scopes, ILogger<IntegrityVerificationJob> logger)
+    public IntegrityVerificationJob(IServiceScopeFactory scopes, ILeaderLock leaderLock, ILogger<IntegrityVerificationJob> logger)
     {
         _scopes = scopes ?? throw new ArgumentNullException(nameof(scopes));
+        _lock = leaderLock ?? throw new ArgumentNullException(nameof(leaderLock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -102,7 +112,19 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
             TimeSpan interval;
             try
             {
-                await RunOnceAsync(stoppingToken).ConfigureAwait(false);
+                var lease = await _lock.TryAcquireAsync(LockName, TimeSpan.FromMinutes(5), stoppingToken).ConfigureAwait(false);
+                if (lease is null)
+                {
+                    LogNotLeader(_logger);   // another instance verifies; this one checks again next interval
+                }
+                else
+                {
+                    await using (lease.ConfigureAwait(false))
+                    {
+                        await RunOnceAsync(stoppingToken).ConfigureAwait(false);
+                    }
+                }
+
                 interval = await IntervalAsync(stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -148,4 +170,9 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Integrity verification run failed; retrying after the default interval.")]
     private static partial void LogRunFailed(ILogger logger, Exception exception);
+
+
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Integrity verification: another instance holds the leader lock; skipping this interval.")]
+    private static partial void LogNotLeader(ILogger logger);
 }

@@ -5,7 +5,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Wolfgang.Wms.Core.Caching;
 using Wolfgang.Wms.Core.Schema;
+using Wolfgang.Wms.Core.Settings;
+using Wolfgang.Wms.Infrastructure.Database.Settings;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -73,6 +76,11 @@ public static class DatabaseServiceCollectionExtensions
         services.RemoveAll<ISchemaVersionSource>();
         services.AddScoped<ISchemaVersionSource, MigrationsSchemaVersionSource>();
         services.AddScoped<MigrationRunner>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<IRowVersionSource, MaxRowVersionSource>();   // E1.12: the caches' one invalidation signal
+        services.TryAddSingleton<SettingsCache>();
+        services.RemoveAll<ISettings>();
+        services.AddScoped<ISettings, EfSettings>();   // E6.3: the stored accessor replaces the defaults-only one
         services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead
         return services;
     }

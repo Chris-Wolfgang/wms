@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Microsoft.AspNetCore.HttpOverrides;
 using Wolfgang.Wms.Web.Components;
 using Wolfgang.Wms.Web.Shared;
 
@@ -26,7 +27,13 @@ public static class ConsoleProgram
         // Workspace entry gate: free tier until the license (E79) and identity (E11) endpoints replace it.
         builder.Services.AddSingleton<IWorkspaceAccess, FreeTierWorkspaceAccess>();
 
+        // E10.6: the same Wms:Hosting:BehindProxy key as the API (the console cannot share Core's code).
+        builder.Services.Configure<ForwardedHeadersOptions>(options => ConsoleHosting.ConfigureForwardedHeaders(options, builder.Configuration));
+
         var app = builder.Build();
+
+        app.UseForwardedHeaders();
+        app.UseWmsSecurityHeaders();   // E10.6: CSP for Blazor Server, nosniff, referrer policy, no framing
 
         if (!app.Environment.IsDevelopment())
         {

@@ -7,6 +7,8 @@ app, starting with the picking module. These pages are for the people who instal
 
 - [Introduction](introduction.md) - what the product is, what is in it today and what is still arriving
 - [Getting Started](getting-started.md) - from an empty database to a console you can open
+- [Licensing](licensing.md) - tiers, keys, limits and expiry; the [feature comparison](licensing/feature-comparison.md) per release
+- [Troubleshooting](troubleshooting.md) - every error code, what it means and what to do
 
 ## Operating the server
 
@@ -28,4 +30,5 @@ app, starting with the picking module. These pages are for the people who instal
 ## Reference
 
 - [API Reference](../api/index.md) - generated from the source code
+- Generated from the product: [settings](reference/settings.md), [permissions](reference/permissions.md), [error codes](reference/error-codes.md), [modules](reference/modules.md)
 - [Project website](https://github.com/Chris-Wolfgang/wms)

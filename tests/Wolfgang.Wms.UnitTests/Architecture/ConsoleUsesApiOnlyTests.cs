@@ -24,7 +24,7 @@ public sealed class ConsoleUsesApiOnlyTests
         "Wolfgang.Wms.Web.Supervise",
     ];
 
-    private static readonly string[] AllowedProjectReferences = ["Wolfgang.Wms.Domain", "Wolfgang.Wms.Client"];
+    private static readonly string[] AllowedProjectReferences = ["Wolfgang.Wms.Domain", "Wolfgang.Wms.Client", "Wolfgang.Wms.Logging"];   // E12.2: the log pipeline is host plumbing, not a way around the API
 
     private static readonly string[] DeniedPackageFamilies =
     [

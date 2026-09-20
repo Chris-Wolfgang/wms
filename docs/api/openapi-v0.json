@@ -6,6 +6,77 @@
     "version": "0"
   },
   "paths": {
+    "/api/v0/system/logging": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "The server\u0027s log level: permanent, in force now, and the running elevation (E12.4).",
+        "operationId": "GetLogLevel",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoggingStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/system/logging/elevate": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Lowers the level to Trace, Debug or Information for a number of minutes; reverts by itself.",
+        "operationId": "ElevateLogLevel",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElevateLogLevelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoggingStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Ends the running elevation now.",
+        "operationId": "EndLogLevelElevation",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoggingStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v0/system/schema": {
       "get": {
         "tags": [
@@ -952,6 +1023,29 @@
         },
         "description": "Body of \u0060POST /auth/roles/{id}/copy\u0060 (E10.2)."
       },
+      "ElevateLogLevelRequest": {
+        "required": [
+          "level",
+          "minutes"
+        ],
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "description": "Trace, Debug or Information."
+          },
+          "minutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How long, up to the \u0060logging.elevation_max_minutes\u0060 setting.",
+            "format": "int32"
+          }
+        },
+        "description": "A timed elevation as posted (E12.4): \u0022Debug for 30 minutes\u0022."
+      },
       "GroupRoleMappingDraft": {
         "required": [
           "group",
@@ -1056,6 +1150,66 @@
           }
         },
         "description": "Body of \u0060POST /auth/local/login\u0060 (E9.2)."
+      },
+      "LoggingStatus": {
+        "required": [
+          "level",
+          "effectiveLevel",
+          "elevatedLevel",
+          "elevatedUntil",
+          "maxElevationMinutes"
+        ],
+        "type": "object",
+        "properties": {
+          "level": {
+            "description": "The permanent level (the \u0060logging.level\u0060 setting).",
+            "$ref": "#/components/schemas/LogLevel"
+          },
+          "effectiveLevel": {
+            "description": "The level in force now.",
+            "$ref": "#/components/schemas/LogLevel"
+          },
+          "elevatedLevel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The elevated level while an elevation runs, else null.",
+                "$ref": "#/components/schemas/LogLevel"
+              }
+            ]
+          },
+          "elevatedUntil": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the elevation ends, else null.",
+            "format": "date-time"
+          },
+          "maxElevationMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The longest elevation the console may start.",
+            "format": "int32"
+          }
+        },
+        "description": "The server\u0027s log level as the console shows it (E12.4)."
+      },
+      "LogLevel": {
+        "enum": [
+          "Trace",
+          "Debug",
+          "Information",
+          "Warning",
+          "Error",
+          "Critical",
+          "None"
+        ]
       },
       "PermissionDescriptor": {
         "required": [

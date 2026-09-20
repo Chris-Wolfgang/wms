@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
+using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Groups;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Item;
 using Wolfgang.Wms.Client.Generated.Models;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers
@@ -18,6 +19,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class ProvidersRequestBuilder : BaseRequestBuilder
     {
+        /// <summary>The groups property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Groups.GroupsRequestBuilder Groups
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Groups.GroupsRequestBuilder(PathParameters, RequestAdapter);
+        }
         /// <summary>Gets an item from the Wolfgang.Wms.Client.Generated.api.v0.auth.providers.item collection</summary>
         /// <param name="position">Unique identifier of the item</param>
         /// <returns>A <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Item.WithNameItemRequestBuilder"/></returns>

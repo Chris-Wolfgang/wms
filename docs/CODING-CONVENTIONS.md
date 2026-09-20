@@ -104,6 +104,13 @@ by-name endpoints are the one place a name string appears. Nothing writes `core.
 `appsettings` carries bootstrap keys only (`BootstrapConfiguration.RecognizedKeys`, docs/CONFIGURATION.md);
 a new bootstrap key is added to that list with its story, never read ad hoc from `IConfiguration`.
 
+## Secrets (E8)
+
+A secret is encrypted and decrypted only through `ISecretProtector` (`Wolfgang.Wms.Core.Secrets`); the stored
+form is `enc:v1:…` (`ProtectedText`), a value without the prefix is plain and accepted. The default
+implementation is Data Protection over the ring `Wms:DataProtection` names; nothing else calls
+`IDataProtector` directly. Plain text never reaches a log or an exception message (`ProtectedText.Mask`).
+
 ## Data access (E1.11, ADR 0002)
 
 - Single tenant per install: no `tenant_id`. Site separation is `site_id` on every site-scoped entity with an

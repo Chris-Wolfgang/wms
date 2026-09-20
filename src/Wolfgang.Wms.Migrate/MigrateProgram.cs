@@ -2,7 +2,9 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Wolfgang.Wms.Core.Secrets;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Secrets;
 
 namespace Wolfgang.Wms.Migrate;
 
@@ -59,10 +61,16 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        var options = await LoadOptionsAsync(command, configuration, error).ConfigureAwait(false);
-        if (options is null)
+        var loaded = await LoadOptionsAsync(command, configuration, error).ConfigureAwait(false);
+        if (loaded is null)
         {
             return ExitUsage;
+        }
+
+        var (resolved, options) = loaded.Value;
+        if (command.Protect)
+        {
+            return await ProtectAsync(command, resolved, options, output, error).ConfigureAwait(false);
         }
 
         var problems = options.Validate(connectionStringRequired: !command.Script);
@@ -81,10 +89,26 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        WmsDbContext context;
+        return await ExecuteAsync(command, configuration, options, output, error, cancellationToken).ConfigureAwait(false);
+    }
+
+
+
+    /// <summary>
+    /// Opens the context (decrypting an <c>enc:v1:</c> connection string with the key ring, E8.2) and runs
+    /// the chosen mode.
+    /// </summary>
+    private static async Task<int> ExecuteAsync(MigrateCommandLine command, IConfiguration configuration, DatabaseOptions options, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    {
+        var builder = new DbContextOptionsBuilder<WmsDbContext>();
         try
         {
-            context = CreateContext(options);
+            DatabaseServiceCollectionExtensions.Configure(builder, options, options.ConnectionStringIsProtected ? Protector(command, configuration) : null);
+        }
+        catch (InvalidOperationException exception)
+        {
+            await error.WriteLineAsync(exception.Message).ConfigureAwait(false);
+            return ExitUsage;
         }
         catch (ArgumentException exception)
         {
@@ -92,10 +116,8 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        using (context)
-        {
-            return await RunModeAsync(new MigrationRunner(context), command, output, error, cancellationToken).ConfigureAwait(false);
-        }
+        using var context = new WmsDbContext(builder.Options);
+        return await RunModeAsync(new MigrationRunner(context), command, output, error, cancellationToken).ConfigureAwait(false);
     }
 
 
@@ -155,20 +177,50 @@ public static class MigrateProgram
 
 
 
-    private static WmsDbContext CreateContext(DatabaseOptions options)
+    /// <summary>
+    /// <c>--protect</c> (E8.2): prints the connection string encrypted with the key ring, for the installer to
+    /// put in appsettings or an environment variable.
+    /// </summary>
+    private static async Task<int> ProtectAsync(MigrateCommandLine command, IConfiguration configuration, DatabaseOptions options, TextWriter output, TextWriter error)
     {
-        var builder = new DbContextOptionsBuilder<WmsDbContext>();
-        DatabaseServiceCollectionExtensions.Configure(builder, options);
-        return new WmsDbContext(builder.Options);
+        if (string.IsNullOrWhiteSpace(options.ConnectionString))
+        {
+            await error.WriteLineAsync("--protect needs a connection string (--connection-string or Wms:Database:ConnectionString).").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        if (options.ConnectionStringIsProtected)
+        {
+            await error.WriteLineAsync("The connection string is already encrypted (enc:v1:).").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        var protector = Protector(command, configuration);
+        if (protector is null)
+        {
+            await error.WriteLineAsync($"--protect needs the key ring: --key-ring <path> or {KeyRingOptions.PathKey}.").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        await output.WriteLineAsync(protector.Protect(options.ConnectionString)).ConfigureAwait(false);
+        return ExitOk;
     }
 
 
 
-    private static async Task<DatabaseOptions?> LoadOptionsAsync(MigrateCommandLine command, IConfiguration? configuration, TextWriter error)
+    private static ISecretProtector? Protector(MigrateCommandLine command, IConfiguration configuration)
+    {
+        return command.KeyRing is not null ? KeyRing.CreateProtector(command.KeyRing) : KeyRing.TryCreateProtector(configuration);
+    }
+
+
+
+    private static async Task<(IConfiguration Configuration, DatabaseOptions Options)?> LoadOptionsAsync(MigrateCommandLine command, IConfiguration? configuration, TextWriter error)
     {
         try
         {
-            return Options(command, configuration ?? DefaultConfiguration());
+            var resolved = configuration ?? DefaultConfiguration();
+            return (resolved, Options(command, resolved));
         }
         catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException)
         {

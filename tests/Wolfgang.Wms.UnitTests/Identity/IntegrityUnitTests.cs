@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Jobs;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Identity;
 using Wolfgang.Wms.Infrastructure.Integrity;
@@ -124,8 +125,9 @@ public sealed class IntegrityUnitTests
         Assert.Throws<ArgumentNullException>(() => IntegrityServiceCollectionExtensions.AddWmsIntegrityVerification(null!));
         Assert.Throws<ArgumentNullException>(() => new IntegritySigner(null!, NullLogger<IntegritySigner>.Instance));
         Assert.Throws<ArgumentNullException>(() => new IntegritySigner(provider.GetRequiredService<IServiceScopeFactory>(), null!));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(null!, NullLogger<IntegrityVerificationJob>.Instance));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), null!));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(null!, new NoLeaderLock(), NullLogger<IntegrityVerificationJob>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), null!, NullLogger<IntegrityVerificationJob>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), new NoLeaderLock(), null!));
         Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(null!, signer, NullLogger<IntegrityBackfillCheck>.Instance));
         Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), null!, NullLogger<IntegrityBackfillCheck>.Instance));
         Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), signer, null!));
@@ -165,7 +167,7 @@ public sealed class IntegrityUnitTests
         using var provider = services.BuildServiceProvider();
         using var signer = new IntegritySigner(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<IntegritySigner>.Instance);
         var check = new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), signer, NullLogger<IntegrityBackfillCheck>.Instance);
-        var job = new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<IntegrityVerificationJob>.Instance);
+        var job = new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), new NoLeaderLock(), NullLogger<IntegrityVerificationJob>.Instance);
 
         await check.StopAsync(CancellationToken.None);
         await job.StopAsync(CancellationToken.None);

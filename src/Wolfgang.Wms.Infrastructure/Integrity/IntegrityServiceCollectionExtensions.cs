@@ -34,6 +34,7 @@ public static class IntegrityServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.TryAddSingleton<Wolfgang.Wms.Core.Jobs.ILeaderLock, Wolfgang.Wms.Core.Jobs.NoLeaderLock>();   // E12.6: replaced by the database lock when one is configured
         services.TryAddSingleton<IntegrityVerificationJob>();
         services.AddHostedService(provider => provider.GetRequiredService<IntegrityVerificationJob>());
         return services;

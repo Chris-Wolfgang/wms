@@ -39,10 +39,12 @@
   </ItemGroup>
 
   <!-- E85.4: versionName is the SemVer string from the tag; versionCode = major*10000 + minor*100 + patch,
-       so every release has a higher code than the last and the code identifies the version. Runs after MinVer
-       (Directory.Build.props) and is a no-op when MinVer is absent. -->
-  <Target Name="WmsAndroidVersionFromTag" AfterTargets="MinVer" Condition="'$(MinVerMajor)' != ''">
-    <PropertyGroup>
+       so every release has a higher code than the last and the code identifies the version. The Android SDK
+       copies ApplicationVersion/ApplicationDisplayVersion into the manifest in _GetAndroidPackageName, which
+       runs before compile (and before MinVer's own hooks), so this target forces MinVer first and runs just
+       ahead of it. Skipped when MinVer is skipped. -->
+  <Target Name="WmsAndroidVersionFromTag" DependsOnTargets="MinVer" BeforeTargets="_GetAndroidPackageName" Condition="'$(MinVerSkip)' != 'true'">
+    <PropertyGroup Condition="'$(MinVerMajor)' != ''">
       <ApplicationDisplayVersion>$(MinVerVersion)</ApplicationDisplayVersion>
       <ApplicationVersion>$([MSBuild]::Add($([MSBuild]::Add($([MSBuild]::Multiply($(MinVerMajor), 10000)), $([MSBuild]::Multiply($(MinVerMinor), 100)))), $(MinVerPatch)))</ApplicationVersion>
     </PropertyGroup>

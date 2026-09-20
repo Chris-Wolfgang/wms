@@ -449,3 +449,7 @@ docfx_project/api/*.yml
 
 # Kiota writes a run log next to the generated client (E82.8); the lock file is committed, the log is not.
 .kiota.log
+
+# E14.3: compose secrets and the per-install environment
+docker/secrets/
+.env

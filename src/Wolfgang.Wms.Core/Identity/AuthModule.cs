@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Modules;
 
@@ -56,6 +57,9 @@ public static class AuthModule
     /// <summary>Route of who-am-I.</summary>
     public const string MeRoute = "/auth/me";
 
+    /// <summary>Route of the permission catalog.</summary>
+    public const string PermissionsRoute = "/auth/permissions";
+
 
 
     /// <summary>
@@ -79,7 +83,7 @@ public static class AuthModule
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(ConfigureCookie);
-        services.AddAuthorization();
+        services.AddWmsPermissions();   // E10.1: the catalog, permission policies and the claims handler
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -155,11 +159,13 @@ public static class AuthModule
     private static void MapEndpoints(IEndpointRouteBuilder app)
     {
         app.MapPost(LoginRoute, LoginAsync)
+            .AllowAnonymous()   // the way in
             .RequireRateLimiting(LoginRateLimit)
             .WithName("LocalLogin")
             .WithSummary("Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled.")
             .Produces(StatusCodes.Status200OK);
         app.MapPost(LogoutRoute, () => TypedResults.SignOut(authenticationSchemes: [CookieAuthenticationDefaults.AuthenticationScheme]))
+            .AllowAnonymous()   // ending a session never needs one
             .WithName("Logout")
             .WithSummary("Ends the session.");
         app.MapGet(MeRoute, (HttpContext http) => TypedResults.Ok(Session(http)))
@@ -171,6 +177,10 @@ public static class AuthModule
             .WithName("ChangeLocalPassword")
             .WithSummary("Replaces the signed-in local user's password; clears the must-change flag and refreshes the cookie.")
             .Produces(StatusCodes.Status200OK);
+        app.MapGet(PermissionsRoute, (PermissionCatalog catalog) => TypedResults.Ok(catalog.All))
+            .RequireAuthorization()
+            .WithName("GetPermissionCatalog")
+            .WithSummary("Every permission the host knows, with its module (E10.1).");
     }
 
 
@@ -225,7 +235,8 @@ public static class AuthModule
             user.FindFirst(SessionClaims.UserName)?.Value ?? string.Empty,
             user.FindFirst(SessionClaims.DisplayName)?.Value ?? string.Empty,
             SessionClaims.MustChangePasswordOf(user),
-            string.Equals(user.FindFirst(SessionClaims.LocalAdmin)?.Value, "true", StringComparison.Ordinal)
+            string.Equals(user.FindFirst(SessionClaims.LocalAdmin)?.Value, "true", StringComparison.Ordinal),
+            PermissionClaims.GrantsOf(user)
         );
     }
 }

@@ -73,7 +73,8 @@ public sealed class LocalAccountsTests
         Assert.True(me.IsLocalAdmin);
         Assert.Equal(HttpStatusCode.Forbidden, gated.StatusCode);
         Assert.Equal("auth.password_change_required", await CodeAsync(gated));
-        Assert.Equal(HttpStatusCode.OK, withoutCookie.StatusCode);   // anonymous calls are not gated (permissions arrive with E10)
+        Assert.Equal(HttpStatusCode.Unauthorized, withoutCookie.StatusCode);   // E10.1: settings.read is required
+        Assert.Equal(["*@organization"], me.Permissions);   // the local administrator holds everything
         return cookie;
     }
 

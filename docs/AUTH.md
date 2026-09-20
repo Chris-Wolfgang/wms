@@ -147,9 +147,51 @@ setting every 5 seconds. Names that are not registered are logged and skipped.
 Pickers (badge/PIN) and integrations (API keys) are separate from console providers and arrive with the
 device and integration stories.
 
+## OpenID Connect (E11.1)
+
+The `oidc` provider (`Wolfgang.Wms.Auth.Oidc`, registered by `AddWmsOidcProvider()` in the API host) is
+the ASP.NET Core OpenID Connect handler configured from settings, never from `appsettings`:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `auth.oidc.display_name` | `Single sign-on` | The login-page label |
+| `auth.oidc.authority` | empty | The issuer URL; discovery is read from `<authority>/.well-known/openid-configuration` |
+| `auth.oidc.client_id` | empty | The client registered at the provider |
+| `auth.oidc.client_secret` | empty | Secret kind: encrypted at rest, masked on screen; empty for a public client (PKCE only) |
+| `auth.oidc.scopes` | `openid profile email` | Space-separated; `openid` is always sent |
+| `auth.oidc.group_claim` | `groups` | The claim carrying the directory groups |
+| `auth.oidc.name_claim` | `preferred_username` | The claim used as the sign-in name (falls back to `email`, then the subject) |
+| `auth.oidc.display_name_claim` | `name` | The claim used as the display name |
+| `auth.oidc.require_https` | `true` | Refuse discovery over plain HTTP; off only in a lab |
+
+A change is picked up within 5 seconds: the provider re-reads the settings and drops its cached handler
+options; nothing restarts. The flow is authorization code with PKCE; the callback is `/auth/oidc/callback`
+(host-relative, answered by the handler); claims are kept as the provider sends them (`sub`, `groups`,
+...) and the userinfo endpoint is read. "Test connection" (`POST /auth/providers/oidc/check`) reads the
+discovery document and reports the issuer and the signing keys.
+
+**Accounts.** A validated token becomes a console session through `IExternalAccounts`: one `core.user`
+row per (provider, subject), created on first sign-in (sign-in name from the name claim; `@oidc` appended
+when a local account already holds it), display name refreshed on every sign-in, no password. Disabled
+accounts and rows that fail their integrity signature are refused. A failure at the provider (state
+mismatch, token error, discovery down) answers `502 auth.provider_failed`.
+
+**Group-to-role mapping (E11.2).** `core.group_role_mapping` maps a provider's group identifier (as the
+provider sends it: an object id, a name, a DN) to a role, everywhere or at one site. On every provider
+sign-in the account's assignments are replaced by exactly what its groups map to, so a user in no mapped
+group holds no role and a mapping removed in the console takes effect at the next sign-in (other sessions
+of that user are revoked when the set changes). Manual assignments to a provider account are overwritten
+at sign-in: manage their access in the directory. API: `GET`/`POST /auth/providers/{name}/groups`,
+`DELETE /auth/providers/groups/{id}` (`auth.providers.manage`); the console page rides E82's Configure
+workspace.
+
+**Verification (E11.3).** Every PR runs the full flow against `ghcr.io/navikt/mock-oauth2-server` in a
+container (challenge, provider redirect, callback with the correlation and nonce cookies, back-channel
+token exchange, mapping applied and removed, forged state → 502). Keycloak (realm import) and the Entra ID
+scheduled job, with their setup guides, follow in E11.3–E11.5.
+
 ## What comes next
 
 - E9.3: local sign-in disabled once SSO is verified and re-enabled for a timed window from the host only.
 - A periodic job that audits expired assignments.
-- E11.1: the OIDC provider (authority, client, scopes, group claim as settings; discovery as the check),
-  E11.2 group-to-role mapping, E11.3 verification against Keycloak and a mock provider on every PR.
+- E11.3–E11.6: Keycloak and Entra ID verification jobs, ADFS checklist, setup guides.

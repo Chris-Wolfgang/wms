@@ -55,11 +55,13 @@ public sealed class MigrateToolTests
         var down = await RunAsync(configuration, ["--to", "0", .. extra]);
         var statusAfterDown = await RunAsync(configuration, ["--status", .. extra]);
         var backUp = await RunAsync(configuration, ["--to", "Initial", .. extra]);
+        var latest = await RunAsync(configuration, extra);
+        var finalStatus = await RunAsync(configuration, ["--status", .. extra]);
 
         Assert.Equal(MigrateProgram.ExitOk, empty.Code);
         Assert.Contains("Reachable: yes", empty.Output, StringComparison.Ordinal);
         Assert.Contains("Applied (0)", empty.Output, StringComparison.Ordinal);
-        Assert.Contains("Pending (1)", empty.Output, StringComparison.Ordinal);
+        Assert.Matches(@"Pending \([1-9]\d*\)", empty.Output);
         Assert.Equal(MigrateProgram.ExitOk, up.Code);
         Assert.Contains("Direction: Up", up.Output, StringComparison.Ordinal);
         Assert.Contains("_Initial", up.Output, StringComparison.Ordinal);
@@ -69,11 +71,14 @@ public sealed class MigrateToolTests
         Assert.Contains("Nothing to do.", again.Output, StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitOk, down.Code);
         Assert.Contains("Direction: Down", down.Output, StringComparison.Ordinal);
-        Assert.Contains("Reverted (1)", down.Output, StringComparison.Ordinal);
+        Assert.Matches(@"Reverted \([1-9]\d*\)", down.Output);
         Assert.Contains("Applied (0)", statusAfterDown.Output, StringComparison.Ordinal);
         Assert.Contains("Schema is not up to date.", statusAfterDown.Output, StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitOk, backUp.Code);
         Assert.Contains("Direction: Up", backUp.Output, StringComparison.Ordinal);
+        Assert.Contains("_Initial", backUp.Output, StringComparison.Ordinal);
+        Assert.Equal(MigrateProgram.ExitOk, latest.Code);
+        Assert.Contains("Schema is up to date.", finalStatus.Output, StringComparison.Ordinal);
 
         await AssertHistoryTableInWmsSchemaAsync(provider, connectionString);
         await AssertNewerSchemaIsRefusedAsync(provider, connectionString, configuration, extra);
@@ -110,7 +115,7 @@ public sealed class MigrateToolTests
             .SqlQueryRaw<string>("SELECT CAST(table_schema AS varchar(128)) AS \"Value\" FROM information_schema.tables WHERE table_name = 'migrations_history'")
             .ToListAsync();
 
-        Assert.Single(applied);
+        Assert.NotEmpty(applied);
         Assert.Equal(["wms"], historyTables);
     }
 

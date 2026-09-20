@@ -15,6 +15,22 @@ namespace Wolfgang.Wms.Client.Generated.Models
     {
         /// <summary>Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.</summary>
         public IDictionary<string, object> AdditionalData { get; set; }
+        /// <summary>The modes this key allows at this scope.</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+        public List<string>? AllowedModes { get; set; }
+#nullable restore
+#else
+        public List<string> AllowedModes { get; set; }
+#endif
+        /// <summary>How this scope takes part in the cascade: `value`, or `per_site`/`per_zone`/`per_sku` when it delegates (E7.2).</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+        public string? CascadeMode { get; set; }
+#nullable restore
+#else
+        public string CascadeMode { get; set; }
+#endif
         /// <summary>The text configured at this scope, or null when it inherits.</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
@@ -102,6 +118,8 @@ namespace Wolfgang.Wms.Client.Generated.Models
         {
             return new Dictionary<string, Action<IParseNode>>
             {
+                { "allowedModes", n => { AllowedModes = n.GetCollectionOfPrimitiveValues<string>()?.AsList(); } },
+                { "cascadeMode", n => { CascadeMode = n.GetStringValue(); } },
                 { "configuredValue", n => { ConfiguredValue = n.GetStringValue(); } },
                 { "effectiveValue", n => { EffectiveValue = n.GetStringValue(); } },
                 { "etag", n => { Etag = n.GetStringValue(); } },
@@ -121,6 +139,8 @@ namespace Wolfgang.Wms.Client.Generated.Models
         public virtual void Serialize(ISerializationWriter writer)
         {
             if(ReferenceEquals(writer, null)) throw new ArgumentNullException(nameof(writer));
+            writer.WriteCollectionOfPrimitiveValues<string>("allowedModes", AllowedModes);
+            writer.WriteStringValue("cascadeMode", CascadeMode);
             writer.WriteStringValue("configuredValue", ConfiguredValue);
             writer.WriteStringValue("effectiveValue", EffectiveValue);
             writer.WriteStringValue("etag", Etag);

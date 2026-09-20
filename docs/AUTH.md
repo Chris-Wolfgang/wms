@@ -36,8 +36,24 @@ sign-out and who-am-I answers `403 auth.password_change_required`; the default i
 Once any local administrator exists, the bootstrap values are ignored on later starts. The local administrator
 can be disabled but never deleted (E9.3 keeps it as the break-glass account).
 
+## Permissions (E10.1)
+
+Every action has a named permission (`settings.write`, `workspace.configure.enter`), declared by the module
+that owns it and listed at `GET /auth/permissions` (`name`, `description`, `module`). Every endpoint declares
+the permission it requires with `RequirePermission(...)`, or says `AllowAnonymous()` with a comment naming
+why (the product name, the schema probe, sign-in and sign-out, device sync until device tokens arrive); an
+architecture test fails the build for an endpoint that says neither.
+
+A session carries its grants as `wms:permission` claims: `name@organization` holds everywhere,
+`name@site:<id>` at one site only, `*` stands for every permission. A request acts on the site named by its
+`siteId` route value or the `X-Wms-Site` header; without one, only organisation grants satisfy it. Holding a
+permission at site A never grants it at site B (E10.3). The local administrator holds `*@organization`;
+other users' grants come from their roles (E10.2). A missing session answers `401 auth.not_signed_in`, a
+missing permission `403 auth.forbidden`; `GET /auth/me` lists the session's grants.
+
 ## What comes next
 
 - E9.3: local sign-in disabled once SSO is verified and re-enabled for a timed window from the host only.
-- E10: permissions on every endpoint, roles, site-scoped assignments, session lifetimes as settings.
+- E10.2–E10.6: roles built from the catalog, site-scoped assignments with expiry, integrity signatures,
+  session lifetimes as settings, hardening.
 - E11: OIDC and other providers behind one interface, chosen in the console.

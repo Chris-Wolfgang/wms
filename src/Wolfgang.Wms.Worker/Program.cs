@@ -9,6 +9,7 @@ using Wolfgang.Wms.Logging;
 
 var builder = Host.CreateApplicationBuilder(args);
 
+builder.Services.AddWindowsService(options => options.ServiceName = "WolfgangWms.Worker");   // E15.1: a no-op outside a service
 builder.UseWmsSerilog();   // E12.2: the same log pipeline as the API
 // E6.5: appsettings holds bootstrap keys only; anything else is named in a startup warning and ignored.
 builder.Services.AddWmsBootstrapConfigurationCheck();

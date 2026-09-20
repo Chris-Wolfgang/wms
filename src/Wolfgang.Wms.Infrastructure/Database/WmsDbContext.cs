@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Wolfgang.AuditTrail;
 using Wolfgang.Wms.Infrastructure.Database.Auditing;
@@ -15,7 +16,7 @@ namespace Wolfgang.Wms.Infrastructure.Database;
 /// scanning), with the story that adds them. It is an <see cref="AuditingDbContext"/> (E6.4): every save of
 /// an audited entity writes its audit rows in the same transaction.
 /// </summary>
-public sealed class WmsDbContext : AuditingDbContext
+public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
 {
     /// <summary>
     /// Creates the context in a host, with the request's user provider and the shared audit options.
@@ -45,6 +46,13 @@ public sealed class WmsDbContext : AuditingDbContext
 
 
 
+    /// <summary>
+    /// <c>wms.data_protection_key</c> (E8.6): the Data Protection key ring every instance shares.
+    /// </summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
+
+
     /// <inheritdoc/>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -60,6 +68,8 @@ public sealed class WmsDbContext : AuditingDbContext
 
         base.OnModelCreating(modelBuilder);   // E6.4: core.audit_header / core.audit_detail
         modelBuilder.ApplyConfiguration(new SettingConfiguration());   // E6.2
+        modelBuilder.Entity<DataProtectionKey>().ToTable("data_protection_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E8.6: library-owned, in wms like the migrations history
+        modelBuilder.Entity<DataProtectionKey>().Property(k => k.FriendlyName).HasMaxLength(256);
         ModelConventions.Apply(modelBuilder, Database.ProviderName);
     }
 }

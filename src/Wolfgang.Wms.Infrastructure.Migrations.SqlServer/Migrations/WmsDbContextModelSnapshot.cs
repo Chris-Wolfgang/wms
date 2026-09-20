@@ -237,6 +237,78 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.GroupRoleMapping", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("GroupKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("group_key");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("provider");
+
+                    b.Property<long>("RoleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("role_id");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version")
+                        .HasDefaultValueSql("NEXT VALUE FOR [wms].[row_version_seq]");
+
+                    b.Property<string>("Signature")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("signature");
+
+                    b.Property<long?>("SiteId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("site_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_group_role_mapping");
+
+                    b.HasIndex("RoleId")
+                        .HasDatabaseName("ix_group_role_mapping_role_id");
+
+                    b.HasIndex("RowVersion")
+                        .HasDatabaseName("ix_group_role_mapping_row_version");
+
+                    b.HasIndex("Provider", "GroupKey", "RoleId", "SiteId")
+                        .HasDatabaseName("ix_group_role_mapping_provider_group_key_role_id_site_id");
+
+                    b.ToTable("group_role_mapping", "core", t =>
+                        {
+                            t.HasTrigger("trg_group_role_mapping_row_version");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                });
+
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.Role", b =>
                 {
                     b.Property<long>("Id")
@@ -389,6 +461,16 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("password_hash");
 
+                    b.Property<string>("Provider")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("ProviderSubject")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("provider_subject");
+
                     b.Property<long>("RowVersion")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -432,6 +514,11 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                     b.HasIndex("UserNameNormalized")
                         .IsUnique()
                         .HasDatabaseName("ux_user_user_name_normalized");
+
+                    b.HasIndex("Provider", "ProviderSubject")
+                        .IsUnique()
+                        .HasDatabaseName("ux_user_provider_provider_subject")
+                        .HasFilter("[provider] IS NOT NULL AND [provider_subject] IS NOT NULL");
 
                     b.ToTable("user", "core", t =>
                         {
@@ -548,6 +635,18 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasConstraintName("fk_audit_detail_header_id");
 
                     b.Navigation("Header");
+                });
+
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.GroupRoleMapping", b =>
+                {
+                    b.HasOne("Wolfgang.Wms.Infrastructure.Identity.Role", "Role")
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_group_role_mapping_role_id");
+
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.RolePermission", b =>

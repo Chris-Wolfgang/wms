@@ -220,7 +220,8 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
         var users = await context.Users.ToListAsync(cancellationToken).ConfigureAwait(false);
         var roles = await context.Roles.Include(r => r.Permissions).ToListAsync(cancellationToken).ConfigureAwait(false);
         var assignments = await context.UserRoles.ToListAsync(cancellationToken).ConfigureAwait(false);
-        var pending = users.Cast<ISignedEntity>().Concat(roles).Concat(assignments).ToList();
+        var mappings = await context.GroupRoleMappings.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var pending = users.Cast<ISignedEntity>().Concat(roles).Concat(assignments).Concat(mappings).ToList();
         await SignAllAsync(pending, cancellationToken).ConfigureAwait(false);
         foreach (var entity in pending)
         {

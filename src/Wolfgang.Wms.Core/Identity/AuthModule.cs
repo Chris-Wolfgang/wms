@@ -95,6 +95,7 @@ public static class AuthModule
         });
         services.AddExceptionHandler<AuthExceptionHandler>();
         services.TryAddScoped<ILocalAccounts, NoLocalAccounts>();
+        services.TryAddScoped<ISessionRevocations, NoSessionRevocations>();
         services.AddWmsModule(Descriptor);
         return services;
     }
@@ -125,8 +126,10 @@ public static class AuthModule
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.SlidingExpiration = true;
-        options.ExpireTimeSpan = AuthSettings.SessionLifetime.DefaultValue;   // E10.5 makes it a setting
+        options.SlidingExpiration = true;   // the idle expiry set at sign-in slides on every request (E10.5)
+        options.ExpireTimeSpan = AuthSettings.IdleTimeout.DefaultValue;   // overridden per session from the setting at sign-in
+        options.Events.OnSigningIn = SessionValidator.OnSigningInAsync;
+        options.Events.OnValidatePrincipal = SessionValidator.OnValidatePrincipalAsync;
         options.Events.OnRedirectToLogin = context => ApiProblems.Problem(AuthErrorCodes.NotSignedIn).ExecuteAsync(context.HttpContext);
         options.Events.OnRedirectToAccessDenied = context => ApiProblems.Problem(AuthErrorCodes.Forbidden).ExecuteAsync(context.HttpContext);
     }

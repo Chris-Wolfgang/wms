@@ -30,6 +30,7 @@ public static class BootstrapConfiguration
         "Wms:Hosting:BehindProxy",          // E10.6: honour X-Forwarded-* from the reverse proxy
         "Wms:Auth:ForceLocal",              // E11.0: emergency override, local sign-in only
         "Wms:Hosting:AllowHttp",            // E12.5: plain HTTP from any address (a lab)
+        "Wms:Worker:Role",                  // E14.2: worker or ingest (the migrate role is the tool, not the host)
     ];
 
 

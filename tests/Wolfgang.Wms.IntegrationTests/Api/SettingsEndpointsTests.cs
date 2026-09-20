@@ -65,6 +65,9 @@ public sealed class SettingsEndpointsTests : IClassFixture<WebApplicationFactory
         using var badScope = await client.GetAsync(new Uri("/api/v0/settings/aisle/1", UriKind.Relative));
         using var badKey = await client.GetAsync(new Uri("/api/v0/settings/organization/0/sample.nope", UriKind.Relative));
         using var badValue = await client.PutAsync(new Uri("/api/v0/settings/organization/0/sample.max_totes", UriKind.Relative), Json("{\"value\":\"many\"}"));
+        using var badMode = await client.PutAsync(new Uri("/api/v0/settings/organization/0/sample.max_totes", UriKind.Relative), Json("{\"mode\":\"per_aisle\"}"));
+        using var modeUnknownKey = await client.PutAsync(new Uri("/api/v0/settings/organization/0/sample.nope", UriKind.Relative), Json("{\"mode\":\"per_site\"}"));
+        using var mode = await client.PutAsync(new Uri("/api/v0/settings/organization/0/sample.max_totes", UriKind.Relative), Json("{\"mode\":\"per_site\"}"));
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, put.StatusCode);
         Assert.Equal("settings.store_unavailable", await CodeAsync(put));
@@ -74,6 +77,10 @@ public sealed class SettingsEndpointsTests : IClassFixture<WebApplicationFactory
         Assert.Equal(HttpStatusCode.NotFound, badKey.StatusCode);
         Assert.Equal("settings.unknown_key", await CodeAsync(badKey));
         Assert.Equal(HttpStatusCode.ServiceUnavailable, badValue.StatusCode);   // the store is checked before the value without a database
+        Assert.Equal(HttpStatusCode.BadRequest, badMode.StatusCode);
+        Assert.Equal("settings.mode_not_allowed", await CodeAsync(badMode));
+        Assert.Equal(HttpStatusCode.NotFound, modeUnknownKey.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, mode.StatusCode);
     }
 
 

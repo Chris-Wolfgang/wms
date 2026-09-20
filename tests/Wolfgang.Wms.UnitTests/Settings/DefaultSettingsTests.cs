@@ -50,6 +50,9 @@ public sealed class DefaultSettingsTests
         await AssertCodeAsync(SettingErrorCodes.StoreUnavailable, () => Settings.SetAsync(MaxTotes, SettingScopeRef.Organization, 5, "me", CancellationToken.None));
         await AssertCodeAsync(SettingErrorCodes.StoreUnavailable, () => Settings.ResetAsync(MaxTotes, SettingScopeRef.Organization, "me", CancellationToken.None));
         await AssertCodeAsync(SettingErrorCodes.StoreUnavailable, () => Settings.SetTextAsync("picking.max_totes", SettingScopeRef.Organization, "5", "me", CancellationToken.None));
+        await AssertCodeAsync(SettingErrorCodes.StoreUnavailable, () => Settings.SetModeAsync(MaxTotes, SettingScopeRef.Organization, CascadeMode.PerSite, "me", CancellationToken.None));
+        await AssertCodeAsync(SettingErrorCodes.StoreUnavailable, () => Settings.PopulateAsync(SettingScopeRef.Site(1), "me", CancellationToken.None));
+        await AssertCodeAsync(SettingErrorCodes.UnknownKey, () => Settings.SetModeAsync(unregistered, SettingScopeRef.Organization, CascadeMode.PerSite, "me", CancellationToken.None));
         await AssertCodeAsync(SettingErrorCodes.UnknownKey, () => Settings.SetTextAsync("picking.nope", SettingScopeRef.Organization, "5", "me", CancellationToken.None));
         await AssertCodeAsync(SettingErrorCodes.UnknownKey, () => Settings.FindAsync("picking.nope", SettingScopeRef.Organization, CancellationToken.None));
         await AssertCodeAsync(SettingErrorCodes.UnknownKey, () => Settings.GetAsync(unregistered, SettingScopeRef.Organization, CancellationToken.None));
@@ -64,8 +67,8 @@ public sealed class DefaultSettingsTests
     [Fact]
     public void Values_mask_secrets_and_carry_the_rows_entity_tag()
     {
-        var plain = SettingValue.Create(MaxTotes, SettingScopeRef.Zone(9), "4", "4", null, 0x2A, "me", DateTimeOffset.UnixEpoch);
-        var secret = SettingValue.Create(Password, SettingScopeRef.Organization, "hunter2", "hunter2", null, 7);
+        var plain = SettingValue.Create(MaxTotes, SettingScopeRef.Zone(9), "4", "4", null, rowVersion: 0x2A, updatedBy: "me", updatedAt: DateTimeOffset.UnixEpoch);
+        var secret = SettingValue.Create(Password, SettingScopeRef.Organization, "hunter2", "hunter2", null, CascadeMode.Value, 7);
         var inherited = SettingValue.Create(Password, SettingScopeRef.Site(1), null, "hunter2", "organization");
 
         Assert.Equal("zone:9", plain.Scope);
@@ -76,6 +79,10 @@ public sealed class DefaultSettingsTests
         Assert.Null(inherited.ConfiguredValue);
         Assert.Equal("organization", inherited.InheritedFrom);
         Assert.Null(inherited.Etag);
+        Assert.Equal("value", plain.CascadeMode);
+        Assert.Equal(["value"], plain.AllowedModes);
+        Assert.Equal(["value", "per_site", "per_zone"], SettingValue.Create(MaxTotes, SettingScopeRef.Organization, null, "3", "default").AllowedModes);
+        Assert.Equal(["value"], secret.AllowedModes);
         Assert.Throws<ArgumentNullException>(() => SettingValue.Create(null!, SettingScopeRef.Organization, null, "x", null));
         Assert.Throws<ArgumentNullException>(() => SettingValue.Create(MaxTotes, SettingScopeRef.Organization, null, null!, null));
     }

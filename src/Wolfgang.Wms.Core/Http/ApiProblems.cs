@@ -19,7 +19,7 @@ public static class ApiProblems
     /// <summary>
     /// Base of the troubleshooting reference every <c>type</c> URI points into; the anchor is the code's.
     /// </summary>
-    public const string DocsBase = "https://chris-wolfgang.github.io/wms/troubleshooting/";
+    public const string DocsBase = "https://chris-wolfgang.github.io/wms/versions/latest/docs/troubleshooting.html";
 
 
 

@@ -51,7 +51,8 @@ public sealed class MigrateToolTests
         var up = await RunAsync(configuration, extra);
         var status = await RunAsync(configuration, ["--status", .. extra]);
         var again = await RunAsync(configuration, extra);
-        var down = await RunAsync(configuration, ["--to", "0", .. extra]);
+        var refused = await RunAsync(configuration, ["--to", "0", .. extra]);   // core.setting would be dropped (E6.2)
+        var down = await RunAsync(configuration, ["--to", "0", "--confirm-data-loss", .. extra]);
         var statusAfterDown = await RunAsync(configuration, ["--status", .. extra]);
         var backUp = await RunAsync(configuration, ["--to", "Initial", .. extra]);
         var latest = await RunAsync(configuration, extra);
@@ -64,6 +65,8 @@ public sealed class MigrateToolTests
         Assert.Contains("Pending (0)", status.Output, StringComparison.Ordinal);
         Assert.Contains("Direction: None", again.Output, StringComparison.Ordinal);
         Assert.Contains("Nothing to do.", again.Output, StringComparison.Ordinal);
+        Assert.Equal(MigrateProgram.ExitConfirmationRequired, refused.Code);
+        Assert.Contains("drop table core.setting", refused.Error, StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitOk, down.Code);
         Assert.Contains("Direction: Down", down.Output, StringComparison.Ordinal);
         Assert.Matches(@"Reverted \([1-9]\d*\)", down.Output);

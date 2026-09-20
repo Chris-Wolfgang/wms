@@ -182,7 +182,7 @@ public sealed class ModelConventionsTests
 
 
 
-    private static DbContextOptions<TContext> Options<TContext>(string provider)
+    internal static DbContextOptions<TContext> Options<TContext>(string provider)
         where TContext : DbContext
     {
         var builder = new DbContextOptionsBuilder<TContext>();

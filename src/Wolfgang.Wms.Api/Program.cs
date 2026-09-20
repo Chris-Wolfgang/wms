@@ -42,6 +42,7 @@ builder.Services.AddWmsCompression();
 // origins allowed by the api.cors.allowed_origins setting, applied without a restart.
 builder.Services.AddWmsForwardedHeaders(builder.Configuration);
 builder.Services.AddWmsCors();
+builder.Services.AddWmsHealth();   // E12.1: /health/live and /health/ready; the database adds its readiness check
 
 // E82.7: device groups call .RequireDeviceVersion(); the minimum comes from settings once E12 lands.
 builder.Services.AddWmsDeviceVersioning();
@@ -68,12 +69,14 @@ var app = builder.Build();
 
 app.UseWmsForwardedHeaders();   // first: everything after sees the forwarded scheme and address
 app.UseWmsProblemDetails();
+app.UseWmsHttpsRequired(builder.Configuration);   // E12.5: plain HTTP from the network is a 400, never a redirect
 app.UseWmsCors();
 app.UseWmsCompression();
 app.UseWmsRequestLocalization();
 app.UseWmsAuth();   // E9: rate limiter, authentication, authorization, must-change-password gate
 
 app.MapGet("/", () => "Wolfgang.Wms API").AllowAnonymous();   // the product name, nothing else
+app.MapWmsHealth();   // E12.1: outside the versioned root, anonymous, plain HTTP allowed
 
 // Every module endpoint lives under the versioned root; nothing is mapped on `app` directly (E82.1).
 var api = app.MapWmsApi();

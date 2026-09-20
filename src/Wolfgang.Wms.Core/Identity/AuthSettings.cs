@@ -44,7 +44,19 @@ public static class AuthSettings
 
 
     /// <summary>
+    /// Idle timeout of a console session (E10.5): default 30 minutes; any request, including a dashboard's
+    /// auto-refresh, counts as activity.
+    /// </summary>
+    public static readonly SettingKey<TimeSpan> IdleTimeout = new("auth.session.idle_timeout", TimeSpan.FromMinutes(30), "How long a console session may sit idle before it ends.")
+    {
+        Scopes = SettingScopes.Organization,
+        Validator = v => v >= TimeSpan.FromMinutes(1) && v <= TimeSpan.FromHours(24) ? null : "must be between 1 minute and 24 hours",
+    };
+
+
+
+    /// <summary>
     /// Every key, for the module descriptor.
     /// </summary>
-    public static IReadOnlyList<SettingKey> All { get; } = [LockoutThreshold, LockoutDuration, SessionLifetime];
+    public static IReadOnlyList<SettingKey> All { get; } = [LockoutThreshold, LockoutDuration, SessionLifetime, IdleTimeout];
 }

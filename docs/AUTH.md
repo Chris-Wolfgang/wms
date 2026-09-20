@@ -79,9 +79,28 @@ grants nothing and is listed as expired. The local administrator additionally ho
 assigned Administrator on every start. Sites are not entities yet, so a site id is a plain number until
 they arrive.
 
+## Sessions (E10.5)
+
+A console session ends when any of these is reached, all read from settings so an administrator balances
+security and convenience without a restart:
+
+| Rule | Setting | Default |
+|------|---------|---------|
+| Absolute lifetime, from sign-in | `auth.session.lifetime` | 8 hours (5 minutes to 24 hours) |
+| Idle timeout, sliding on any request (a dashboard's auto-refresh counts) | `auth.session.idle_timeout` | 30 minutes (1 minute to 24 hours) |
+
+Every user carries a "sessions valid after" instant: a password change, disabling the account, or any role
+change (assign, unassign, delete a role) sets it to now, so sessions and tokens issued before it are
+refused on their next request (`401 auth.not_signed_in`) and the user signs in again with the new grants.
+The check is one primary-key read per request. The password-change endpoint re-signs the caller in, so their
+own session continues.
+
+Picker tokens and integration API keys (bearer header, hashed at rest, two active keys during rotation)
+arrive with the device and integration stories; provider sign-out (front-/back-channel) with E11.
+
 ## What comes next
 
 - E9.3: local sign-in disabled once SSO is verified and re-enabled for a timed window from the host only.
-- E10.4–E10.6: integrity signatures, session lifetimes as settings, hardening; a periodic job that audits
+- E10.4, E10.6: integrity signatures, hardening (API keys, CORS, security headers); a periodic job that audits
   expired assignments.
 - E11: OIDC and other providers behind one interface, chosen in the console.

@@ -24,6 +24,112 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
 
             modelBuilder.HasSequence("row_version_seq", "wms");
 
+            modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditDetail", b =>
+                {
+                    b.Property<long>("DetailId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("detail_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("DetailId"));
+
+                    b.Property<string>("ColumnName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("column_name");
+
+                    b.Property<Guid>("HeaderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("header_id");
+
+                    b.Property<string>("ValueText")
+                        .HasColumnType("text")
+                        .HasColumnName("value_text");
+
+                    b.Property<string>("ValueType")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("value_type");
+
+                    b.HasKey("DetailId")
+                        .HasName("pk_audit_detail");
+
+                    b.HasIndex("ColumnName")
+                        .HasDatabaseName("ix_audit_detail_column_name");
+
+                    b.HasIndex("HeaderId")
+                        .HasDatabaseName("ix_audit_detail_header_id");
+
+                    b.ToTable("audit_detail", "core");
+                });
+
+            modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditHeader", b =>
+                {
+                    b.Property<Guid>("HeaderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("header_id");
+
+                    b.Property<DateTime>("AuditedAtUtc")
+                        .HasPrecision(6)
+                        .HasColumnType("timestamp(6) with time zone")
+                        .HasColumnName("audited_at_utc");
+
+                    b.Property<string>("EntityKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("entity_key");
+
+                    b.Property<string>("EntityTable")
+                        .IsRequired()
+                        .HasMaxLength(384)
+                        .HasColumnType("character varying(384)")
+                        .HasColumnName("entity_table");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<string>("OnBehalfOfUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("on_behalf_of_user_id");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)")
+                        .HasColumnName("operation");
+
+                    b.Property<Guid>("TransactionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transaction_id");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("HeaderId")
+                        .HasName("pk_audit_header");
+
+                    b.HasIndex("AuditedAtUtc")
+                        .HasDatabaseName("ix_audit_header_audited_at_utc");
+
+                    b.HasIndex("TransactionId")
+                        .HasDatabaseName("ix_audit_header_transaction_id");
+
+                    b.HasIndex("EntityType", "EntityKey")
+                        .HasDatabaseName("ix_audit_header_entity_type_entity_key");
+
+                    b.ToTable("audit_header", "core");
+                });
+
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Database.Settings.Setting", b =>
                 {
                     b.Property<long>("Id")
@@ -95,6 +201,23 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         {
                             t.HasTrigger("trg_setting_row_version");
                         });
+                });
+
+            modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditDetail", b =>
+                {
+                    b.HasOne("Wolfgang.AuditTrail.Entities.AuditHeader", "Header")
+                        .WithMany("Details")
+                        .HasForeignKey("HeaderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_audit_detail_header_id");
+
+                    b.Navigation("Header");
+                });
+
+            modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditHeader", b =>
+                {
+                    b.Navigation("Details");
                 });
 #pragma warning restore 612, 618
         }

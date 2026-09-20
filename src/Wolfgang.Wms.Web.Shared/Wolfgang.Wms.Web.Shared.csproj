@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Wolfgang.Wms.Client\Wolfgang.Wms.Client.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
   </ItemGroup>
 

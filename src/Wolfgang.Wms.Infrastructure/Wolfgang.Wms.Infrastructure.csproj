@@ -1,6 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- E2: EF Core with both supported providers; the installer picks one at run time (Wms:Database:Provider).
+         Npgsql (PostgreSQL licence, permissive) sits behind WmsDbContext and the repositories, never used directly. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wolfgang.Wms.Core\Wolfgang.Wms.Core.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
   </ItemGroup>
 
@@ -8,6 +17,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- E1.9: EF Core (DbContext, migrations) is reflection-based and not trim/AOT-clean, so the analyzers are
+         off here and the assembly is rooted (not trimmed) at publish; the API publishes JIT + ReadyToRun until
+         EF supports NativeAOT. Configuration binding uses the source generator regardless. -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <IsTrimmable>false</IsTrimmable>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
   </PropertyGroup>
 
 </Project>

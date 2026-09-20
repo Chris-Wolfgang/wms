@@ -198,6 +198,15 @@ first administrator, license install, TLS/proxy, backup/restore) and nothing els
 only bootstrap surface is the read-only `GET /system/schema` (`SchemaModule`, `ISchemaVersionSource`).
 API records get a `[JsonSerializable]` line in `WmsJsonContext` so they serialise without reflection.
 
+## Database provider (E2)
+
+The installer picks SQL Server or PostgreSQL at run time: `Wms:Database:Provider` (`SqlServer` | `PostgreSql`;
+`None` starts the host without a database for bootstrap only), `Wms:Database:ConnectionString`, and for SQL
+Server `Wms:Database:TrustServerCertificate` (see [docs/CONFIGURATION.md](CONFIGURATION.md)). An unknown
+provider or a missing connection string fails startup with a message naming the setting. `WmsDbContext`
+(`Wolfgang.Wms.Infrastructure.Database`) is the only place a provider is chosen; no provider-specific SQL in
+the shared model (E2.3), migrations per provider (E2.4).
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value
@@ -215,7 +224,8 @@ default shape for anything that crosses the API or the journal.
 - Publish shape: API and worker publish JIT + ReadyToRun until EF Core supports NativeAOT, then flip the flag
   with no code change; the simulator and the CLI publish NativeAOT from day one (`PublishAot`); the CLI's
   `migrate` subcommand, which needs EF, ships as a separate JIT executable; MAUI uses its platform defaults;
-  the Blazor Server console is excluded. `Wolfgang.Wms.Infrastructure` is rooted (not trimmed) at publish.
+  the Blazor Server console is excluded. `Wolfgang.Wms.Infrastructure` (EF Core: reflection-based, not
+  trim/AOT-clean) has the analyzers off and is rooted (not trimmed) at publish.
 - One assembly per project, single-file publish for distribution; self-contained runtime for the Windows
   installer and the CLI, framework-dependent inside containers (runtime patched by rebuilding the base image).
   Generated code (EF migrations, compiled model, source generators) is `[ExcludeFromCodeCoverage]`.

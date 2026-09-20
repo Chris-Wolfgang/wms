@@ -26,6 +26,30 @@
           }
         }
       }
+    },
+    "/api/v0/settings/registry": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every setting the host knows: kind, scopes, default, description (read-only).",
+        "operationId": "GetSettingRegistry",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SettingDescriptor"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -57,6 +81,77 @@
           }
         },
         "description": "The database schema as the API sees it (E82.5): the migration the database is at and the one this build\r\nexpects. Read-only; applying migrations is a bootstrap step outside the API (\u0060wms migrate\u0060)."
+      },
+      "SettingDescriptor": {
+        "required": [
+          "name",
+          "kind",
+          "scopes",
+          "default",
+          "description",
+          "choices",
+          "requiresRestart",
+          "triggersDeviceResync"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The setting name."
+          },
+          "kind": {
+            "description": "How the value is edited and stored.",
+            "$ref": "#/components/schemas/SettingKind"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The scope names the setting may be configured at, organisation first."
+          },
+          "default": {
+            "type": "string",
+            "description": "The default value as stored text; masked for secrets."
+          },
+          "description": {
+            "type": "string",
+            "description": "The one-line description."
+          },
+          "choices": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The allowed values when the kind is a fixed list, else null."
+          },
+          "requiresRestart": {
+            "type": "boolean",
+            "description": "True when a change needs a host restart."
+          },
+          "triggersDeviceResync": {
+            "type": "boolean",
+            "description": "True when a change makes devices resync."
+          }
+        },
+        "description": "One registry entry as the API and the console see it (E6.1): everything a settings page needs to render\r\nand validate a setting without knowing its CLR type."
+      },
+      "SettingKind": {
+        "enum": [
+          "Boolean",
+          "Integer",
+          "Number",
+          "Enum",
+          "String",
+          "Duration",
+          "Timestamp",
+          "Secret",
+          "Json"
+        ],
+        "description": "How a setting\u0027s value is edited and stored (E6.1). Every value is stored as invariant-culture text; the\r\nkind tells the settings page which editor to show and the accessor how to parse the text."
       }
     }
   },

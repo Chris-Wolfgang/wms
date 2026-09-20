@@ -4,5 +4,21 @@
   href: introduction.md
 - name: Getting Started
   href: getting-started.md
+- name: Licensing
+  href: licensing.md
+- name: Feature comparison
+  href: licensing/feature-comparison.md
+- name: Troubleshooting
+  href: troubleshooting.md
+- name: Reference
+  items:
+  - name: Settings
+    href: reference/settings.md
+  - name: Permissions
+    href: reference/permissions.md
+  - name: Error codes
+    href: reference/error-codes.md
+  - name: Modules
+    href: reference/modules.md
 - name: Project website
   href: 'https://github.com/Chris-Wolfgang/wms'

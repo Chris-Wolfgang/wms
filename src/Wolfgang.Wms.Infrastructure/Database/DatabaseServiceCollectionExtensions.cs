@@ -15,6 +15,20 @@ namespace Wolfgang.Wms.Infrastructure.Database;
 public static class DatabaseServiceCollectionExtensions
 {
     /// <summary>
+    /// Assembly holding the SQL Server migrations (E2.4); referenced by the hosts that migrate or report schema.
+    /// </summary>
+    public const string SqlServerMigrationsAssembly = "Wolfgang.Wms.Infrastructure.Migrations.SqlServer";
+
+
+
+    /// <summary>
+    /// Assembly holding the PostgreSQL migrations (E2.4).
+    /// </summary>
+    public const string PostgreSqlMigrationsAssembly = "Wolfgang.Wms.Infrastructure.Migrations.PostgreSql";
+
+
+
+    /// <summary>
     /// Binds and validates <see cref="DatabaseOptions"/> (startup fails on an unknown provider or a missing
     /// connection string), registers <see cref="WmsDbContext"/> on the chosen provider, and replaces the
     /// bootstrap schema source with the migrations-history one. With provider <c>None</c> no context is
@@ -57,8 +71,8 @@ public static class DatabaseServiceCollectionExtensions
 
         return options.ParsedProvider switch
         {
-            DatabaseProvider.SqlServer => builder.UseSqlServer(options.EffectiveConnectionString()),
-            DatabaseProvider.PostgreSql => builder.UseNpgsql(options.EffectiveConnectionString()),
+            DatabaseProvider.SqlServer => builder.UseSqlServer(options.EffectiveConnectionString(), sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly)),
+            DatabaseProvider.PostgreSql => builder.UseNpgsql(options.EffectiveConnectionString(), npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly)),
             _ => throw new InvalidOperationException($"{DatabaseOptions.SectionName}:Provider '{options.Provider}' cannot host a database context."),
         };
     }

@@ -211,6 +211,15 @@ for index comments (E3.5); `scripts/Check-Migrations.ps1` (also a CI step) fails
 both migrations. A migration that runs against the wrong engine is impossible: each assembly is only ever
 loaded by its provider.
 
+## Schema conventions (E3)
+
+[docs/DATABASE-CONVENTIONS.md](DATABASE-CONVENTIONS.md) is the contract: module schemas (never `dbo`/`public`),
+snake_case names (`container.zone_group_id`, `pk_`/`fk_`/`ix_`/`ux_` prefixes), server-assigned `long` `id`
+keys, no GUIDs, `Restrict` foreign keys with explicit indexes, `decimal(9,3)` quantities, UTC
+`DateTimeOffset` timestamps at millisecond precision. `ModelConventions.Apply` enforces the names and types;
+`ModelConventions.Verify` is asserted empty by `ModelConventionsTests` for both providers, so a violation
+fails the build.
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value

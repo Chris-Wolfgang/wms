@@ -102,7 +102,8 @@ and the CLI all go through it, and nothing writes `core.setting` directly.
   reads then answer defaults).
 - `ISettingScopeHierarchy` supplies parents and children. Until sites, zones and SKUs are entities, the
   placeholder knows only that a site's parent is the organisation; E7.1 replaces it.
-- Secrets are masked in every `SettingValue`; encryption at rest arrives with E8.3.
+- Secrets are masked in every `SettingValue` and stored encrypted (`enc:v1:`, E8.3) through `ISecretProtector`;
+  only `GetAsync<SecretText>` sees the plain value.
 
 | Endpoint | Meaning |
 |----------|---------|

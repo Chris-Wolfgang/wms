@@ -229,6 +229,15 @@ never a hand-rolled check at one surface. Formats are `IdentifierFormat` (mask v
 .NET regex), always anchored, `NonBacktracking` where possible, 100 ms timeout otherwise. GS1 element strings
 go through `Gs1.TryParse`. Domain may reference `System.Text.RegularExpressions` for this and nothing else.
 
+## Migrations at run time (E4)
+
+[docs/MIGRATE.md](MIGRATE.md) is the operator's contract. In code: `MigrationRunner`
+(`Wolfgang.Wms.Infrastructure.Database`) is the one place migrations are applied, reverted or scripted; the
+API never migrates unless `Wms:Database:AutoMigrate` is on (bundled installs only) and refuses to start on a
+schema that is behind, ahead or unreachable (`SchemaStartupCheck`). Every migration has a working `Down`; a
+downgrade that drops tables, columns, schemas or rows needs `--confirm-data-loss`. The migrations history
+table lives in schema `wms`, never `dbo`/`public`.
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value

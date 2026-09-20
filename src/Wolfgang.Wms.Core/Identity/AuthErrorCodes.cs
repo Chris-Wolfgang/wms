@@ -1,0 +1,66 @@
+// Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
+
+using Microsoft.AspNetCore.Http;
+using Wolfgang.Wms.Domain.Keys;
+
+namespace Wolfgang.Wms.Core.Identity;
+
+/// <summary>
+/// Error codes of the <c>auth</c> module (E9).
+/// </summary>
+public static class AuthErrorCodes
+{
+    /// <summary>
+    /// Unknown user or wrong password; reported identically so names cannot be probed.
+    /// </summary>
+    public static ErrorCode InvalidCredentials { get; } = new("auth.invalid_credentials", StatusCodes.Status401Unauthorized, "The user name or password is wrong.", "auth-invalid-credentials", ErrorSeverity.Warning);
+
+
+
+    /// <summary>
+    /// Too many failures; the account is locked for a while.
+    /// </summary>
+    public static ErrorCode LockedOut { get; } = new("auth.locked_out", StatusCodes.Status423Locked, "The account is locked until {0}.", "auth-locked-out", ErrorSeverity.Warning);
+
+
+
+    /// <summary>
+    /// The account is disabled.
+    /// </summary>
+    public static ErrorCode Disabled { get; } = new("auth.disabled", StatusCodes.Status403Forbidden, "The account is disabled.", "auth-disabled", ErrorSeverity.Warning);
+
+
+
+    /// <summary>
+    /// The request needs a signed-in user.
+    /// </summary>
+    public static ErrorCode NotSignedIn { get; } = new("auth.not_signed_in", StatusCodes.Status401Unauthorized, "Sign in first.", "auth-not-signed-in", ErrorSeverity.Info);
+
+
+
+    /// <summary>
+    /// The signed-in user lacks the right to do this.
+    /// </summary>
+    public static ErrorCode Forbidden { get; } = new("auth.forbidden", StatusCodes.Status403Forbidden, "You are not allowed to do this.", "auth-forbidden", ErrorSeverity.Warning);
+
+
+
+    /// <summary>
+    /// The user must replace the bootstrap or reset password before anything else (E9.1).
+    /// </summary>
+    public static ErrorCode PasswordChangeRequired { get; } = new("auth.password_change_required", StatusCodes.Status403Forbidden, "Change your password before continuing.", "auth-password-change-required", ErrorSeverity.Warning);
+
+
+
+    /// <summary>
+    /// A password change was refused: wrong current password or a new one the policy rejects.
+    /// </summary>
+    public static ErrorCode PasswordRejected { get; } = new("auth.password_rejected", StatusCodes.Status400BadRequest, "{0}", "auth-password-rejected", ErrorSeverity.Error);
+
+
+
+    /// <summary>
+    /// Local accounts need the database, which is not configured yet (bootstrap).
+    /// </summary>
+    public static ErrorCode Unavailable { get; } = new("auth.unavailable", StatusCodes.Status503ServiceUnavailable, "Sign-in is unavailable until the database is configured.", "auth-unavailable", ErrorSeverity.Error);
+}

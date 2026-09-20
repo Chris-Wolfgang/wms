@@ -39,18 +39,25 @@ If the PR adds an EF migration: reviewed for data loss, lock duration on large t
 `site_id` on every new site-scoped table, `row_version` on every new table, and an `Up`/`Down` that round-trips.
 State the review in the PR body. No migration → say "no migration".
 
-## 6. New dependency has a license note
+## 6. New queries against high-volume tables have a plan check (E3.5)
+
+A new query over scan events, deposits, audit, journal or any table that grows per pick: paste the execution
+plan (both providers) or the load-run statement stats in the PR body, and every index you add cites the
+query it serves in the migration comment. No index without a query, no query over a large table without a
+look at its plan.
+
+## 7. New dependency has a license note
 
 A new `PackageReference` outside the BCL, Microsoft and Chris-Wolfgang libraries needs a sentence in the PR
 body: why the BCL does not cover it, its license (allow-list: MIT, Apache-2.0, BSD, MPL-2.0), and the interface
 it sits behind. `DependencyPolicyTests` rejects the deny list; the note is for everything else.
 
-## 7. Local gate before push
+## 8. Local gate before push
 
 `scripts/build-pr.ps1` (or the session's equivalent) must pass: build with 0 warnings, all tests, coverage at
 the floors (90 % `src/`, 100 % `tests/`, Domain 100 %). Paste the summary line in the PR body.
 
-## 8. PR body template
+## 9. PR body template
 
 ```
 Refs #<story issue> (E27.3).

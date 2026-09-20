@@ -446,3 +446,6 @@ docfx_project/api/*.yml
 
 # The repo-versioned release skill (E85.6) is not a build output folder.
 !.claude/skills/release/
+
+# Kiota writes a run log next to the generated client (E82.8); the lock file is committed, the log is not.
+.kiota.log

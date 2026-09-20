@@ -2,6 +2,7 @@
 
 using System.Text.Json.Serialization;
 using Wolfgang.Wms.Core.Schema;
+using Wolfgang.Wms.Core.Settings;
 
 namespace Wolfgang.Wms.Core.Json;
 
@@ -12,6 +13,7 @@ namespace Wolfgang.Wms.Core.Json;
 /// </summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DictionaryKeyPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(SchemaStatus))]
+[JsonSerializable(typeof(List<SettingDescriptor>))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

@@ -235,6 +235,105 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.Role", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("BuiltInKey")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("built_in_key");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NameNormalized")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name_normalized");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version")
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_role");
+
+                    b.HasIndex("BuiltInKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_role_built_in_key");
+
+                    b.HasIndex("NameNormalized")
+                        .IsUnique()
+                        .HasDatabaseName("ux_role_name_normalized");
+
+                    b.HasIndex("RowVersion")
+                        .HasDatabaseName("ix_role_row_version");
+
+                    b.ToTable("role", "core", t =>
+                        {
+                            t.HasTrigger("trg_role_row_version");
+                        });
+                });
+
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.RolePermission", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("PermissionName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("permission_name");
+
+                    b.Property<long>("RoleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("role_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_role_permission");
+
+                    b.HasIndex("RoleId", "PermissionName")
+                        .IsUnique()
+                        .HasDatabaseName("ux_role_permission_role_id_permission_name");
+
+                    b.ToTable("role_permission", "core");
+                });
+
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.User", b =>
                 {
                     b.Property<long>("Id")
@@ -325,6 +424,69 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.UserRole", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<long>("RoleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("role_id");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version")
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
+
+                    b.Property<long?>("SiteId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("site_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("updated_by");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_role");
+
+                    b.HasIndex("RoleId")
+                        .HasDatabaseName("ix_user_role_role_id");
+
+                    b.HasIndex("RowVersion")
+                        .HasDatabaseName("ix_user_role_row_version");
+
+                    b.HasIndex("UserId", "RoleId", "SiteId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_user_role_user_id_role_id_site_id");
+
+                    b.ToTable("user_role", "core", t =>
+                        {
+                            t.HasTrigger("trg_user_role_row_version");
+                        });
+                });
+
             modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditDetail", b =>
                 {
                     b.HasOne("Wolfgang.AuditTrail.Entities.AuditHeader", "Header")
@@ -337,9 +499,43 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                     b.Navigation("Header");
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.RolePermission", b =>
+                {
+                    b.HasOne("Wolfgang.Wms.Infrastructure.Identity.Role", null)
+                        .WithMany("Permissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_role_permission_role_id");
+                });
+
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.UserRole", b =>
+                {
+                    b.HasOne("Wolfgang.Wms.Infrastructure.Identity.Role", "Role")
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_role_role_id");
+
+                    b.HasOne("Wolfgang.Wms.Infrastructure.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_role_user_id");
+
+                    b.Navigation("Role");
+                });
+
             modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditHeader", b =>
                 {
                     b.Navigation("Details");
+                });
+
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.Role", b =>
+                {
+                    b.Navigation("Permissions");
                 });
 #pragma warning restore 612, 618
         }

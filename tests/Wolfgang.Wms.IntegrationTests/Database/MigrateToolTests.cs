@@ -16,13 +16,12 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 /// </summary>
 public sealed class MigrateToolTests
 {
-    [DockerFact]
+    [SqlServerFact]
     public async Task SqlServer_up_status_down_up_through_the_tool()
     {
-        await using var container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
-        await container.StartAsync();
+        await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await AssertUpDownUpAsync("SqlServer", container.GetConnectionString(), ["--trust-server-certificate"]);
+        await AssertUpDownUpAsync("SqlServer", database.ConnectionString, ["--trust-server-certificate"]);
     }
 
 

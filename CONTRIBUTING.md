@@ -218,6 +218,9 @@ dotnet test --configuration Release
 
 # Run with coverage (if configured)
 dotnet test --collect:"XPlat Code Coverage"
+
+# SQL Server tests without Docker: point them at a local instance (LocalDB, Express); PostgreSQL tests need Docker
+WMS_TEST_SQLSERVER="Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true" dotnet test tests/Wolfgang.Wms.IntegrationTests
 ```
 
 ### Run the PR checks locally

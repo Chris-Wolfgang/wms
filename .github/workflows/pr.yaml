@@ -957,6 +957,13 @@ jobs:
           dotnet tool install --global dotnet-ef
           pwsh ./scripts/Check-Migrations.ps1
 
+      - name: Logging rules (E12.2)
+        # No Console.Write in a host or library, no interpolated log calls, every [LoggerMessage] declares a Level.
+        # Skipped until the script exists on the PR head (it arrives with the E12.2 code change).
+        if: hashFiles('scripts/Check-LogLevels.ps1') != ''
+        shell: pwsh
+        run: pwsh ./scripts/Check-LogLevels.ps1
+
       - name: Run tests with coverage (.NET Core 5.0 - 10.0)
         # Explicit bash: GitHub's implicit default is `bash -e` WITHOUT
         # pipefail; the explicit form is `bash -eo pipefail`, which the
@@ -1051,6 +1058,7 @@ jobs:
                 --collect:"XPlat Code Coverage" \
                 --settings coverlet.runsettings \
                 --results-directory "./TestResults" \
+                --logger "trx" \
                 --logger "console;verbosity=minimal" 2>&1 | tee "$test_log" || exit 1
               if grep -q "No test is available" "$test_log" || ! grep -qiE "total( tests)?:[[:space:]]*[1-9][0-9]*" "$test_log"; then
                 echo "::error file=$test_proj::Zero tests ran for $fw — the test adapter found nothing to execute (missing/incompatible xunit.runner.visualstudio for this TFM?). dotnet test exits 0 in this case, so this guard fails the job instead."
@@ -1060,6 +1068,14 @@ jobs:
             done <<< "$frameworks"
             echo ""
           done
+
+      - name: Skipped tests name an open issue (E13.1)
+        # A skip whose reason names no open issue is a test silently switched off.
+        if: hashFiles('scripts/Check-Skips.ps1') != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pwsh ./scripts/Check-Skips.ps1 -ResultsDirectory ./TestResults
 
       - name: Check for coverage files
         id: check-coverage
@@ -1375,6 +1391,19 @@ jobs:
       - name: Build solution
         run: dotnet build --no-restore --configuration Release
 
+      - name: Start SQL Server Express LocalDB (E13.1)
+        # The Windows job has no Docker; the SQL Server integration tests run against Express LocalDB instead
+        # (SqlServerTestDatabase creates a database per test on the instance WMS_TEST_SQLSERVER names).
+        shell: pwsh
+        run: |
+          if (-not (Get-Command sqllocaldb -ErrorAction SilentlyContinue)) {
+            choco install sqllocaldb -y --no-progress
+            $env:PATH = "$env:PATH;C:\Program Files\Microsoft SQL Server\150\Tools\Binn;C:\Program Files\Microsoft SQL Server\160\Tools\Binn"
+          }
+          sqllocaldb start MSSQLLocalDB
+          sqllocaldb info MSSQLLocalDB
+          "WMS_TEST_SQLSERVER=Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true" >> $env:GITHUB_ENV
+
       - name: Run all .NET tests (.NET 5.0-10.0 and Framework 4.6.2-4.8.1)
         shell: pwsh
         run: |
@@ -1482,12 +1511,15 @@ jobs:
                   --collect:"XPlat Code Coverage" `
                   --settings coverlet.runsettings `
                   --results-directory "./TestResults" `
+                  --logger "trx" `
                   --logger "console;verbosity=normal" 2>&1 | Tee-Object -FilePath $testLog
               } else {
                 dotnet test $testProj.FullName `
                   --configuration Release `
                   --framework $fw `
                   --no-build --no-restore `
+                  --results-directory "./TestResults" `
+                  --logger "trx" `
                   --logger "console;verbosity=normal" 2>&1 | Tee-Object -FilePath $testLog
               }
 
@@ -1504,6 +1536,14 @@ jobs:
             }
             Write-Host ""
           }
+
+      - name: Skipped tests name an open issue (E13.1)
+        # The Windows job skips the Docker-only tests (PostgreSQL, container images); each names #220.
+        if: hashFiles('scripts/Check-Skips.ps1') != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pwsh ./scripts/Check-Skips.ps1 -ResultsDirectory ./TestResults
 
       - name: Check for coverage files
         id: check-coverage

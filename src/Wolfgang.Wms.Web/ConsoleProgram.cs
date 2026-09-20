@@ -52,6 +52,7 @@ public static class ConsoleProgram
         app.UseAntiforgery();
 
         app.MapStaticAssets();
+        app.MapConsoleHelp();   // E83.4: the packaged docs site at /help/ when the release put it next to the console
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode()
             .AddAdditionalAssemblies([.. WorkspaceAssemblies.All]);

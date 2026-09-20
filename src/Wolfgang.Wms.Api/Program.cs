@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using Wolfgang.Wms.Core.Api;
+using Wolfgang.Wms.Core.Configuration;
 using Wolfgang.Wms.Core.Devices;
 using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Json;
@@ -39,6 +40,9 @@ builder.Services.AddWmsDeviceVersioning();
 builder.Services.AddWmsModules();
 builder.Services.AddWmsSchemaModule();   // E82.5: GET /system/schema, read-only
 builder.Services.AddWmsSettingsModule();   // E6.1: GET /settings/registry, the settings every module declares
+
+// E6.5: appsettings holds bootstrap keys only; anything else is named in a startup warning and ignored.
+builder.Services.AddWmsBootstrapConfigurationCheck();
 
 // E2.1: Wms:Database:{Provider,ConnectionString,TrustServerCertificate}; an unknown provider fails startup.
 builder.Services.AddWmsDatabase(builder.Configuration);

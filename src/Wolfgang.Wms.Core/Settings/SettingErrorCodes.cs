@@ -67,6 +67,34 @@ public static class SettingErrorCodes
 
 
     /// <summary>
+    /// A write asked for a cascade mode the setting does not allow at that scope.
+    /// </summary>
+    public static ErrorCode ModeNotAllowed { get; } = new
+    (
+        "settings.mode_not_allowed",
+        StatusCodes.Status400BadRequest,
+        "{0} cannot be delegated {1} at the {2} scope.",
+        "settings-mode-not-allowed",
+        ErrorSeverity.Error
+    );
+
+
+
+    /// <summary>
+    /// A write targeted a scope an ancestor has delegated past (the decision is made lower down).
+    /// </summary>
+    public static ErrorCode DecidedElsewhere { get; } = new
+    (
+        "settings.decided_elsewhere",
+        StatusCodes.Status409Conflict,
+        "{0} is decided {1} (set by {2}); it cannot be configured at the {3} scope.",
+        "settings-decided-elsewhere",
+        ErrorSeverity.Error
+    );
+
+
+
+    /// <summary>
     /// A write carried a value the setting's kind or validator rejects.
     /// </summary>
     public static ErrorCode InvalidValue { get; } = new

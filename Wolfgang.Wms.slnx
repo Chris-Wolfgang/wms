@@ -98,6 +98,8 @@
     <Project Path="src/Wolfgang.Wms.Core/Wolfgang.Wms.Core.csproj" />
     <Project Path="src/Wolfgang.Wms.Domain/Wolfgang.Wms.Domain.csproj" />
     <Project Path="src/Wolfgang.Wms.Infrastructure/Wolfgang.Wms.Infrastructure.csproj" />
+    <Project Path="src/Wolfgang.Wms.Infrastructure.Migrations.PostgreSql/Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.csproj" />
+    <Project Path="src/Wolfgang.Wms.Infrastructure.Migrations.SqlServer/Wolfgang.Wms.Infrastructure.Migrations.SqlServer.csproj" />
     <Project Path="src/Wolfgang.Wms.Simulator/Wolfgang.Wms.Simulator.csproj" />
     <Project Path="src/Wolfgang.Wms.Web/Wolfgang.Wms.Web.csproj" />
     <Project Path="src/Wolfgang.Wms.Web.Shared/Wolfgang.Wms.Web.Shared.csproj" />

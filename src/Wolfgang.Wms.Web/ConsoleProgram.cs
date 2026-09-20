@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Microsoft.AspNetCore.HttpOverrides;
 using Wolfgang.Wms.Web.Components;
 using Wolfgang.Wms.Web.Shared;
 
@@ -29,7 +30,13 @@ public static class ConsoleProgram
         // Every user-visible string comes from ConsoleText.resx (E82.4), in the request's culture.
         builder.Services.AddConsoleLocalization();
 
+        // E10.6: the same Wms:Hosting:BehindProxy key as the API (the console cannot share Core's code).
+        builder.Services.Configure<ForwardedHeadersOptions>(options => ConsoleHosting.ConfigureForwardedHeaders(options, builder.Configuration));
+
         var app = builder.Build();
+
+        app.UseForwardedHeaders();
+        app.UseWmsSecurityHeaders();   // E10.6: CSP for Blazor Server, nosniff, referrer policy, no framing
 
         // Resolve the request culture before anything renders text (error and not-found pages included).
         app.UseRequestLocalization();

@@ -98,9 +98,24 @@ own session continues.
 Picker tokens and integration API keys (bearer header, hashed at rest, two active keys during rotation)
 arrive with the device and integration stories; provider sign-out (front-/back-channel) with E11.
 
+## Hardening (E10.6)
+
+- Sign-in is rate-limited per address and locks the account after repeated failures; every attempt, every
+  password change and every role change is logged at Warning and audited through the store.
+- `api.cors.allowed_origins` (a setting) lists the browser origins allowed to call the API; listed origins
+  may send the session cookie and read `ETag`; nothing is allowed until an origin is listed; changes apply
+  on the next request.
+- `Wms:Hosting:BehindProxy` makes both hosts honour the reverse proxy's forwarded scheme and address
+  (docs/CONFIGURATION.md), so cookies are secure and addresses real behind Caddy or IIS.
+- The console sends on every response: a content-security policy tuned for Blazor Server (`default-src
+  'self'`, inline styles only, the circuit's WebSocket, `frame-ancestors 'none'`), `X-Content-Type-Options:
+  nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY` and a minimal
+  `Permissions-Policy`; an integration test checks them.
+- Pending: picker PIN and API-key rate limits (with those credentials), JIT provisioning (E11), and the
+  compose smoke test of the proxy setup (E14).
+
 ## What comes next
 
 - E9.3: local sign-in disabled once SSO is verified and re-enabled for a timed window from the host only.
-- E10.4, E10.6: integrity signatures, hardening (API keys, CORS, security headers); a periodic job that audits
-  expired assignments.
+- E10.4: integrity signatures; a periodic job that audits expired assignments.
 - E11: OIDC and other providers behind one interface, chosen in the console.

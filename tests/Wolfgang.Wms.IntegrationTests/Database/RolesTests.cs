@@ -139,6 +139,11 @@ public sealed class RolesTests
         Assert.Equal(HttpStatusCode.OK, atSite3.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, atSite4.StatusCode);
 
+        using var everywhere = await client.PostAsync(new Uri($"/api/v0/auth/users/{userId}/roles", UriKind.Relative), Body(new AssignRoleRequest(roles["Viewer"].Id)));
+        using var staleSession = await leadClient.SendAsync(Request(HttpMethod.Get, "/api/v0/auth/me", null, null, leadCookie));
+        Assert.Equal(HttpStatusCode.Created, everywhere.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, staleSession.StatusCode);   // E10.5: a role change ends existing sessions
+
         var listed = (await client.GetFromJsonAsync<List<RoleAssignmentInfo>>($"/api/v0/auth/users/{userId}/roles", Json))!;
         using var unassigned = await client.DeleteAsync(new Uri($"/api/v0/auth/assignments/{assignment.Id}", UriKind.Relative));
         using var unassignAgain = await client.DeleteAsync(new Uri($"/api/v0/auth/assignments/{assignment.Id}", UriKind.Relative));

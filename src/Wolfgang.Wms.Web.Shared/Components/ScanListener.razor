@@ -1,0 +1,29 @@
+@* Keyboard-wedge scanner input (E82.4): a tethered scanner types the barcode and sends Enter. The field keeps
+   focus, raises OnScan with the completed scan and clears itself; the rule lives in ScanBuffer so it is
+   unit-tested, and the caller applies the same validation and feedback rules as the device (E40). *@
+<input class="scan-listener"
+       type="text"
+       autocomplete="off"
+       spellcheck="false"
+       aria-label="@Label"
+       placeholder="@Label"
+       value="@_buffer.Text"
+       @oninput="e => _buffer.Update(e.Value?.ToString())"
+       @onkeydown="OnKeyDown" />
+
+@code {
+    private readonly ScanBuffer _buffer = new();
+
+    /// <summary>Accessible label and placeholder for the field.</summary>
+    [Parameter]
+    public string Label { get; set; } = "Scan";
+
+    /// <summary>Raised with the scanned text when the scanner sends Enter; blank scans are ignored.</summary>
+    [Parameter]
+    public EventCallback<string> OnScan { get; set; }
+
+    private Task OnKeyDown(KeyboardEventArgs e)
+    {
+        return _buffer.TryComplete(e.Key, out var scanned) ? OnScan.InvokeAsync(scanned) : Task.CompletedTask;
+    }
+}

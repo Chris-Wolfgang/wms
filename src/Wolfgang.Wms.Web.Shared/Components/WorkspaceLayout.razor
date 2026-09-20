@@ -1,0 +1,39 @@
+@inherits LayoutComponentBase
+@inject IWorkspaceAccess Access
+
+<PageTitle>@Workspace.Title</PageTitle>
+
+<header class="workspace-header">
+    <span class="product">Wolfgang.Wms</span>
+    <WorkspaceNav />
+</header>
+
+<main class="workspace-body" data-workspace="@Workspace.Name">
+    @if (_result is null)
+    {
+        <p class="workspace-loading">Loading…</p>
+    }
+    else if (_result == WorkspaceAccessResult.Allowed)
+    {
+        @Body
+    }
+    else if (_result == WorkspaceAccessResult.NotLicensed)
+    {
+        <h1>@Workspace.Title is not licensed</h1>
+        <p class="workspace-denied">This installation's license does not include the <code>@Workspace.LicenseFeature.Name</code> feature.</p>
+    }
+    else
+    {
+        <h1>@Workspace.Title is not available to you</h1>
+        <p class="workspace-denied">Your roles do not grant <code>@Workspace.Permission.Name</code>.</p>
+    }
+</main>
+
+@code {
+    private WorkspaceAccessResult? _result;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _result = await Access.CheckAsync(Workspace, CancellationToken.None);
+    }
+}

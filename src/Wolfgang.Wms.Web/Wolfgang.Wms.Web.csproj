@@ -7,4 +7,15 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- E82.4: one deployable, five workspaces in their own projects; the console is an API client only. -->
+    <ProjectReference Include="..\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
+    <ProjectReference Include="..\Wolfgang.Wms.Web.Shared\Wolfgang.Wms.Web.Shared.csproj" />
+    <ProjectReference Include="..\Wolfgang.Wms.Web.Configure\Wolfgang.Wms.Web.Configure.csproj" />
+    <ProjectReference Include="..\Wolfgang.Wms.Web.Supervise\Wolfgang.Wms.Web.Supervise.csproj" />
+    <ProjectReference Include="..\Wolfgang.Wms.Web.Resolve\Wolfgang.Wms.Web.Resolve.csproj" />
+    <ProjectReference Include="..\Wolfgang.Wms.Web.Report\Wolfgang.Wms.Web.Report.csproj" />
+    <ProjectReference Include="..\Wolfgang.Wms.Web.Insights\Wolfgang.Wms.Web.Insights.csproj" />
+  </ItemGroup>
+
 </Project>

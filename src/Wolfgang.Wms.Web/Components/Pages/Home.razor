@@ -1,7 +1,35 @@
-﻿@page "/"
+@page "/"
+@inject IWorkspaceAccess Access
+@inject NavigationManager Navigation
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Wolfgang.Wms</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Wolfgang.Wms console</h1>
 
-Welcome to your new app.
+@if (_enterable.Count == 0)
+{
+    <p class="workspace-denied">None of the console workspaces is available to you.</p>
+}
+else
+{
+    <ul class="workspace-chooser">
+        @foreach (var workspace in _enterable)
+        {
+            <li><a href="@workspace.Route">@workspace.Title</a> — @workspace.Description</li>
+        }
+    </ul>
+}
+
+@code {
+    private IReadOnlyList<Workspace> _enterable = [];
+
+    // A single-role user lands in their workspace; everyone else picks (E82.4).
+    protected override async Task OnInitializedAsync()
+    {
+        _enterable = await Access.EnterableAsync(Workspaces.All, CancellationToken.None);
+        if (_enterable.Count == 1)
+        {
+            Navigation.NavigateTo(_enterable[0].Route);
+        }
+    }
+}

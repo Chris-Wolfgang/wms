@@ -60,6 +60,16 @@ Console and device clients use JSON (camelCase, source-generated). Endpoints use
 tests) will also accept and return XML selected by `Content-Type`/`Accept`, validated by XSDs generated from
 the same models; that arrives with the first external endpoint (release intake), not before.
 
+## Device app version
+
+Every call from a handheld carries `X-Wms-Device-Version` (the app's `versionName`; only the numeric part
+counts). Device-facing groups call `.RequireDeviceVersion()` (`Wolfgang.Wms.Core.Devices`): a missing header
+is `400 device.version_missing`, an unparseable one `400 device.version_invalid`, and an app older than the
+site's minimum gets `426 Upgrade Required` (`device.version_too_old`) with the minimum in the
+`minimumVersion` extension so the device can offer the update (E37.5). The minimum is a setting cascading
+organisation → site (`IDeviceVersionPolicy`, E12), so rollouts can be phased one warehouse at a time while the
+server runs one version for all; until then no minimum is configured.
+
 ## Natural keys and time
 
 URLs use natural keys where a customer would (`/skus/{skuCode}`), surrogate ids where they would not. Every

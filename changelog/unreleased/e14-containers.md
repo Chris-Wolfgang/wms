@@ -1,0 +1,3 @@
+type: feature
+
+Containers: one `Dockerfile` with `api`, `web` and `worker` runtime images on `dotnet/aspnet:10.0` (no SDK, non-root, JSON logs to stdout); the worker image runs as `worker`, `ingest` or `migrate` by `WMS_ROLE` (migrate exits when done); `compose.yaml` with SQL Server 2022 Express, the three hosts, Caddy for HTTPS, volumes for data, backups, the key ring and the file drop; `scripts/compose-setup.ps1` generates the passwords into Docker secrets files, provisions the `wms` database with migration and runtime logins (then disables `sa`), encrypts the connection strings with the shared key ring into `.env`, and runs the migrations; docs/CONTAINERS.md lists every variable.

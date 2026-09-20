@@ -220,6 +220,15 @@ keys, no GUIDs, `Restrict` foreign keys with explicit indexes, `decimal(9,3)` qu
 `ModelConventions.Verify` is asserted empty by `ModelConventionsTests` for both providers, so a violation
 fails the build.
 
+## Customer-supplied identifiers (E3.6–E3.9)
+
+[docs/IDENTIFIERS.md](IDENTIFIERS.md) is the contract. In code (`Wolfgang.Wms.Domain.Identifiers`): every
+customer-supplied value goes through `IdentifierValidator.Validate(profile, raw)` with the field's
+`ValidationProfile` (defaults: trimmed, case-sensitive, control characters rejected, capped at the column);
+never a hand-rolled check at one surface. Formats are `IdentifierFormat` (mask via `MaskCompiler`, or a
+.NET regex), always anchored, `NonBacktracking` where possible, 100 ms timeout otherwise. GS1 element strings
+go through `Gs1.TryParse`. Domain may reference `System.Text.RegularExpressions` for this and nothing else.
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value

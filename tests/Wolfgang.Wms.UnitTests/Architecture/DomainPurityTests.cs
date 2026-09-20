@@ -17,6 +17,7 @@ public sealed class DomainPurityTests
         "System.Collections",
         "System.Linq",
         "System.Memory",
+        "System.Text.RegularExpressions",   // E3.8: identifier formats (masks compile to regex; NonBacktracking + timeout)
         "Wolfgang.TryPattern",
     ];
 

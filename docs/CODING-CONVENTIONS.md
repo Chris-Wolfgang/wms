@@ -91,6 +91,16 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
   attribute or `switch` requires one.
 - Modules contribute their keys through `ModuleDescriptor.With…()` so the host can enumerate them.
 
+## Settings (E6)
+
+Every configurable value is a `SettingKey<T>` declared once in its module and contributed through
+`ModuleDescriptor.WithSettings(...)`; the host's `SettingRegistry` is the only list of settings the console,
+the documentation and the accessor use (docs/SETTINGS.md). A key states its kind (through its codec), the
+scopes it may be configured at, its default, description and validator, and whether a change needs a
+restart or a device resync. Values are stored as invariant-culture text; a type without a built-in codec
+passes `SettingCodecs.Json(...)` built on the module's source-generated JSON context. Nothing reads or
+writes a setting by string name.
+
 ## Data access (E1.11, ADR 0002)
 
 - Single tenant per install: no `tenant_id`. Site separation is `site_id` on every site-scoped entity with an

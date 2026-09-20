@@ -1,5 +1,5 @@
 @* Workspaces live in their own assemblies (E82.4); the host routes to all of them. *@
-<Router AppAssembly="typeof(Program).Assembly"
+<Router AppAssembly="typeof(ConsoleProgram).Assembly"
         AdditionalAssemblies="WorkspaceAssemblies.All"
         NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">

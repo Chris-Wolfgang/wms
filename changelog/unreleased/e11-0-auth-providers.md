@@ -1,0 +1,3 @@
+type: feature
+
+Identity providers behind one interface: providers register in DI at startup (`local` built in; others in their own projects), which of them the console offers is the `auth.providers.enabled` setting applied within seconds and without a restart (a challenge provider's authentication scheme is added and removed at runtime, and it re-reads its settings when they change); `GET /auth/providers` lists them for the login page, `GET /auth/{provider}/challenge` starts a redirect sign-in, `POST /auth/providers/{name}/check` runs a provider's health check (`auth.providers.manage`); `Wms:Auth:ForceLocal` is the emergency override that forces local sign-in only.

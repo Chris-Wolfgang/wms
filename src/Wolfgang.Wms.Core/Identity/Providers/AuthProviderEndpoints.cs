@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Routing;
 using Wolfgang.Wms.Core.Api;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Http;
+using Wolfgang.Wms.Core.Settings;
+using External = Wolfgang.Wms.Core.Identity.External;
 using Wolfgang.Wms.Domain.Keys;
 
 namespace Wolfgang.Wms.Core.Identity.Providers;
@@ -25,6 +27,12 @@ public static class AuthProviderEndpoints
 
     /// <summary>Route that starts a challenge provider's sign-in.</summary>
     public const string ChallengeRoute = "/auth/{provider}/challenge";
+
+    /// <summary>Route of one provider's group-to-role mappings (E11.2).</summary>
+    public const string GroupsRoute = "/auth/providers/{name}/groups";
+
+    /// <summary>Route of one group-to-role mapping (E11.2).</summary>
+    public const string GroupRoute = "/auth/providers/groups/{mappingId}";
 
 
 
@@ -56,6 +64,59 @@ public static class AuthProviderEndpoints
             .WithName("CheckAuthProvider")
             .WithSummary("Runs a provider's health check (discovery for OIDC); 404 for an unknown provider.")
             .Produces<AuthProviderHealth>(StatusCodes.Status200OK);
+        app.MapGet(GroupsRoute, ListGroupsAsync)
+            .RequirePermission(Manage)
+            .WithName("GetGroupRoleMappings")
+            .WithSummary("A provider's directory groups mapped to roles (E11.2); users in no mapped group hold no role.")
+            .Produces<IReadOnlyList<External.GroupRoleMappingInfo>>(StatusCodes.Status200OK);
+        app.MapPost(GroupsRoute, AddGroupAsync)
+            .RequirePermission(Manage)
+            .WithName("AddGroupRoleMapping")
+            .WithSummary("Maps a directory group to a role, everywhere or at one site; 409 when it exists.")
+            .Produces<External.GroupRoleMappingInfo>(StatusCodes.Status201Created);
+        app.MapDelete(GroupRoute, RemoveGroupAsync)
+            .RequirePermission(Manage)
+            .WithName("RemoveGroupRoleMapping")
+            .WithSummary("Removes a group-to-role mapping; members lose the role at their next sign-in.")
+            .Produces(StatusCodes.Status204NoContent);
+    }
+
+
+
+    private static async Task<IResult> ListGroupsAsync(string name, AuthProviderCatalog catalog, External.IGroupRoleMappings mappings, CancellationToken cancellationToken)
+    {
+        if (catalog.Find(name) is null)
+        {
+            return ApiProblems.Problem(AuthErrorCodes.ProviderNotEnabled, detail: null, name);
+        }
+
+        return TypedResults.Ok(await mappings.ListAsync(name, cancellationToken).ConfigureAwait(false));
+    }
+
+
+
+    private static async Task<IResult> AddGroupAsync(HttpContext http, string name, External.GroupRoleMappingDraft body, AuthProviderCatalog catalog, External.IGroupRoleMappings mappings, CancellationToken cancellationToken)
+    {
+        if (catalog.Find(name) is null)
+        {
+            return ApiProblems.Problem(AuthErrorCodes.ProviderNotEnabled, detail: null, name);
+        }
+
+        if (body is null)
+        {
+            throw new AuthException(AuthErrorCodes.MappingRejected, "A body with group and roleId is required.");
+        }
+
+        var mapping = await mappings.AddAsync(name, body, http.User.Identity?.Name ?? SettingsModule.AnonymousUser, cancellationToken).ConfigureAwait(false);
+        return TypedResults.Created(string.Empty, mapping);
+    }
+
+
+
+    private static async Task<IResult> RemoveGroupAsync(HttpContext http, long mappingId, External.IGroupRoleMappings mappings, CancellationToken cancellationToken)
+    {
+        await mappings.RemoveAsync(mappingId, http.User.Identity?.Name ?? SettingsModule.AnonymousUser, cancellationToken).ConfigureAwait(false);
+        return TypedResults.NoContent();
     }
 
 

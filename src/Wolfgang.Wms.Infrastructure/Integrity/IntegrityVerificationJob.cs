@@ -12,7 +12,7 @@ using Wolfgang.Wms.Infrastructure.Identity;
 namespace Wolfgang.Wms.Infrastructure.Integrity;
 
 /// <summary>
-/// Verifies every signed row on a schedule (E10.4): users, roles and assignments. A row that fails is
+/// Verifies every signed row on a schedule (E10.4): users, roles, assignments and group mappings. A row that fails is
 /// logged at Error by the signer and counted here; the summary is logged at Warning when anything failed,
 /// Information otherwise. The interval is the <c>auth.integrity.verify_interval</c> setting; the worker
 /// runs it (one runner per installation once E12.6's leader lock lands).
@@ -70,6 +70,12 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
         {
             checkedRows++;
             failed += await signer.IsValidAsync(assignment, "core.user_role", cancellationToken).ConfigureAwait(false) ? 0 : 1;
+        }
+
+        foreach (var mapping in await context.GroupRoleMappings.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false))
+        {
+            checkedRows++;
+            failed += await signer.IsValidAsync(mapping, "core.group_role_mapping", cancellationToken).ConfigureAwait(false) ? 0 : 1;
         }
 
         var result = new IntegrityVerificationResult(scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow(), checkedRows, failed);

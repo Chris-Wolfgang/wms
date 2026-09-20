@@ -31,10 +31,11 @@ public sealed class IntegrityUnitTests
         role.Permissions.AddRange([new RolePermission { PermissionName = "b" }, new RolePermission { PermissionName = "a" }]);
         var assignment = new UserRole { Id = 9, UserId = 7, RoleId = 3, SiteId = 5, ExpiresAt = null, UpdatedBy = "changes freely" };
 
-        Assert.Equal("user\nALICE\nhash\n1\n0\n1\n2026-09-20T06:00:00.123Z", user.CanonicalContent());   // UTC, millisecond precision: the same before the write and after the read
+        Assert.Equal("user\nALICE\nhash\n1\n0\n1\n2026-09-20T06:00:00.123Z\n\n", user.CanonicalContent());   // UTC, millisecond precision: the same before the write and after the read
         Assert.Equal("role\nPICKER\n\na,b", role.CanonicalContent());
         Assert.Equal("user_role\n7\n3\n5\n", assignment.CanonicalContent());
-        Assert.Equal("user\n\n\n0\n0\n0\n", new User().CanonicalContent());
+        Assert.Equal("user\n\n\n0\n0\n0\n\n\n", new User().CanonicalContent());
+        Assert.Equal("user\nBOB\n\n0\n0\n0\n\noidc\nsub-1", new User { UserNameNormalized = "BOB", Provider = "oidc", ProviderSubject = "sub-1" }.CanonicalContent());   // E11.1: the identity binding is signed
         Assert.Equal("user_role\n0\n0\n\n2026-09-20T06:00:00.123Z", new UserRole { ExpiresAt = user.SessionsValidAfter }.CanonicalContent());
     }
 

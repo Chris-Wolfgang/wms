@@ -153,7 +153,13 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
     private async Task<TimeSpan> IntervalAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopes.CreateScope();
-        return await scope.ServiceProvider.GetRequiredService<ISettings>().GetAsync(Wolfgang.Wms.Core.Identity.AuthSettings.IntegrityVerifyInterval, SettingScopeRef.Organization, cancellationToken).ConfigureAwait(false);
+        var key = Wolfgang.Wms.Core.Identity.AuthSettings.IntegrityVerifyInterval;
+        if (!scope.ServiceProvider.GetRequiredService<SettingRegistry>().Contains(key))
+        {
+            return key.DefaultValue;   // a host without the auth module (the worker) keeps the default interval
+        }
+
+        return await scope.ServiceProvider.GetRequiredService<ISettings>().GetAsync(key, SettingScopeRef.Organization, cancellationToken).ConfigureAwait(false);
     }
 
 

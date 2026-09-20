@@ -14,7 +14,19 @@ builder.UseWmsSerilog();   // E12.2: the same log pipeline as the API
 builder.Services.AddWmsBootstrapConfigurationCheck();
 builder.Services.AddWmsDataProtection(builder.Configuration);   // E8.1: the same key ring as the API
 builder.Services.AddWmsDatabase(builder.Configuration);   // E2.1: the worker reaches the same database
-builder.Services.AddWmsIntegrityVerification();   // E10.4: re-verifies every signed security row on a schedule
+
+// E14.2: the role decides which jobs this instance hosts. `worker` runs the singleton jobs (under the
+// leader lock); `ingest` hosts the ingest jobs only once they land and runs no singleton job.
+var role = builder.Configuration["Wms:Worker:Role"] ?? "worker";
+if (string.Equals(role, "worker", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddWmsIntegrityVerification();   // E10.4: re-verifies every signed security row on a schedule
+}
+else if (!string.Equals(role, "ingest", StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException($"Wms:Worker:Role must be worker or ingest; got '{role}'.");
+}
+
 builder.Services.AddWmsLoggingModule();   // E12.4: the worker's level follows the same settings (no endpoints are mapped here)
 
 // Jobs register here as hosted services (E1.10); the worker is a host only.

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Jobs;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Identity;
@@ -153,8 +154,9 @@ public sealed class IntegrityUnitTests
         Assert.Throws<ArgumentNullException>(() => IntegrityServiceCollectionExtensions.AddWmsIntegrityVerification(null!));
         Assert.Throws<ArgumentNullException>(() => new IntegritySigner(null!, NullLogger<IntegritySigner>.Instance));
         Assert.Throws<ArgumentNullException>(() => new IntegritySigner(provider.GetRequiredService<IServiceScopeFactory>(), null!));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(null!, NullLogger<IntegrityVerificationJob>.Instance));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), null!));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(null!, new NoLeaderLock(), NullLogger<IntegrityVerificationJob>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), null!, NullLogger<IntegrityVerificationJob>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), new NoLeaderLock(), null!));
         Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(null!, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance));
         Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(signer, null!, NullLogger<IntegrityBackfillCheck>.Instance));
         Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(signer, Options.Create(new KeyRingOptions()), null!));
@@ -195,7 +197,7 @@ public sealed class IntegrityUnitTests
         using var provider = services.BuildServiceProvider();
         using var signer = new IntegritySigner(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<IntegritySigner>.Instance);
         var check = new IntegrityBackfillCheck(signer, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance);
-        var job = new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<IntegrityVerificationJob>.Instance);
+        var job = new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), new NoLeaderLock(), NullLogger<IntegrityVerificationJob>.Instance);
 
         await check.StopAsync(CancellationToken.None);
         await job.StopAsync(CancellationToken.None);

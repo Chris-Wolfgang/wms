@@ -20,6 +20,7 @@ using Wolfgang.Wms.Domain.Keys;
 using Wolfgang.Wms.Domain.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Database.Settings;
+using Wolfgang.Wms.Infrastructure.Secrets;
 
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
@@ -270,6 +271,10 @@ public sealed class EfSettingsTests
         await Assert.ThrowsAsync<ArgumentException>(() => settings.SetAsync(LeaseTimeout, Site1, TimeSpan.FromMinutes(2), " ", CancellationToken.None));
 
         var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
+        var storedPassword = await context.Settings.SingleAsync(s => s.Key == "sample.password");
+        Assert.StartsWith("enc:v1:", storedPassword.ConfiguredValue, StringComparison.Ordinal);   // E8.3: encrypted at rest
+        Assert.StartsWith("enc:v1:", storedPassword.EffectiveValue, StringComparison.Ordinal);
+        Assert.NotEmpty(await context.DataProtectionKeys.ToListAsync());   // E8.6: the ring lives in the database
         Assert.Throws<ArgumentException>(() => MaxRowVersionSource.Sql(context, "core.nothing"));
         Assert.Contains("row_version", MaxRowVersionSource.Sql(context, SettingsCache.Table), StringComparison.Ordinal);
     }
@@ -293,6 +298,7 @@ public sealed class EfSettingsTests
         builder.Services.AddWmsSettingsModule();
         builder.Services.AddWmsModule(ModuleDescriptor.Create("sample").WithSettings(LeaseTimeout, Password, Level));
         builder.Services.AddSingleton<ISettingScopeHierarchy, TestHierarchy>();
+        builder.Services.AddWmsDataProtection(builder.Configuration);   // E8.6: no path, a provider: the database ring
         builder.Services.AddWmsDatabase(builder.Configuration);
         var app = builder.Build();
         app.UseWmsProblemDetails();

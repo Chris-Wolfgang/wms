@@ -8,6 +8,8 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
     <!-- E6.4: one audit store for every audited table (Chris-Wolfgang library; Model 1, AuditingDbContext). -->
     <PackageReference Include="Wolfgang.AuditTrail.EntityFrameworkCore" Version="0.4.1" />
+    <!-- E8.6: the Data Protection key ring in the database (wms.data_protection_key) so instances share one ring. -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>

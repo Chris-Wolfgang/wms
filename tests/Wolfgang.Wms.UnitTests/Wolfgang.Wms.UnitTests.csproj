@@ -35,6 +35,7 @@
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Web.Report\Wolfgang.Wms.Web.Report.csproj" />
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Web.Insights\Wolfgang.Wms.Web.Insights.csproj" />
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Web\Wolfgang.Wms.Web.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Migrate\Wolfgang.Wms.Migrate.csproj" />
   </ItemGroup>
 
 </Project>

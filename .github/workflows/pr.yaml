@@ -506,7 +506,7 @@ jobs:
           marker="<!-- openapi-diff: $DOCUMENT -->"
           {
             echo "$marker"
-            echo "### OpenAPI \`$DOCUMENT\` — $STATE$( [ "$FROZEN" = true ] && echo ' (frozen: breaking changes fail this PR)' || echo ' (unstable: breaking changes allowed with a `breaking` fragment)' )"
+            echo "### OpenAPI \`$DOCUMENT\` — $STATE$( [ "$FROZEN" = true ] && echo ' (frozen: breaking changes fail this PR)' || echo ' (unstable: breaking changes allowed with a breaking-type changelog fragment)' )"
             echo
             if [ "$STATE" = new ]; then
               echo "New document; nothing to compare against on the base branch."

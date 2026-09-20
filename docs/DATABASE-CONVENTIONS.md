@@ -82,10 +82,13 @@ SQL Server refuses `OUTPUT` on a table with triggers.
 ## Adding an entity
 
 1. Class in the module with `long Id`, `DateTimeOffset` timestamps, `decimal` quantities, `<Principal>Id`
-   foreign keys.
-2. `IEntityTypeConfiguration` with `ToTable("Name", "<module>")`, unique indexes for natural keys.
+   foreign keys (`Infrastructure/Database/Settings/Setting.cs` is the first).
+2. `IEntityTypeConfiguration` with `ToTable("Name", "<module>")`, unique indexes for natural keys, registered
+   explicitly in `WmsDbContext.OnModelCreating` (`ApplyConfiguration`, no assembly scanning).
 3. Synced master tables implement `ISyncedEntity` (row version, soft delete, id) and map their sync reads
    with `MapSyncedTable`.
 4. `scripts/Check-Migrations.ps1 -Add <Name>`; review both providers' migrations; cite the query each new
-   secondary index serves in a comment (E3.5).
+   secondary index serves in a comment (E3.5); for a versioned table add
+   `RowVersioning.AddUpdateTrigger(migrationBuilder, schema, table)` to `Up` and `DropUpdateTrigger` at the
+   top of `Down` (the generator does not know about triggers).
 5. The model test fails the build if any convention is broken.

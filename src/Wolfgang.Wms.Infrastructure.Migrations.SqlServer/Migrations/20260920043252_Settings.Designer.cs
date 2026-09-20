@@ -2,25 +2,28 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Wolfgang.Wms.Infrastructure.Database;
 
 #nullable disable
 
-namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
+namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(WmsDbContext))]
-    partial class WmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260920043252_Settings")]
+    partial class Settings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "10.0.12")
-                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
-            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
             modelBuilder.HasSequence("row_version_seq", "wms");
 
@@ -31,26 +34,26 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<string>("ConfiguredValue")
-                        .HasColumnType("text")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("configured_value");
 
-                    b.Property<DateTimeOffset?>("DeletedAt")
+                    b.Property<DateTime?>("DeletedAt")
                         .HasPrecision(3)
-                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnType("datetime2(3)")
                         .HasColumnName("deleted_at");
 
                     b.Property<string>("EffectiveValue")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("effective_value");
 
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
+                        .HasColumnType("nvarchar(128)")
                         .HasColumnName("key");
 
                     b.Property<long>("RowVersion")
@@ -58,7 +61,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bigint")
                         .HasColumnName("row_version")
-                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
+                        .HasDefaultValueSql("NEXT VALUE FOR [wms].[row_version_seq]");
 
                     b.Property<long>("ScopeId")
                         .HasColumnType("bigint")
@@ -67,18 +70,18 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                     b.Property<string>("ScopeType")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("character varying(16)")
+                        .HasColumnType("nvarchar(16)")
                         .HasColumnName("scope_type");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
+                    b.Property<DateTime>("UpdatedAt")
                         .HasPrecision(3)
-                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnType("datetime2(3)")
                         .HasColumnName("updated_at");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
+                        .HasColumnType("nvarchar(256)")
                         .HasColumnName("updated_by");
 
                     b.HasKey("Id")
@@ -95,6 +98,8 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         {
                             t.HasTrigger("trg_setting_row_version");
                         });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 #pragma warning restore 612, 618
         }

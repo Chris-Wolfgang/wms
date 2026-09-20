@@ -141,6 +141,20 @@ public static class ModelConventions
                 violations.Add($"{table}: table name is not snake_case.");
             }
 
+            foreach (var property in entity.GetProperties())
+            {
+                var column = property.GetColumnName(storeObject) ?? property.GetColumnName();
+                if (!SnakeCase.Is(column))
+                {
+                    violations.Add($"{table}.{column}: column name is not snake_case.");
+                }
+            }
+
+            if (IsLibraryOwned(entity.ClrType))
+            {
+                continue;   // a library's tables keep the library's shape; only schema and naming are ours
+            }
+
             VerifyKeys(entity, storeObject, violations);
             VerifyRowVersion(entity, table, violations);
             VerifySoftDelete(entity, table, violations);
@@ -300,6 +314,19 @@ public static class ModelConventions
 
 
 
+    /// <summary>
+    /// True for an entity a library maps into the model (E6.4: AuditTrail's tables), which keeps the
+    /// library's keys and column types; the conventions still name it and place it in a module schema.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="clrType"/> is null.</exception>
+    public static bool IsLibraryOwned(Type clrType)
+    {
+        ArgumentNullException.ThrowIfNull(clrType);
+        return !(clrType.Assembly.GetName().Name ?? string.Empty).StartsWith("Wolfgang.Wms", StringComparison.Ordinal);
+    }
+
+
+
     private static void ApplyNames(IMutableEntityType entity, StoreObjectIdentifier storeObject)
     {
         var table = storeObject.Name;
@@ -380,11 +407,6 @@ public static class ModelConventions
         var table = storeObject.Name;
         var column = property.GetColumnName(storeObject);
         var type = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
-        if (!SnakeCase.Is(column))
-        {
-            violations.Add($"{table}.{column}: column name is not snake_case.");
-        }
-
         if (type == typeof(Guid))
         {
             violations.Add($"{table}.{column}: GUID columns are not allowed; identifiers are server-assigned long.");

@@ -12,6 +12,14 @@ the API cannot. Nothing else is allowed outside the API; a new exception is an A
 | TLS certificate and reverse proxy | Transport is configured around the process, not by it | Host / container configuration | E83 |
 | Backup and restore | Must work when the API is down | `wms backup` / `wms restore` (CLI) | E65 |
 
+## First sign-in (E9.1)
+
+Once the schema is installed, the first start of the API creates the bootstrap administrator
+(`Wms:Bootstrap:AdminUserName`, default `admin`) with the documented default password
+(docs/AUTH.md) and flags it "must change password": until it is replaced, every request but the password
+change and sign-out answers `403 auth.password_change_required`. The default is refused as a new password.
+Once any local administrator exists the bootstrap values are ignored.
+
 ## What the API says about bootstrap
 
 `GET /api/v0/system/schema` (`Wolfgang.Wms.Core.Schema.SchemaModule`) is read-only and answers even when the

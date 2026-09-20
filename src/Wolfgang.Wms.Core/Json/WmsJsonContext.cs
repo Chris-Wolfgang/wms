@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Licensing;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
 
@@ -31,6 +32,9 @@ namespace Wolfgang.Wms.Core.Json;
 [JsonSerializable(typeof(RoleAssignmentInfo))]
 [JsonSerializable(typeof(IReadOnlyList<RoleAssignmentInfo>))]
 [JsonSerializable(typeof(AssignRoleRequest))]
+[JsonSerializable(typeof(LicenseStatus))]
+[JsonSerializable(typeof(InstallLicenseKeyRequest))]
+[JsonSerializable(typeof(FeatureComparison))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

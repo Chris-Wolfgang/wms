@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using Wolfgang.Wms.Core.Api;
+using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Localization;
 using Wolfgang.Wms.Core.Modules;
 
@@ -20,11 +21,17 @@ builder.Services.AddWmsLocalization();
 // E82.2: one API, path-versioned (/api/v0/...), one OpenAPI document per version (/openapi/v0.json).
 builder.Services.AddWmsApiVersioning();
 
+// E82.3: problem-details errors with codes; Brotli/gzip responses, compressed requests accepted.
+builder.Services.AddWmsProblemDetails();
+builder.Services.AddWmsCompression();
+
 // Modules register here explicitly (ADR 0001): services.AddPickingModule() etc. No assembly scanning.
 builder.Services.AddWmsModules();
 
 var app = builder.Build();
 
+app.UseWmsProblemDetails();
+app.UseWmsCompression();
 app.UseWmsRequestLocalization();
 
 app.MapGet("/", () => "Wolfgang.Wms API");

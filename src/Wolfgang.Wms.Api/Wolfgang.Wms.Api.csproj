@@ -7,6 +7,8 @@
     <ProjectReference Include="..\Wolfgang.Wms.Infrastructure.Migrations.SqlServer\Wolfgang.Wms.Infrastructure.Migrations.SqlServer.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Infrastructure.Migrations.PostgreSql\Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Core\Wolfgang.Wms.Core.csproj" />
+    <!-- E15.1: runs as a Windows service (scripts/Install-WindowsServices.ps1); a no-op elsewhere. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
     <!-- E11.1: the OIDC provider, enabled at runtime by auth.providers.enabled. -->
     <ProjectReference Include="..\Wolfgang.Wms.Auth.Oidc\Wolfgang.Wms.Auth.Oidc.csproj" />
   </ItemGroup>
@@ -17,6 +19,8 @@
     <!-- E1.9: compile minimal-API endpoints to typed request delegates (no reflection), so the AOT/trim analyzers pass. -->
     <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- E15.2: IIS hosts the API in-process (web.config is generated on publish). -->
+    <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
   </PropertyGroup>
 
 </Project>

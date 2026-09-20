@@ -20,6 +20,8 @@ internal sealed class SampleModelDbContext : DbContext
 
     public DbSet<Container> Containers => Set<Container>();
 
+    public DbSet<Sku> Skus => Set<Sku>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         ModelConventions.Configure(configurationBuilder);
@@ -29,9 +31,21 @@ internal sealed class SampleModelDbContext : DbContext
     {
         modelBuilder.Entity<ZoneGroup>().ToTable("ZoneGroup", "layout");
         modelBuilder.Entity<Container>().ToTable("Container", "picking");
+        modelBuilder.Entity<Sku>().ToTable("Sku", "catalog");
         modelBuilder.Entity<Container>().HasIndex(c => c.Barcode).IsUnique();
         ModelConventions.Apply(modelBuilder, Database.ProviderName);
     }
+}
+
+
+
+public sealed class Sku : Wolfgang.Wms.Infrastructure.Database.IVersionedEntity
+{
+    public long Id { get; set; }
+
+    public string Code { get; set; } = string.Empty;
+
+    public long RowVersion { get; set; }
 }
 
 

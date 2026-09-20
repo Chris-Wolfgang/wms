@@ -5,6 +5,7 @@ using Wolfgang.Wms.Core.Api;
 using Wolfgang.Wms.Core.Configuration;
 using Wolfgang.Wms.Core.Devices;
 using Wolfgang.Wms.Core.Http;
+using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Json;
 using Wolfgang.Wms.Core.Localization;
 using Wolfgang.Wms.Core.Modules;
@@ -41,6 +42,7 @@ builder.Services.AddWmsDeviceVersioning();
 builder.Services.AddWmsModules();
 builder.Services.AddWmsSchemaModule();   // E82.5: GET /system/schema, read-only
 builder.Services.AddWmsSettingsModule();   // E6.1: GET /settings/registry, the settings every module declares
+builder.Services.AddWmsAuthModule();   // E9: local sign-in, session cookie on the shared key ring, password change
 
 // E6.5: appsettings holds bootstrap keys only; anything else is named in a startup warning and ignored.
 builder.Services.AddWmsBootstrapConfigurationCheck();
@@ -57,6 +59,7 @@ var app = builder.Build();
 app.UseWmsProblemDetails();
 app.UseWmsCompression();
 app.UseWmsRequestLocalization();
+app.UseWmsAuth();   // E9: rate limiter, authentication, authorization, must-change-password gate
 
 app.MapGet("/", () => "Wolfgang.Wms API");
 

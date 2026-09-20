@@ -13,6 +13,9 @@ using Wolfgang.Wms.Infrastructure.Database.Auditing;
 using Wolfgang.Wms.Infrastructure.Database.Settings;
 using Wolfgang.Wms.Core.Secrets;
 using Wolfgang.Wms.Infrastructure.Secrets;
+using Microsoft.AspNetCore.Identity;
+using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Infrastructure.Identity;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -96,6 +99,11 @@ public static class DatabaseServiceCollectionExtensions
         services.RemoveAll<ISettings>();
         services.AddScoped<ISettings, EfSettings>();   // E6.3: the stored accessor replaces the defaults-only one
         services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead
+        services.AddOptions<BootstrapOptions>().Bind(configuration.GetSection(BootstrapOptions.SectionName));
+        services.TryAddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.RemoveAll<ILocalAccounts>();
+        services.AddScoped<ILocalAccounts, EfLocalAccounts>();   // E9: the stored accounts replace the placeholder
+        services.AddHostedService<BootstrapAdminCheck>();   // E9.1: after the schema check, the administrator exists
         return services;
     }
 

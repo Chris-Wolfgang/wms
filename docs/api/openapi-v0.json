@@ -347,10 +347,336 @@
           }
         }
       }
+    },
+    "/api/v0/auth/roles": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every role: built-in first, then by name.",
+        "operationId": "ListRoles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates a role from catalog permissions.",
+        "operationId": "CreateRole",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/roles/{roleId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One role; the ETag is the row\u0027s version.",
+        "operationId": "GetRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces a role\u0027s name, description and permissions; If-Match required; built-in roles are read-only.",
+        "operationId": "UpdateRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Deletes a role and its assignments; built-in roles cannot be deleted.",
+        "operationId": "DeleteRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/roles/{roleId}/copy": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates an editable copy of a role (the way to customise a built-in one).",
+        "operationId": "CopyRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/users/{userId}/roles": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "A user\u0027s role assignments, active and expired.",
+        "operationId": "ListUserRoles",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleAssignmentInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Assigns a role everywhere (no site) or at one site, optionally until a date.",
+        "operationId": "AssignRole",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleAssignmentInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/assignments/{assignmentId}": {
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Removes an assignment.",
+        "operationId": "UnassignRole",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AssignRoleRequest": {
+        "required": [
+          "roleId"
+        ],
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The role to assign.",
+            "format": "int64"
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site, or null for everywhere.",
+            "format": "int64"
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the assignment stops applying, or null for no expiry.",
+            "format": "date-time"
+          }
+        },
+        "description": "Body of \u0060POST /auth/users/{userId}/roles\u0060 (E10.3)."
+      },
       "ChangePasswordRequest": {
         "required": [
           "currentPassword",
@@ -368,6 +694,19 @@
           }
         },
         "description": "Body of \u0060POST /auth/local/password\u0060 (E9.1, E9.2)."
+      },
+      "CopyRoleRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The new role\u0027s name."
+          }
+        },
+        "description": "Body of \u0060POST /auth/roles/{id}/copy\u0060 (E10.2)."
       },
       "LocalLoginRequest": {
         "required": [
@@ -409,6 +748,161 @@
           }
         },
         "description": "One catalog entry as the API and the console see it (E10.1)."
+      },
+      "RoleAssignmentInfo": {
+        "required": [
+          "id",
+          "userId",
+          "roleId",
+          "roleName",
+          "siteId",
+          "expiresAt",
+          "expired"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "userId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The user.",
+            "format": "int64"
+          },
+          "roleId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The role.",
+            "format": "int64"
+          },
+          "roleName": {
+            "type": "string",
+            "description": "The role\u0027s name."
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site, or null for everywhere (the organisation).",
+            "format": "int64"
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the assignment stops applying, or null for no expiry.",
+            "format": "date-time"
+          },
+          "expired": {
+            "type": "boolean",
+            "description": "True when DateTimeOffset? RoleAssignmentInfo.ExpiresAt has passed."
+          }
+        },
+        "description": "One role assignment (E10.3): a user holds a role everywhere or at one site, optionally until a date."
+      },
+      "RoleDraft": {
+        "required": [
+          "name",
+          "description",
+          "permissions"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The role name, unique (case-insensitive), 1\u2013128 characters."
+          },
+          "description": {
+            "type": "string",
+            "description": "What the role is for."
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Catalog permission names the role grants."
+          }
+        },
+        "description": "Body of \u0060POST /auth/roles\u0060 and \u0060PUT /auth/roles/{id}\u0060 (E10.2)."
+      },
+      "RoleInfo": {
+        "required": [
+          "id",
+          "name",
+          "description",
+          "builtIn",
+          "permissions",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "description": "The role name, unique (case-insensitive)."
+          },
+          "description": {
+            "type": "string",
+            "description": "What the role is for."
+          },
+          "builtIn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The built-in role key (\u0060administrator\u0060) when the role is one, else null; built-in roles are read-only."
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The permission names the role grants, sorted; \u0060*\u0060 for the administrator."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s version (the entity tag on updates).",
+            "format": "int64"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag for \u0060If-Match\u0060."
+          }
+        },
+        "description": "A role as the API and the console see it (E10.2)."
       },
       "SchemaStatus": {
         "required": [

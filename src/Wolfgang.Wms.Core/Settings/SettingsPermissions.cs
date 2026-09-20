@@ -12,7 +12,7 @@ public static class SettingsPermissions
     /// <summary>
     /// See the registry and the values at a scope.
     /// </summary>
-    public static readonly Permission Read = new("settings.read", "View settings and their values");
+    public static readonly Permission Read = new("settings.read", "View settings and their values") { DefaultRoles = [BuiltInRole.Supervisor, BuiltInRole.Support, BuiltInRole.Viewer] };
 
 
 

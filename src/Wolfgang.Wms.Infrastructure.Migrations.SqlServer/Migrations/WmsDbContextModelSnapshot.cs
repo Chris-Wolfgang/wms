@@ -276,6 +276,11 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnName("row_version")
                         .HasDefaultValueSql("NEXT VALUE FOR [wms].[row_version_seq]");
 
+                    b.Property<string>("Signature")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("signature");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasPrecision(3)
                         .HasColumnType("datetime2(3)")
@@ -396,6 +401,11 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("sessions_valid_after");
 
+                    b.Property<string>("Signature")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("signature");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasPrecision(3)
                         .HasColumnType("datetime2(3)")
@@ -456,6 +466,11 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnName("row_version")
                         .HasDefaultValueSql("NEXT VALUE FOR [wms].[row_version_seq]");
 
+                    b.Property<string>("Signature")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("signature");
+
                     b.Property<long?>("SiteId")
                         .HasColumnType("bigint")
                         .HasColumnName("site_id");
@@ -495,6 +510,32 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         });
 
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                });
+
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Integrity.IntegrityKey", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ProtectedKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)")
+                        .HasColumnName("protected_key");
+
+                    b.HasKey("Id")
+                        .HasName("pk_integrity_key");
+
+                    b.ToTable("integrity_key", "wms");
                 });
 
             modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditDetail", b =>

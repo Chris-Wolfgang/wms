@@ -5,5 +5,64 @@
     "description": "Unstable contract for product 0.x: breaking changes ship in place, each with a \u0060breaking\u0060 changelog fragment.",
     "version": "0"
   },
-  "paths": {}
+  "paths": {
+    "/api/v0/system/schema": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Current and expected database schema version (read-only).",
+        "operationId": "GetSchemaStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SchemaStatus": {
+        "required": [
+          "current",
+          "expected"
+        ],
+        "type": "object",
+        "properties": {
+          "current": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Identifier of the last applied migration, or null when no database is reachable or none was applied."
+          },
+          "expected": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Identifier of the last migration this build ships, or null before the data model exists."
+          },
+          "upToDate": {
+            "type": "boolean",
+            "description": "True when the database is at exactly the migration this build expects."
+          }
+        },
+        "description": "The database schema as the API sees it (E82.5): the migration the database is at and the one this build\r\nexpects. Read-only; applying migrations is a bootstrap step outside the API (\u0060wms migrate\u0060)."
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "wms"
+    }
+  ]
 }

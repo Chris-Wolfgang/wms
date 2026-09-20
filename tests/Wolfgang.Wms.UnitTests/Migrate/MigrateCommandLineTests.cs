@@ -53,7 +53,7 @@ public sealed class MigrateCommandLineTests
     [InlineData(new[] { "--to" }, "--to needs a value.")]
     [InlineData(new[] { "--to", "--status" }, "--to needs a value.")]
     [InlineData(new[] { "--up" }, "Unknown argument '--up'.")]
-    [InlineData(new[] { "--status", "--script" }, "--status and --script cannot be combined.")]
+    [InlineData(new[] { "--status", "--script" }, "--status, --script and --protect cannot be combined.")]
     [InlineData(new[] { "--from", "0" }, "--from applies to --script only.")]
     public void Usage_errors_are_named(string[] args, string expected)
     {

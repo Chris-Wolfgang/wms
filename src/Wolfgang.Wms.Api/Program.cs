@@ -11,6 +11,7 @@ using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Secrets;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,6 +44,10 @@ builder.Services.AddWmsSettingsModule();   // E6.1: GET /settings/registry, the 
 
 // E6.5: appsettings holds bootstrap keys only; anything else is named in a startup warning and ignored.
 builder.Services.AddWmsBootstrapConfigurationCheck();
+
+// E8.1/E8.5: the Data Protection key ring (Wms:DataProtection:KeyRingPath, else the database ring) and the
+// secret protector every encrypted value goes through.
+builder.Services.AddWmsDataProtection(builder.Configuration);
 
 // E2.1: Wms:Database:{Provider,ConnectionString,TrustServerCertificate}; an unknown provider fails startup.
 builder.Services.AddWmsDatabase(builder.Configuration);

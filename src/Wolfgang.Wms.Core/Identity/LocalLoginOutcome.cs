@@ -18,4 +18,7 @@ public enum LocalLoginOutcome
 
     /// <summary>The account is disabled.</summary>
     Disabled,
+
+    /// <summary>The account row does not match its signature (E10.4); it is not honoured.</summary>
+    IntegrityFailure,
 }

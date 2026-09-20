@@ -1,0 +1,17 @@
+@inject IWorkspaceAccess Access
+
+<nav class="workspace-nav" aria-label="Workspaces">
+    @foreach (var workspace in _enterable)
+    {
+        <NavLink href="@workspace.Route" class="workspace-link" ActiveClass="active">@workspace.Title</NavLink>
+    }
+</nav>
+
+@code {
+    private IReadOnlyList<Workspace> _enterable = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _enterable = await Access.EnterableAsync(Workspaces.All, CancellationToken.None);
+    }
+}

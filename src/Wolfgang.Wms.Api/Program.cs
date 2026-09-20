@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using Wolfgang.Wms.Core.Api;
+using Wolfgang.Wms.Core.Devices;
 using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Localization;
 using Wolfgang.Wms.Core.Modules;
@@ -24,6 +25,9 @@ builder.Services.AddWmsApiVersioning();
 // E82.3: problem-details errors with codes; Brotli/gzip responses, compressed requests accepted.
 builder.Services.AddWmsProblemDetails();
 builder.Services.AddWmsCompression();
+
+// E82.7: device groups call .RequireDeviceVersion(); the minimum comes from settings once E12 lands.
+builder.Services.AddWmsDeviceVersioning();
 
 // Modules register here explicitly (ADR 0001): services.AddPickingModule() etc. No assembly scanning.
 builder.Services.AddWmsModules();

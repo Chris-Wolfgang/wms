@@ -19,6 +19,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- E1.9: modules map endpoints from libraries, so the request-delegate generator must run here too or
+         MapGet falls back to reflection and fails the trim/AOT analyzers. Every module project sets this. -->
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
   </PropertyGroup>
 
 </Project>

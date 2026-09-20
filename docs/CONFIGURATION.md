@@ -15,6 +15,7 @@ environment variable with `__` for `:` (`Wms__Database__Provider`). Environment 
 | `Wms:Bootstrap:AdminUserName` | E9.1, docs/AUTH.md: the bootstrap administrator's name (default `admin`); read once |
 | `Urls`, `Kestrel:*`, `AllowedHosts` | ASP.NET Core hosting |
 | `Wms:Hosting:BehindProxy` | E10.6, below |
+| `Wms:Auth:ForceLocal` | E11.0, docs/AUTH.md: emergency override, local sign-in only; not the normal way to choose providers |
 | `Logging:*` | log levels; runtime control arrives with E12.4 |
 
 Any other key in an `appsettings*.json` file is ignored, and the host logs one warning at startup naming each

@@ -114,8 +114,15 @@ arrive with the device and integration stories; provider sign-out (front-/back-c
 - Pending: picker PIN and API-key rate limits (with those credentials), JIT provisioning (E11), and the
   compose smoke test of the proxy setup (E14).
 
+## Integrity signatures (E10.4)
+
+Users, roles and assignments are signed on save and verified before they are honoured; a row changed
+through the database grants nothing and cannot sign in (`403 auth.integrity_failure`). The worker
+re-verifies every signed row every `auth.integrity.verify_interval`. Threat model, signed fields, key
+handling and repair: docs/INTEGRITY.md.
+
 ## What comes next
 
 - E9.3: local sign-in disabled once SSO is verified and re-enabled for a timed window from the host only.
-- E10.4: integrity signatures; a periodic job that audits expired assignments.
+- A periodic job that audits expired assignments.
 - E11: OIDC and other providers behind one interface, chosen in the console.

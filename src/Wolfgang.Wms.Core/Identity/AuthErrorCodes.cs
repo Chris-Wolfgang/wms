@@ -32,6 +32,14 @@ public static class AuthErrorCodes
 
 
     /// <summary>
+    /// The account row does not match its integrity signature (E10.4): it was changed outside the
+    /// application and is not honoured until an administrator repairs it.
+    /// </summary>
+    public static ErrorCode IntegrityFailure { get; } = new("auth.integrity_failure", StatusCodes.Status403Forbidden, "The account cannot be verified; contact an administrator.", "auth-integrity-failure", ErrorSeverity.Error);
+
+
+
+    /// <summary>
     /// The request needs a signed-in user.
     /// </summary>
     public static ErrorCode NotSignedIn { get; } = new("auth.not_signed_in", StatusCodes.Status401Unauthorized, "Sign in first.", "auth-not-signed-in", ErrorSeverity.Info);

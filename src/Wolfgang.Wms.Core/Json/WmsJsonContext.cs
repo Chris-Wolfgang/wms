@@ -24,6 +24,13 @@ namespace Wolfgang.Wms.Core.Json;
 [JsonSerializable(typeof(ChangePasswordRequest))]
 [JsonSerializable(typeof(SessionInfo))]
 [JsonSerializable(typeof(IReadOnlyList<PermissionDescriptor>))]
+[JsonSerializable(typeof(RoleInfo))]
+[JsonSerializable(typeof(IReadOnlyList<RoleInfo>))]
+[JsonSerializable(typeof(RoleDraft))]
+[JsonSerializable(typeof(CopyRoleRequest))]
+[JsonSerializable(typeof(RoleAssignmentInfo))]
+[JsonSerializable(typeof(IReadOnlyList<RoleAssignmentInfo>))]
+[JsonSerializable(typeof(AssignRoleRequest))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

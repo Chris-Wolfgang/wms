@@ -23,6 +23,7 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
     private readonly ISettings _settings;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<EfLocalAccounts> _logger;
+    private readonly IRoles _roles;
 
 
 
@@ -30,13 +31,14 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
     /// Creates the accounts.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public EfLocalAccounts(WmsDbContext context, IPasswordHasher<User> hasher, ISettings settings, TimeProvider timeProvider, ILogger<EfLocalAccounts> logger)
+    public EfLocalAccounts(WmsDbContext context, IPasswordHasher<User> hasher, ISettings settings, TimeProvider timeProvider, ILogger<EfLocalAccounts> logger, IRoles roles)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _hasher = hasher ?? throw new ArgumentNullException(nameof(hasher));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _roles = roles ?? throw new ArgumentNullException(nameof(roles));
     }
 
 
@@ -84,7 +86,7 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
         user.UpdatedAt = now;
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         LogAttempt(_logger, userName, LocalLoginOutcome.Success);
-        return LocalLoginResult.Succeeded(View(user));
+        return LocalLoginResult.Succeeded(await ViewAsync(user, now, cancellationToken).ConfigureAwait(false));
     }
 
 
@@ -129,7 +131,7 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
     public async Task<LocalUser?> FindAsync(long userId, CancellationToken cancellationToken)
     {
         var user = await _context.Set<User>().AsNoTracking().SingleOrDefaultAsync(u => u.Id == userId, cancellationToken).ConfigureAwait(false);
-        return user is null ? null : View(user);
+        return user is null ? null : await ViewAsync(user, _timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
     }
 
 
@@ -204,11 +206,19 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
 
 
 
-    private static LocalUser View(User user)
+    /// <summary>
+    /// The session view: the local administrator holds every permission everywhere (E10.1); everyone's
+    /// active role assignments add theirs (E10.2, E10.3).
+    /// </summary>
+    private async Task<LocalUser> ViewAsync(User user, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        // E10.1: the local administrator holds every permission everywhere; other users' grants come from their roles (E10.2).
-        IReadOnlyList<string> grants = user.IsLocalAdmin ? [PermissionClaims.OrganizationGrant(PermissionClaims.Wildcard)] : [];
-        return new LocalUser(user.Id, user.UserName, user.DisplayName, user.MustChangePassword, user.IsLocalAdmin, user.IsDisabled, grants);
+        var grants = (await _roles.GrantsOfAsync(user.Id, now, cancellationToken).ConfigureAwait(false)).ToList();
+        if (user.IsLocalAdmin)
+        {
+            grants.Insert(0, PermissionClaims.OrganizationGrant(PermissionClaims.Wildcard));
+        }
+
+        return new LocalUser(user.Id, user.UserName, user.DisplayName, user.MustChangePassword, user.IsLocalAdmin, user.IsDisabled, grants.Distinct(StringComparer.Ordinal).ToList());
     }
 
 

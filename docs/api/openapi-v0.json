@@ -434,6 +434,108 @@
         }
       }
     },
+    "/api/v0/auth/providers/{name}/groups": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "A provider\u0027s directory groups mapped to roles (E11.2); users in no mapped group hold no role.",
+        "operationId": "GetGroupRoleMappings",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GroupRoleMappingInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Maps a directory group to a role, everywhere or at one site; 409 when it exists.",
+        "operationId": "AddGroupRoleMapping",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupRoleMappingDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupRoleMappingInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/providers/groups/{mappingId}": {
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Removes a group-to-role mapping; members lose the role at their next sign-in.",
+        "operationId": "RemoveGroupRoleMapping",
+        "parameters": [
+          {
+            "name": "mappingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api/v0/auth/roles": {
       "get": {
         "tags": [
@@ -849,6 +951,93 @@
           }
         },
         "description": "Body of \u0060POST /auth/roles/{id}/copy\u0060 (E10.2)."
+      },
+      "GroupRoleMappingDraft": {
+        "required": [
+          "group",
+          "roleId"
+        ],
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string",
+            "description": "The group identifier as the provider sends it."
+          },
+          "roleId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The role to grant.",
+            "format": "int64"
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site, or null for everywhere.",
+            "format": "int64"
+          }
+        },
+        "description": "A group-to-role mapping as posted (E11.2)."
+      },
+      "GroupRoleMappingInfo": {
+        "required": [
+          "id",
+          "provider",
+          "group",
+          "roleId",
+          "roleName",
+          "siteId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "provider": {
+            "type": "string",
+            "description": "The provider whose groups these are."
+          },
+          "group": {
+            "type": "string",
+            "description": "The group identifier as the provider sends it (an object id, a name, a DN)."
+          },
+          "roleId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The role granted.",
+            "format": "int64"
+          },
+          "roleName": {
+            "type": "string",
+            "description": "The role\u0027s name."
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site the role applies at, or null for everywhere.",
+            "format": "int64"
+          }
+        },
+        "description": "One directory group mapped to one role (E11.2), everywhere or at one site."
       },
       "LocalLoginRequest": {
         "required": [

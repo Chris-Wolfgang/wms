@@ -5,6 +5,7 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -137,6 +138,10 @@ public sealed class AuthProvidersUnitTests
         Assert.True(state.ForceLocal);
         Assert.Equal(["local"], state.Enabled.Select(p => p.Name));
         Assert.Equal(0, fake.Applied);
+        using var lifetime = new StartedLifetime();
+        lifetime.StopApplication();
+        Assert.False(lifetime.ApplicationStopping.IsCancellationRequested);
+        Assert.False(lifetime.ApplicationStopped.IsCancellationRequested);
         Assert.Null(await provider.GetRequiredService<IAuthenticationSchemeProvider>().GetSchemeAsync("fake"));
     }
 
@@ -152,13 +157,16 @@ public sealed class AuthProvidersUnitTests
         var local = new LocalAuthProvider();
 
         var health = await local.CheckAsync(provider, CancellationToken.None);
+        using var lifetime = new StartedLifetime();
 
         Assert.False(health.Healthy);
         Assert.Contains("not configured", health.Detail, StringComparison.Ordinal);
         Assert.Equal(("local", "Local account", AuthProviderKind.Credentials), (local.Name, local.DisplayName, local.Kind));
         Assert.Equal(["auth.local.lockout_threshold", "auth.local.lockout_duration"], local.Settings.Select(s => s.Name));
         await Assert.ThrowsAsync<ArgumentNullException>(() => local.CheckAsync(null!, CancellationToken.None));
-        Assert.Throws<ArgumentNullException>(() => new AuthProviderSync(null!, TimeProvider.System, NullLogger<AuthProviderSync>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new AuthProviderSync(null!, TimeProvider.System, lifetime, NullLogger<AuthProviderSync>.Instance));
+        using var host = Host(new FakeSettings(), new FakeChallengeProvider("fake"), forceLocal: false);
+        Assert.Throws<ArgumentNullException>(() => new AuthProviderSync(host.GetRequiredService<AuthProviderState>(), TimeProvider.System, null!, NullLogger<AuthProviderSync>.Instance));
         Assert.Throws<ArgumentNullException>(() => new AuthProviderState(null!, null!, null!, null!, null!));
         Assert.Equal(TimeSpan.FromSeconds(5), AuthProviderSync.Interval);
     }
@@ -166,25 +174,66 @@ public sealed class AuthProvidersUnitTests
 
 
     [Fact]
-    public async Task The_sync_refreshes_at_start_and_survives_a_failing_refresh()
+    public async Task The_sync_refreshes_once_the_host_has_started_and_survives_a_failing_refresh()
     {
         var fake = new FakeChallengeProvider("fake");
         var settings = new FakeSettings();
         settings.Values["auth.providers.enabled"] = "fake";
         using var provider = Host(settings, fake, forceLocal: false);
         var state = provider.GetRequiredService<AuthProviderState>();
-        using var failing = new AuthProviderSync(state, TimeProvider.System, NullLogger<AuthProviderSync>.Instance);
-        using var sync = new AuthProviderSync(state, TimeProvider.System, NullLogger<AuthProviderSync>.Instance);
+        using var lifetime = new StartedLifetime();
+        using var failing = new AuthProviderSync(state, TimeProvider.System, lifetime, NullLogger<AuthProviderSync>.Instance);
+        using var started = new StartedLifetime();
+        started.Start();
+        using var sync = new AuthProviderSync(state, TimeProvider.System, started, NullLogger<AuthProviderSync>.Instance);
 
         settings.Throw = true;
-        await failing.StartAsync(CancellationToken.None);   // logged, nothing enabled yet
+        await failing.StartAsync(CancellationToken.None);   // waits for the host; nothing yet
+        Assert.Empty(state.Enabled);
+        lifetime.Start();
+        await Task.Delay(100);   // the failing read is logged, nothing enabled
         await failing.StopAsync(CancellationToken.None);
         Assert.Empty(state.Enabled);
 
         settings.Throw = false;
         await sync.StartAsync(CancellationToken.None);
+        for (var i = 0; i < 100 && state.Enabled.Count == 0; i++)
+        {
+            await Task.Delay(20);
+        }
+
         await sync.StopAsync(CancellationToken.None);
         Assert.Equal(["fake"], state.Enabled.Select(p => p.Name));
+    }
+
+
+
+    /// <summary>
+    /// A lifetime whose "started" signal the test raises.
+    /// </summary>
+    private sealed class StartedLifetime : IHostApplicationLifetime, IDisposable
+    {
+        private readonly CancellationTokenSource _started = new();
+
+        public CancellationToken ApplicationStarted => _started.Token;
+
+        public CancellationToken ApplicationStopping => CancellationToken.None;
+
+        public CancellationToken ApplicationStopped => CancellationToken.None;
+
+        public void Start()
+        {
+            _started.Cancel();
+        }
+
+        public void StopApplication()
+        {
+        }
+
+        public void Dispose()
+        {
+            _started.Dispose();
+        }
     }
 
 

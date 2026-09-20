@@ -29,14 +29,13 @@ public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<P
 
 
 
-    [DockerFact]
+    [SqlServerFact]
     public async Task SqlServer_2022_starts_and_migrates()
     {
-        await using var container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
-            .Build();
-        await container.StartAsync();
+        await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await AssertStartsAndMigratesAsync(container, "SqlServer", container.GetConnectionString(), trustServerCertificate: true);
+        Assert.True(database.Running);
+        await AssertStartsAndMigratesAsync(container: null, "SqlServer", database.ConnectionString, trustServerCertificate: true);
     }
 
 
@@ -66,9 +65,13 @@ public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<P
 
 
 
-    private async Task AssertStartsAndMigratesAsync(IContainer container, string provider, string connectionString, bool trustServerCertificate)
+    private async Task AssertStartsAndMigratesAsync(IContainer? container, string provider, string connectionString, bool trustServerCertificate)
     {
-        Assert.Equal(TestcontainersStates.Running, container.State);
+        if (container is not null)
+        {
+            Assert.Equal(TestcontainersStates.Running, container.State);
+        }
+
         using var unmigrated = Host(provider, connectionString, trustServerCertificate, autoMigrate: false);
         var refused = Assert.Throws<InvalidOperationException>(() => unmigrated.CreateClient());
         Assert.Contains("pending migrations", refused.Message, StringComparison.Ordinal);

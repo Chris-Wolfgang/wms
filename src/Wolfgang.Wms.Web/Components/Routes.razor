@@ -1,4 +1,7 @@
-﻿<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+@* Workspaces live in their own assemblies (E82.4); the host routes to all of them. *@
+<Router AppAssembly="typeof(Program).Assembly"
+        AdditionalAssemblies="WorkspaceAssemblies.All"
+        NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />

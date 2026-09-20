@@ -29,6 +29,21 @@ public static class DatabaseServiceCollectionExtensions
 
 
     /// <summary>
+    /// Schema of the migrations history table (E3.1: nothing in dbo/public; E4.5: created by the first migration
+    /// with CREATE SCHEMA rights only).
+    /// </summary>
+    public const string HistorySchema = "wms";
+
+
+
+    /// <summary>
+    /// Name of the migrations history table.
+    /// </summary>
+    public const string HistoryTable = "migrations_history";
+
+
+
+    /// <summary>
     /// Binds and validates <see cref="DatabaseOptions"/> (startup fails on an unknown provider or a missing
     /// connection string), registers <see cref="WmsDbContext"/> on the chosen provider, and replaces the
     /// bootstrap schema source with the migrations-history one. With provider <c>None</c> no context is
@@ -55,6 +70,8 @@ public static class DatabaseServiceCollectionExtensions
         services.AddDbContext<WmsDbContext>((provider, builder) => Configure(builder, provider.GetRequiredService<IOptions<DatabaseOptions>>().Value));
         services.RemoveAll<ISchemaVersionSource>();
         services.AddScoped<ISchemaVersionSource, MigrationsSchemaVersionSource>();
+        services.AddScoped<MigrationRunner>();
+        services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead
         return services;
     }
 
@@ -71,8 +88,8 @@ public static class DatabaseServiceCollectionExtensions
 
         return options.ParsedProvider switch
         {
-            DatabaseProvider.SqlServer => builder.UseSqlServer(options.EffectiveConnectionString(), sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly)),
-            DatabaseProvider.PostgreSql => builder.UseNpgsql(options.EffectiveConnectionString(), npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly)),
+            DatabaseProvider.SqlServer => builder.UseSqlServer(options.EffectiveConnectionString(), sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema)),
+            DatabaseProvider.PostgreSql => builder.UseNpgsql(options.EffectiveConnectionString(), npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema)),
             _ => throw new InvalidOperationException($"{DatabaseOptions.SectionName}:Provider '{options.Provider}' cannot host a database context."),
         };
     }

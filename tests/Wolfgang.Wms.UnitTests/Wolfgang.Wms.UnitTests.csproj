@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Core\Wolfgang.Wms.Core.csproj" />
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Web.Shared\Wolfgang.Wms.Web.Shared.csproj" />
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Client\Wolfgang.Wms.Client.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Migrate\Wolfgang.Wms.Migrate.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Microsoft.Data.SqlClient;
+using Wolfgang.Wms.Core.Secrets;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -64,7 +65,19 @@ public sealed class DatabaseOptions
     /// </summary>
     public string EffectiveConnectionString()
     {
-        var connectionString = ConnectionString ?? string.Empty;
+        return EffectiveConnectionString(protector: null);
+    }
+
+
+
+    /// <summary>
+    /// The connection string the provider receives: decrypted by <paramref name="protector"/> when it is
+    /// stored in the <c>enc:v1:</c> form (E8.2), then with the SQL Server certificate flag applied.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The value is encrypted and <paramref name="protector"/> is null or cannot decrypt it.</exception>
+    public string EffectiveConnectionString(ISecretProtector? protector)
+    {
+        var connectionString = ProtectedText.Reveal(ConnectionString, protector) ?? string.Empty;
         if (ParsedProvider == DatabaseProvider.SqlServer && TrustServerCertificate)
         {
             return new SqlConnectionStringBuilder(connectionString) { TrustServerCertificate = true }.ConnectionString;
@@ -72,6 +85,13 @@ public sealed class DatabaseOptions
 
         return connectionString;
     }
+
+
+
+    /// <summary>
+    /// True when the connection string is stored encrypted (E8.2).
+    /// </summary>
+    public bool ConnectionStringIsProtected => ProtectedText.IsProtected(ConnectionString);
 
 
 

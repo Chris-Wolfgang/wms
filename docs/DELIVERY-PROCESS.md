@@ -39,8 +39,10 @@ Playwright + axe) run on `main` merges and nightly, never per PR. A `paths:` fil
 a **required** status check (a PR the filter skips would wait forever for it); path-based skipping is done
 inside the job with `dorny/paths-filter`-style detection, or the job is not required.
 
-Not yet wired, tracked with the epic that introduces the thing being checked: tests on both database providers
-and migration drift (E2), the OpenAPI diff comment (first API endpoint), Playwright + axe (E82).
+Provider tests run against real engines in containers (`ProviderStartupTests`: SQL Server 2022, SQL Server 2025
+Express, PostgreSQL 16; they need Docker, which CI has, and skip on a developer machine without it); the
+migration-drift check is the Stage 1 step over `scripts/Check-Migrations.ps1`; the OpenAPI diff is the
+`openapi-diff` job. Not yet wired: Playwright + axe (E82 UI stories).
 
 ## Main gate (E85.2)
 

@@ -50,6 +50,196 @@
           }
         }
       }
+    },
+    "/api/v0/settings/{scopeType}/{scopeId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every setting at a scope with its configured and effective value.",
+        "operationId": "ListSettings",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SettingValue"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/settings/{scopeType}/{scopeId}/{key}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One setting at a scope; the ETag is the stored row\u0027s version.",
+        "operationId": "GetSetting",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Configures a setting at a scope (null value resets); If-Match required when a row exists.",
+        "operationId": "SetSetting",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSettingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingValue"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Removes the configured value at a scope so it inherits again; If-Match required when a row exists.",
+        "operationId": "ResetSetting",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingValue"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -81,6 +271,22 @@
           }
         },
         "description": "The database schema as the API sees it (E82.5): the migration the database is at and the one this build\r\nexpects. Read-only; applying migrations is a bootstrap step outside the API (\u0060wms migrate\u0060)."
+      },
+      "SetSettingRequest": {
+        "required": [
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The stored text, or null to reset."
+          }
+        },
+        "description": "Body of \u0060PUT /settings/{scope}/{id}/{key}\u0060 (E6.3): the value as stored text. Null resets the scope\r\nto inherit (the same as \u0060DELETE\u0060)."
       },
       "SettingDescriptor": {
         "required": [
@@ -152,6 +358,85 @@
           "Json"
         ],
         "description": "How a setting\u0027s value is edited and stored (E6.1). Every value is stored as invariant-culture text; the\r\nkind tells the settings page which editor to show and the accessor how to parse the text."
+      },
+      "SettingValue": {
+        "required": [
+          "name",
+          "scope",
+          "kind",
+          "configuredValue",
+          "effectiveValue",
+          "inheritedFrom",
+          "rowVersion",
+          "updatedBy",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The setting name."
+          },
+          "scope": {
+            "type": "string",
+            "description": "The scope (\u0060organization\u0060, \u0060site:3\u0060)."
+          },
+          "kind": {
+            "description": "How the value is edited.",
+            "$ref": "#/components/schemas/SettingKind"
+          },
+          "configuredValue": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The text configured at this scope, or null when it inherits."
+          },
+          "effectiveValue": {
+            "type": "string",
+            "description": "The text that applies at this scope."
+          },
+          "inheritedFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The scope the effective value comes from (\u0060organization\u0060), \u0060default\u0060 for the key\u0027s default, or null when configured here."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The stored row\u0027s version, or null when no row exists at this scope yet.",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Who last wrote the row, if one exists."
+          },
+          "updatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the row was last written, if one exists.",
+            "format": "date-time"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag of the stored row (\u0060If-Match\u0060 on writes), or null when no row exists."
+          }
+        },
+        "description": "One setting at one scope as the API and the console see it (E6.3): what is configured here, what\r\napplies here, and where the effective value comes from when it is inherited. Secrets are masked."
       }
     }
   },

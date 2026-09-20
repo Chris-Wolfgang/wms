@@ -91,7 +91,7 @@ Tag `vX.Y.Z` (a GitHub release, immutable). The same `release.yaml` in **release
 identity, images, installers and docs published under `/vX.Y/`, GitHub release with the assembled changelog,
 SBOM attached (E85.8). The `release` skill assembles the changelog (`changelog.ps1 assemble`), writes migration
 notes, runs the upgrade test from the previous version, regenerates notices, refreshes the licensing baseline
-(`docs/licensing/tier-table.txt` from `TierTables.Current.ToLines()`, docs/LICENSING.md), closes the milestone
+(`docs/licensing/tier-table.txt` from `TierTables.Current.ToLines()`, docfx_project/docs/licensing.md), closes the milestone
 and creates the next one.
 
 ## Hotfix gate (E85.5)

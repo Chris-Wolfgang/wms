@@ -79,6 +79,19 @@ console "resync". `MapSyncedTable` maps both as `GET {table}?since=&size=` and `
 (`ToTable(t => t.HasTrigger(...))` equivalent), which makes EF read generated values back with a query;
 SQL Server refuses `OUTPUT` on a table with triggers.
 
+## Audit tables (E6.4)
+
+`core.audit_header` and `core.audit_detail` are AuditTrail's entities mapped into the product model
+(`AuditOptions.Schema/HeaderTableName/DetailTableName`), created by the normal migrations. The conventions
+name them (snake_case fell out on day one: `on_behalf_of_user_id`, `audited_at_utc`) and place them in
+`core`, but leave the library's keys and column types alone (`ModelConventions.IsLibraryOwned`: a GUID
+header key, a `DateTime` timestamp at microsecond precision). The first test against the library
+(`AuditTrailCapabilityTests`) pins what it records: one transaction id per save; the aggregate root, each
+owned entity and each child row get their own header; complex-type members are not captured
+(Chris-Wolfgang/AuditTrail#343; keep aggregate state in owned entities or plain columns until then); a
+database cascade delete is not captured (audited aggregates delete children through EF); the header has no
+ordinal within a transaction (AuditTrail#344) and no correlation field (AuditTrail#345).
+
 ## Adding an entity
 
 1. Class in the module with `long Id`, `DateTimeOffset` timestamps, `decimal` quantities, `<Principal>Id`

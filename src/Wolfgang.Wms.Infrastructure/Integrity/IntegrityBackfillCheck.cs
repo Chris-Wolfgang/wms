@@ -47,7 +47,8 @@ public sealed partial class IntegrityBackfillCheck : IHostedService
         var users = await context.Users.ToListAsync(cancellationToken).ConfigureAwait(false);
         var roles = await context.Roles.Include(r => r.Permissions).ToListAsync(cancellationToken).ConfigureAwait(false);
         var assignments = await context.UserRoles.ToListAsync(cancellationToken).ConfigureAwait(false);
-        var pending = users.Cast<ISignedEntity>().Concat(roles).Concat(assignments).ToList();
+        var mappings = await context.GroupRoleMappings.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var pending = users.Cast<ISignedEntity>().Concat(roles).Concat(assignments).Concat(mappings).ToList();
         if (pending.Count == 0)
         {
             return;

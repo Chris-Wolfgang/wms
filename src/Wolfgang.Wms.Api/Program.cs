@@ -61,7 +61,7 @@ app.UseWmsCompression();
 app.UseWmsRequestLocalization();
 app.UseWmsAuth();   // E9: rate limiter, authentication, authorization, must-change-password gate
 
-app.MapGet("/", () => "Wolfgang.Wms API");
+app.MapGet("/", () => "Wolfgang.Wms API").AllowAnonymous();   // the product name, nothing else
 
 // Every module endpoint lives under the versioned root; nothing is mapped on `app` directly (E82.1).
 var api = app.MapWmsApi();

@@ -1,0 +1,3 @@
+type: feature
+
+Logging: Serilog JSON lines from every host — standard output in containers, a rolling file and the Windows Event Log for service/IIS installs, the OpenTelemetry sink for every other destination (`Wms:Logging:*`); every event redacted (secret-named properties, `enc:v1:` payloads, connection-string passwords, bearer tokens) and the chatty levels rate-limited; request lines carry the trace id, user, device and route identifiers; the server's level follows the `logging.level` setting within seconds and a timed elevation (`POST /system/logging/elevate`, `logging.manage`) reverts by itself; level guidelines in docs/LOGGING.md, checked by `scripts/Check-LogLevels.ps1`.

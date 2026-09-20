@@ -17,7 +17,8 @@ environment variable with `__` for `:` (`Wms__Database__Provider`). Environment 
 | `Wms:Hosting:BehindProxy` | E10.6, below |
 | `Wms:Hosting:AllowHttp` | E12.5, below: plain HTTP from any address (a lab) |
 | `Wms:Auth:ForceLocal` | E11.0, docs/AUTH.md: emergency override, local sign-in only; not the normal way to choose providers |
-| `Logging:*` | log levels; runtime control arrives with E12.4 |
+| `Logging:*` | the framework's own level table; the product's pipeline is `Wms:Logging` (docs/LOGGING.md) and the runtime level is a setting (E12.4) |
+| `Wms:Logging:*` | E12.2, docs/LOGGING.md: sinks (stdout, file, Event Log, OpenTelemetry) and the boot level |
 
 Any other key in an `appsettings*.json` file is ignored, and the host logs one warning at startup naming each
 one with its file (`Smtp:Host (appsettings.json)`), so a value typed into the wrong place is noticed. Those

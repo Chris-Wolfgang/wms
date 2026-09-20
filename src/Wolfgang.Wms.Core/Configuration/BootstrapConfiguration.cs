@@ -37,7 +37,7 @@ public static class BootstrapConfiguration
     /// <summary>
     /// Sections recognised whole (case-insensitive): the framework's own.
     /// </summary>
-    public static IReadOnlyList<string> RecognizedSections { get; } = ["Logging", "Kestrel"];
+    public static IReadOnlyList<string> RecognizedSections { get; } = ["Logging", "Kestrel", "Wms:Logging"];   // E12.2: sinks and the boot level
 
 
 

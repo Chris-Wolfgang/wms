@@ -70,6 +70,16 @@ site's minimum gets `426 Upgrade Required` (`device.version_too_old`) with the m
 organisation → site (`IDeviceVersionPolicy`, E12), so rollouts can be phased one warehouse at a time while the
 server runs one version for all; until then no minimum is configured.
 
+## Deltas and manifests (device sync)
+
+Every synced master table exposes `GET /{table}?since={rowVersion}&size={n}` returning `{ items, nextSince,
+hasMore }` (rows in `row_version` order, soft-deleted rows included with `deletedAt` set) and
+`GET /{table}/manifest` returning `[{ id, rowVersion }]` of live rows. A device stores `nextSince` after each
+call and keeps calling while `hasMore`; it applies items as idempotent upserts, so the few rows the final
+watermark re-reads (safety margin, DATABASE-CONVENTIONS.md) are harmless. `since` defaults to 0 (everything),
+`size` to 500 and is clamped to 1..5000. Both endpoints come from one helper (`MapSyncedTable`) so no table
+hand-writes them.
+
 ## Natural keys and time
 
 URLs use natural keys where a customer would (`/skus/{skuCode}`), surrogate ids where they would not. Every

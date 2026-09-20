@@ -13,6 +13,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Wolfgang.Wms.Core.Api;
 using Wolfgang.Wms.Core.Http;
+using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.IntegrationTests.Api;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Domain.Keys;
@@ -70,6 +72,8 @@ public sealed class EfSettingsTests
     {
         await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
         using var client = app.GetTestClient();
+        client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));   // E10.1: settings need settings.read/settings.write
+        Assert.NotEmpty(await TestSessions.SignInAsAdministratorAsync(client));   // a second sign-in after the password change takes the other path
 
         var etag = await AssertFirstWriteAndPreconditionsAsync(client);
         await AssertInheritanceAndShieldingAsync(client, etag);
@@ -155,7 +159,7 @@ public sealed class EfSettingsTests
     private static async Task<string> AssertFirstWriteAndPreconditionsAsync(HttpClient client)
     {
         var defaults = (await client.GetFromJsonAsync<List<SettingValue>>("/api/v0/settings/organization/0", Json))!;
-        Assert.Equal(["sample.lease_timeout", "sample.level", "sample.password"], defaults.Select(v => v.Name));
+        Assert.Equal(["sample.lease_timeout", "sample.level", "sample.password"], defaults.Select(v => v.Name).Where(n => n.StartsWith("sample.", StringComparison.Ordinal)));   // the auth module lists its own too
         Assert.All(defaults, v => Assert.Equal(SettingValue.DefaultSource, v.InheritedFrom));
 
         using var first = await PutAsync(client, "organization/0", "sample.lease_timeout", "00:30:00", ifMatch: null);
@@ -164,7 +168,7 @@ public sealed class EfSettingsTests
         Assert.Equal("00:30:00", written.ConfiguredValue);
         Assert.Equal("00:30:00", written.EffectiveValue);
         Assert.Null(written.InheritedFrom);
-        Assert.Equal(SettingsModule.AnonymousUser, written.UpdatedBy);
+        Assert.Equal("admin", written.UpdatedBy);   // E10.1: the signed-in user, no longer anonymous
         Assert.NotNull(written.Etag);
         Assert.Equal(written.Etag, first.Headers.ETag?.ToString());
 
@@ -295,12 +299,14 @@ public sealed class EfSettingsTests
         builder.Services.AddWmsProblemDetails();
         builder.Services.AddWmsModules();
         builder.Services.AddWmsSettingsModule();
+        builder.Services.AddWmsAuthModule();
         builder.Services.AddWmsModule(ModuleDescriptor.Create("sample").WithSettings(LeaseTimeout, Password, Level));
         builder.Services.AddSingleton<ISettingScopeHierarchy, TestHierarchy>();
         builder.Services.AddWmsDataProtection(builder.Configuration);   // E8.6: no path, a provider: the database ring
         builder.Services.AddWmsDatabase(builder.Configuration);
         var app = builder.Build();
         app.UseWmsProblemDetails();
+        app.UseWmsAuth();
         app.MapWmsApi().MapWmsModules();
         await app.StartAsync();
         return app;

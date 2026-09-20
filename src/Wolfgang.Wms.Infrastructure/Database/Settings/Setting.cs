@@ -33,6 +33,13 @@ public sealed class Setting : ISyncedEntity
 
 
 
+    /// <summary>
+    /// Longest stored cascade mode name.
+    /// </summary>
+    public const int CascadeModeLength = 16;
+
+
+
     /// <inheritdoc/>
     public long Id { get; set; }
 
@@ -70,6 +77,14 @@ public sealed class Setting : ISyncedEntity
     /// The value that applies at this scope as stored text.
     /// </summary>
     public string EffectiveValue { get; set; } = string.Empty;
+
+
+
+    /// <summary>
+    /// How this scope takes part in the cascade (E7.2): <c>value</c>, or <c>per_site</c> / <c>per_zone</c> /
+    /// <c>per_sku</c> when it delegates the decision downward and holds no value of its own.
+    /// </summary>
+    public string CascadeMode { get; set; } = "value";
 
 
 

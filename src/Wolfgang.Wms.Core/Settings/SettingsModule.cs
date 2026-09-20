@@ -54,7 +54,7 @@ public static class SettingsModule
         .Create("settings")
         .WithEndpoints(MapReadEndpoints)
         .WithEndpoints(MapWriteEndpoints)
-        .WithErrorCodes(SettingErrorCodes.UnknownKey, SettingErrorCodes.ScopeNotAllowed, SettingErrorCodes.InvalidValue, SettingErrorCodes.UnknownScope, SettingErrorCodes.StoreUnavailable);
+        .WithErrorCodes(SettingErrorCodes.UnknownKey, SettingErrorCodes.ScopeNotAllowed, SettingErrorCodes.InvalidValue, SettingErrorCodes.UnknownScope, SettingErrorCodes.StoreUnavailable, SettingErrorCodes.ModeNotAllowed, SettingErrorCodes.DecidedElsewhere);
 
 
 
@@ -113,15 +113,15 @@ public static class SettingsModule
 
     private static void MapWriteEndpoints(IEndpointRouteBuilder app)
     {
-        app.MapPut(ValueRoute, async (HttpContext http, string scopeType, long scopeId, string key, SetSettingRequest body, ISettings settings, CancellationToken cancellationToken) =>
+        app.MapPut(ValueRoute, async (HttpContext http, string scopeType, long scopeId, string key, SetSettingRequest body, ISettings settings, SettingRegistry registry, CancellationToken cancellationToken) =>
             {
                 ArgumentNullException.ThrowIfNull(body);
                 var scope = ParseScope(scopeType, scopeId);
                 return await RequireCurrentAsync(http, key, scope, settings, cancellationToken).ConfigureAwait(false)
-                    ?? WithEtag(http, await settings.SetTextAsync(key, scope, body.Value, User(http), cancellationToken).ConfigureAwait(false));
+                    ?? WithEtag(http, await ApplyAsync(body, key, scope, settings, registry, User(http), cancellationToken).ConfigureAwait(false));
             })
             .WithName("SetSetting")
-            .WithSummary("Configures a setting at a scope (null value resets); If-Match required when a row exists.")
+            .WithSummary("Configures a setting at a scope: a value, or a cascade mode (per_site, per_zone, per_sku); both null resets. If-Match required when a row exists.")
             .Produces<SettingValue>();
         app.MapDelete(ValueRoute, async (HttpContext http, string scopeType, long scopeId, string key, ISettings settings, CancellationToken cancellationToken) =>
             {
@@ -132,6 +132,34 @@ public static class SettingsModule
             .WithName("ResetSetting")
             .WithSummary("Removes the configured value at a scope so it inherits again; If-Match required when a row exists.")
             .Produces<SettingValue>();
+    }
+
+
+
+    /// <summary>
+    /// A mode delegates (E7.2); otherwise the value is written or, when null, the scope is reset.
+    /// </summary>
+    /// <exception cref="SettingException">The mode is not a cascade mode, or the key is not registered.</exception>
+    private static Task<SettingValue> ApplyAsync(SetSettingRequest body, string key, SettingScopeRef scope, ISettings settings, SettingRegistry registry, string user, CancellationToken cancellationToken)
+    {
+        if (body.Mode is null)
+        {
+            return settings.SetTextAsync(key, scope, body.Value, user, cancellationToken);
+        }
+
+        if (!CascadeModeExtensions.TryParseMode(body.Mode, out var mode))
+        {
+            throw new SettingException(SettingErrorCodes.ModeNotAllowed, $"'{body.Mode}' is not a cascade mode (value, per_site, per_zone, per_sku).");
+        }
+
+        if (!registry.TryGet(key, out var registered))
+        {
+            throw new SettingException(SettingErrorCodes.UnknownKey, $"'{key}' is not a registered setting.");
+        }
+
+        return mode == CascadeMode.Value && body.Value is not null
+            ? settings.SetTextAsync(key, scope, body.Value, user, cancellationToken)
+            : settings.SetModeAsync(registered, scope, mode, user, cancellationToken);
     }
 
 

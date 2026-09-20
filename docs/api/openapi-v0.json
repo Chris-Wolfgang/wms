@@ -348,6 +348,92 @@
         }
       }
     },
+    "/api/v0/auth/providers": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "The enabled identity providers in login-page order (E11.0).",
+        "operationId": "GetAuthProviders",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuthProviderInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/{provider}/challenge": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Sends the browser to a challenge provider; 404 when the provider is not enabled.",
+        "operationId": "ChallengeAuthProvider",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/providers/{name}/check": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Runs a provider\u0027s health check (discovery for OIDC); 404 for an unknown provider.",
+        "operationId": "CheckAuthProvider",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProviderHealth"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v0/auth/roles": {
       "get": {
         "tags": [
@@ -676,6 +762,62 @@
           }
         },
         "description": "Body of \u0060POST /auth/users/{userId}/roles\u0060 (E10.3)."
+      },
+      "AuthProviderHealth": {
+        "required": [
+          "healthy",
+          "detail"
+        ],
+        "type": "object",
+        "properties": {
+          "healthy": {
+            "type": "boolean",
+            "description": "True when the provider can sign people in."
+          },
+          "detail": {
+            "type": "string",
+            "description": "What was checked, or why it failed; never a secret."
+          }
+        },
+        "description": "The result of a provider\u0027s health check (E11.0)."
+      },
+      "AuthProviderInfo": {
+        "required": [
+          "name",
+          "displayName",
+          "kind",
+          "challengeUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The provider name."
+          },
+          "displayName": {
+            "type": "string",
+            "description": "The button label."
+          },
+          "kind": {
+            "description": "Credentials (a form) or Challenge (a redirect).",
+            "$ref": "#/components/schemas/AuthProviderKind"
+          },
+          "challengeUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Where the browser goes for a challenge provider; null for a credentials one."
+          }
+        },
+        "description": "One enabled provider as the login page sees it (E11.0)."
+      },
+      "AuthProviderKind": {
+        "enum": [
+          "Credentials",
+          "Challenge"
+        ],
+        "description": "How a provider signs a console user in (E11.0)."
       },
       "ChangePasswordRequest": {
         "required": [

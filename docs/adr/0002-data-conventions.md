@@ -11,7 +11,10 @@ domain and stays AOT-safe (E1.9). Reads for screens and reports have very differ
 ## Decision
 
 1. **Single tenant per install.** One company per database; no `tenant_id` anywhere. A hosted offering
-   would be siloed: one database and one Kubernetes namespace per customer.
+   is siloed at the database: one database per customer, resolved per request from the host name or the
+   device's pairing token through a resolver seam in Infrastructure, with a shared process allowed (amended
+   2026-09-22 by ADR 0007; originally "one database and one Kubernetes namespace per customer"). Caches
+   and worker loops are per database, never per process.
 2. **Unit of work.** One `DbContext` per request or job, behind `IUnitOfWork` (`Wolfgang.Wms.Core.Data`).
    A single `SaveChangesAsync` per operation. Explicit transactions only for the listed multi-step
    operations — deposit replay, marriage, intake, settings cascade, lease release/expiry — through

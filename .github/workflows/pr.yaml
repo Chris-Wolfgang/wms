@@ -831,12 +831,14 @@ jobs:
             # Extract target frameworks via MSBuild property evaluation.
             # This handles multi-line <TargetFrameworks> XML, conditional property groups,
             # and TFMs inherited from Directory.Build.props — all of which break grep-based parsing.
-            # Falls back from <TargetFrameworks> (multiple) to <TargetFramework> (single).
+            # Falls back from <TargetFrameworks> (multiple) to <TargetFramework> (single). The blank-line filter is
+            # sed, not `grep -v`: grep exits 1 when nothing passes, which under pipefail killed the step on an
+            # empty property before the fallback ran; sed exits 0 and lets a real msbuild failure propagate.
             tfm_raw=$(dotnet msbuild "$proj" -noLogo -getProperty:TargetFrameworks 2>/dev/null \
-              | grep -v '^[[:space:]]*$' | tail -n1 | sed 's/^TargetFrameworks[=:][[:space:]]*//' | tr -d '[:space:]')
+              | sed '/^[[:space:]]*$/d' | tail -n1 | sed 's/^TargetFrameworks[=:][[:space:]]*//' | tr -d '[:space:]')
             if [ -z "$tfm_raw" ]; then
               tfm_raw=$(dotnet msbuild "$proj" -noLogo -getProperty:TargetFramework 2>/dev/null \
-                | grep -v '^[[:space:]]*$' | tail -n1 | sed 's/^TargetFramework[=:][[:space:]]*//' | tr -d '[:space:]')
+                | sed '/^[[:space:]]*$/d' | tail -n1 | sed 's/^TargetFramework[=:][[:space:]]*//' | tr -d '[:space:]')
             fi
             frameworks=$(printf '%s' "$tfm_raw" | tr ';' '\n' | grep -E '^(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)|netcoreapp[0-9.]+|netstandard[0-9.]+)$' || true)
             
@@ -922,12 +924,14 @@ jobs:
             
             # Extract target frameworks via MSBuild property evaluation (handles multi-line XML
             # and Directory.Build.props inheritance — both break grep-based parsing).
-            # Falls back from <TargetFrameworks> (multiple) to <TargetFramework> (single).
+            # Falls back from <TargetFrameworks> (multiple) to <TargetFramework> (single). The blank-line filter is
+            # sed, not `grep -v`: grep exits 1 when nothing passes, which under pipefail killed the step on an
+            # empty property before the fallback ran; sed exits 0 and lets a real msbuild failure propagate.
             tfm_raw=$(dotnet msbuild "$test_proj" -noLogo -getProperty:TargetFrameworks 2>/dev/null \
-              | grep -v '^[[:space:]]*$' | tail -n1 | sed 's/^TargetFrameworks[=:][[:space:]]*//' | tr -d '[:space:]')
+              | sed '/^[[:space:]]*$/d' | tail -n1 | sed 's/^TargetFrameworks[=:][[:space:]]*//' | tr -d '[:space:]')
             if [ -z "$tfm_raw" ]; then
               tfm_raw=$(dotnet msbuild "$test_proj" -noLogo -getProperty:TargetFramework 2>/dev/null \
-                | grep -v '^[[:space:]]*$' | tail -n1 | sed 's/^TargetFramework[=:][[:space:]]*//' | tr -d '[:space:]')
+                | sed '/^[[:space:]]*$/d' | tail -n1 | sed 's/^TargetFramework[=:][[:space:]]*//' | tr -d '[:space:]')
             fi
             frameworks=$(printf '%s' "$tfm_raw" | tr ';' '\n' | grep -E '^(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)|netcoreapp3\.1)$' || true)
             
@@ -1736,12 +1740,14 @@ jobs:
             
             # Extract target frameworks via MSBuild property evaluation (handles multi-line XML
             # and Directory.Build.props inheritance). Filter to .NET 6+ for macOS ARM64 compatibility.
-            # Falls back from <TargetFrameworks> (multiple) to <TargetFramework> (single).
+            # Falls back from <TargetFrameworks> (multiple) to <TargetFramework> (single). The blank-line filter is
+            # sed, not `grep -v`: grep exits 1 when nothing passes, which under pipefail killed the step on an
+            # empty property before the fallback ran; sed exits 0 and lets a real msbuild failure propagate.
             tfm_raw=$(dotnet msbuild "$proj" -noLogo -getProperty:TargetFrameworks 2>/dev/null \
-              | grep -v '^[[:space:]]*$' | tail -n1 | sed 's/^TargetFrameworks[=:][[:space:]]*//' | tr -d '[:space:]')
+              | sed '/^[[:space:]]*$/d' | tail -n1 | sed 's/^TargetFrameworks[=:][[:space:]]*//' | tr -d '[:space:]')
             if [ -z "$tfm_raw" ]; then
               tfm_raw=$(dotnet msbuild "$proj" -noLogo -getProperty:TargetFramework 2>/dev/null \
-                | grep -v '^[[:space:]]*$' | tail -n1 | sed 's/^TargetFramework[=:][[:space:]]*//' | tr -d '[:space:]')
+                | sed '/^[[:space:]]*$/d' | tail -n1 | sed 's/^TargetFramework[=:][[:space:]]*//' | tr -d '[:space:]')
             fi
             frameworks=$(printf '%s' "$tfm_raw" | tr ';' '\n' | grep -E '^net(6\.0|7\.0|8\.0|9\.0|10\.0)$' || true)
             
@@ -1826,12 +1832,14 @@ jobs:
             
             # Extract target frameworks via MSBuild property evaluation (handles multi-line XML
             # and Directory.Build.props inheritance). Filter to .NET 6+ for macOS ARM64 compatibility.
-            # Falls back from <TargetFrameworks> (multiple) to <TargetFramework> (single).
+            # Falls back from <TargetFrameworks> (multiple) to <TargetFramework> (single). The blank-line filter is
+            # sed, not `grep -v`: grep exits 1 when nothing passes, which under pipefail killed the step on an
+            # empty property before the fallback ran; sed exits 0 and lets a real msbuild failure propagate.
             tfm_raw=$(dotnet msbuild "$test_proj" -noLogo -getProperty:TargetFrameworks 2>/dev/null \
-              | grep -v '^[[:space:]]*$' | tail -n1 | sed 's/^TargetFrameworks[=:][[:space:]]*//' | tr -d '[:space:]')
+              | sed '/^[[:space:]]*$/d' | tail -n1 | sed 's/^TargetFrameworks[=:][[:space:]]*//' | tr -d '[:space:]')
             if [ -z "$tfm_raw" ]; then
               tfm_raw=$(dotnet msbuild "$test_proj" -noLogo -getProperty:TargetFramework 2>/dev/null \
-                | grep -v '^[[:space:]]*$' | tail -n1 | sed 's/^TargetFramework[=:][[:space:]]*//' | tr -d '[:space:]')
+                | sed '/^[[:space:]]*$/d' | tail -n1 | sed 's/^TargetFramework[=:][[:space:]]*//' | tr -d '[:space:]')
             fi
             frameworks=$(printf '%s' "$tfm_raw" | tr ';' '\n' | grep -E '^net(6\.0|7\.0|8\.0|9\.0|10\.0)$' || true)
             

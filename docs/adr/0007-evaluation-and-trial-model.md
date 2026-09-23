@@ -24,9 +24,12 @@ otherwise unlimited (sites, users, locations, SKUs). Renewal is a new trial key 
 the newest base key wins, as E79.11 already rules. A trial key applied over a running Free install keeps
 every row: it is an upgrade in place, and buying is the same operation with a paid key.
 
-*Open, for Chris:* whether Free should nevertheless require a (perpetual, 9999-12-31) key to capture the
-lead. E79.2 as built needs no key. Recommendation: keep no key. The lead is captured by the trial request
-and by the update check (decision 6); a key that can never expire adds a support step and nothing else.
+Free requires **no key** (decided 2026-09-22): a compiled-in tier cannot lapse or be revoked and needs
+nothing from the vendor, which answers the "what if the vendor disappears" question completely and keeps the
+install path at "install, run". The lead is captured instead by an optional **"Register this product"**
+button on the console (name, company, email, sent with the installation id to the vendor endpoint; never
+required, never nagged beyond one dismissible banner; EV.11), by the trial request, and by the update check
+(decision 6).
 
 ### 2. Trial expiry reverts to Free and may park; paid lapse freezes (unchanged)
 

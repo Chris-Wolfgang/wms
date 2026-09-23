@@ -34,7 +34,8 @@ required, never nagged beyond one dismissible banner; EV.11), by the trial reque
 ### 2. Trial expiry reverts to Free and may park; paid lapse freezes (unchanged)
 
 E79.5 keeps its rule for **paid** keys: nothing is removed on lapse, upgrades outside coverage are refused.
-A **trial** is the one exception to "nothing already created ever stops working": when a trial key's
+A **trial** is the one exception to "nothing already created ever stops working" (confirmed 2026-09-22;
+it applies only to keys with `trial: true`, never to a lapsed paid key): when a trial key's
 coverage ends the installation reverts to the Free tier, Pro/Enterprise features switch off, and anything
 above a Free limit is **parked, never deleted**. Parking is chosen by the customer, not by the system:
 
@@ -125,5 +126,7 @@ on by default, payload documented). Blocked outbound traffic simply means the in
   database per customer; a shared process is allowed". That is also the architecture if hosting is ever
   sold.
 - The evaluation stories (seed pack, simulator start, reset, go-live, QR pairing with pinning, barcode seam,
-  hardware check, resolver seam, provisioning) are tracked in the "Evaluation" epic; the licensing changes
-  (trial keys, installation id, trial expiry, issuing tool) in E79.
+  hardware check, resolver seam, provisioning) are tracked in the "Evaluation" epic (#234, stories EV.n);
+  the multi-instance work in the "Multi-instance" epic (#245, stories MI.n; ADR 0008); the licensing
+  changes (trial keys, installation id, trial expiry, issuing tool) in E79. EV and MI are the permanent
+  ids for those two epics.

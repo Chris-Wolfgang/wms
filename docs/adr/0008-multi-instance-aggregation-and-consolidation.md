@@ -36,8 +36,9 @@ installation that **registers child instances** and mirrors each as one site.
   accounts until the identity epics give a cross-instance answer (OIDC makes this one identity provider
   anyway).
 - **Licensing**: the root is a paid base key bound to the root's installation id; children keep Free plus
-  their add-ons. Whether the root counts devices (it has no pickers of its own) is a commercial decision
-  for Chris; the default is that the root counts none.
+  their add-ons. The root is an ordinary instance for devices: 5 active devices included, as at every tier,
+  and additional device licenses purchasable as add-ons (decided 2026-09-22). Devices paired to a child
+  count against that child, never against the root.
 
 ### 3. Path B: consolidation into one multi-site instance
 

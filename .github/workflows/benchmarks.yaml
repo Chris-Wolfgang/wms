@@ -110,9 +110,14 @@ jobs:
           shopt -s nullglob
           reports=(BenchmarkDotNet.Artifacts/results/*-report-full-compressed.json)
           if [ ${#reports[@]} -eq 0 ]; then
-            echo "::error::No BenchmarkDotNet JSON report found"
-            exit 1
+            # A benchmark project with no [Benchmark] methods yet (the E1.1 layout ships the
+            # project skeleton first) produces no report; that is not a failure, there is
+            # simply nothing to chart. The publish step is gated on found=true.
+            echo "::notice::No BenchmarkDotNet JSON report found: the benchmark assembly has no [Benchmark] methods yet; nothing to publish."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
           echo "Merging ${#reports[@]} report(s):"
           printf '  %s\n' "${reports[@]}"
           jq -s '{
@@ -123,7 +128,7 @@ jobs:
           echo "report=benchmarks/Wolfgang.Wms.Benchmarks/benchmarks-result.json" >> "$GITHUB_OUTPUT"
 
       - name: Publish chart to gh-pages
-        if: steps.detect.outputs.exists == 'true'
+        if: steps.detect.outputs.exists == 'true' && steps.locate.outputs.found == 'true'
         # Pinned to v1.22.1 commit per repo convention (third-party actions
         # publishing to gh-pages are pinned by SHA, not mutable tag).
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc  # v1.22.2

@@ -953,7 +953,7 @@ jobs:
               # exits 0 when the runner finds NO tests ("No test is available in
               # ..."), which is how ETL-FixedWidth ran zero tests on two TFMs for
               # weeks with a green CI. Fail the TFM unless the summary reports a
-              # non-zero total (vstest prints "Total: N", MTP prints "total: N").
+              # non-zero total (vstest prints "Total: N" at minimal and "Total tests: N" at normal verbosity, MTP prints "total: N").
               test_log=$(mktemp)
               dotnet test "$test_proj" \
                 --configuration Release \
@@ -963,7 +963,7 @@ jobs:
                 --settings coverlet.runsettings \
                 --results-directory "./TestResults" \
                 --logger "console;verbosity=minimal" 2>&1 | tee "$test_log" || exit 1
-              if grep -q "No test is available" "$test_log" || ! grep -qiE "total:[[:space:]]*[1-9][0-9]*" "$test_log"; then
+              if grep -q "No test is available" "$test_log" || ! grep -qiE "total( tests)?:[[:space:]]*[1-9][0-9]*" "$test_log"; then
                 echo "::error file=$test_proj::Zero tests ran for $fw — the test adapter found nothing to execute (missing/incompatible xunit.runner.visualstudio for this TFM?). dotnet test exits 0 in this case, so this guard fails the job instead."
                 exit 1
               fi
@@ -1383,7 +1383,7 @@ jobs:
               # it: `dotnet test` exits 0 when the runner finds NO tests, which is
               # how ETL-FixedWidth ran zero tests on two TFMs for weeks with a
               # green CI. Fail the TFM unless the summary reports a non-zero
-              # total (vstest prints "Total: N", MTP prints "total: N").
+              # total (vstest prints "Total: N" at minimal and "Total tests: N" at normal verbosity, MTP prints "total: N").
               $testLog = [System.IO.Path]::GetTempFileName()
               if ($fw -match '^net([5-9]|[1-9][0-9]+)\.') {
                 dotnet test $testProj.FullName `
@@ -1408,7 +1408,7 @@ jobs:
               }
               $testOutput = Get-Content $testLog -Raw
               Remove-Item $testLog -Force -ErrorAction SilentlyContinue
-              if ($testOutput -match 'No test is available' -or $testOutput -notmatch '(?i)total:\s*[1-9][0-9]*') {
+              if ($testOutput -match 'No test is available' -or $testOutput -notmatch '(?i)total(?: tests)?:\s*[1-9][0-9]*') {
                 Write-Host "::error file=$($testProj.FullName)::Zero tests ran for $fw — the test adapter found nothing to execute (missing/incompatible xunit.runner.visualstudio for this TFM?). dotnet test exits 0 in this case, so this guard fails the job instead."
                 exit 1
               }
@@ -1868,7 +1868,7 @@ jobs:
                 --settings coverlet.runsettings \
                 --results-directory "./TestResults" \
                 --logger "console;verbosity=normal" 2>&1 | tee "$test_log" || exit 1
-              if grep -q "No test is available" "$test_log" || ! grep -qiE "total:[[:space:]]*[1-9][0-9]*" "$test_log"; then
+              if grep -q "No test is available" "$test_log" || ! grep -qiE "total( tests)?:[[:space:]]*[1-9][0-9]*" "$test_log"; then
                 echo "::error file=$test_proj::Zero tests ran for $fw — the test adapter found nothing to execute (missing/incompatible xunit.runner.visualstudio for this TFM?). dotnet test exits 0 in this case, so this guard fails the job instead."
                 exit 1
               fi

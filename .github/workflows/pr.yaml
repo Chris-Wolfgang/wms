@@ -1392,10 +1392,13 @@ jobs:
           }
           sqllocaldb start MSSQLLocalDB
           sqllocaldb info MSSQLLocalDB
-          "WMS_TEST_SQLSERVER=Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true" >> $env:GITHUB_ENV
 
       - name: Run all .NET tests (.NET 5.0-10.0 and Framework 4.6.2-4.8.1)
         shell: pwsh
+        env:
+          # E13.1: the SQL Server integration tests use the LocalDB instance started above. A fixed value
+          # here rather than a $GITHUB_ENV write from the previous step (zizmor github-env).
+          WMS_TEST_SQLSERVER: 'Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true'
         run: |
           $ErrorActionPreference = 'Stop'
 

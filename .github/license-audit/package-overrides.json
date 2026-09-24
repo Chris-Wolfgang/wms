@@ -4,5 +4,17 @@
     "Id": "SQLitePCLRaw.lib.e_sqlite3",
     "Version": "3.53.3",
     "License": "Apache-2.0"
+  },
+  {
+    "_comment": "Microsoft.Data.SqlClient's native SNI runtime (E2.2). LICENSE.txt in the package is the MICROSOFT SOFTWARE LICENSE TERMS for the SNI library, the same proprietary library terms nuget-license maps to MS-.NET-Library elsewhere; verified by reading the file.",
+    "Id": "Microsoft.Data.SqlClient.SNI.runtime",
+    "Version": "6.0.2",
+    "License": "MS-.NET-Library"
+  },
+  {
+    "_comment": "MSAL native interop pulled in by Microsoft.Data.SqlClient (E2.2). LICENSE in the package is the MICROSOFT SOFTWARE LICENSE TERMS (proprietary library terms, MS-.NET-Library); verified by reading the file.",
+    "Id": "Microsoft.Identity.Client.NativeInterop",
+    "Version": "0.20.6",
+    "License": "MS-.NET-Library"
   }
 ]

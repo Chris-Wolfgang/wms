@@ -5,7 +5,7 @@ var app = builder.Build();
 
 app.MapGet("/", () => "Wolfgang.Wms API");
 
-app.Run();
+await app.RunAsync().ConfigureAwait(false);
 
 /// <summary>
 /// Entry point marker so integration tests can host the API with <c>WebApplicationFactory&lt;Program&gt;</c>.

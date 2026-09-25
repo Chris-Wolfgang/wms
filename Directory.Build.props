@@ -24,7 +24,10 @@
     <_SkipUpgradeNetAnalyzersNuGetWarning>true</_SkipUpgradeNetAnalyzersNuGetWarning>
     
     <!-- Treat warnings as errors in Release builds -->
-    <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
+    <!-- E1.2: warnings are errors in every configuration for every project, test projects included,
+         so a Debug build can never pass what Release would reject. (Deliberately stricter than the
+         fleet's Release-only rule; see docs/repository-baseline.md item 21.) -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
     <!-- XML documentation for every library under src/ (fleet initiative D3).
          With TreatWarningsAsErrors above, a public member without a doc

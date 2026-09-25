@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Api\Wolfgang.Wms.Api.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Infrastructure\Wolfgang.Wms.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

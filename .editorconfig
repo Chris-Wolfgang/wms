@@ -80,7 +80,7 @@ dotnet_diagnostic.VSTHRD110.severity = warning    # Observe result of async call
 dotnet_diagnostic.VSTHRD111.severity = none       # ConfigureAwait - not needed in library code targeting modern .NET
 dotnet_diagnostic.VSTHRD112.severity = warning    # Implement System.IAsyncDisposable
 dotnet_diagnostic.VSTHRD114.severity = warning    # Avoid returning null from a Task-returning method
-dotnet_diagnostic.VSTHRD200.severity = suggestion # Use Async naming convention
+dotnet_diagnostic.VSTHRD200.severity = warning    # Use Async naming convention (E1.3: async methods end in Async; test projects opt out in tests/.editorconfig)
 
 # Roslynator Rules - Common rules explicitly configured
 dotnet_diagnostic.RCS1001.severity = suggestion   # Add braces

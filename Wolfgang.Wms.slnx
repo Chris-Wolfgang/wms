@@ -54,6 +54,7 @@
     <File Path=".github/workflows/sourcelink.yaml" />
     <File Path=".github/workflows/stryker.yaml" />
   </Folder>
+  <Folder Name="/.root/changelog/" />
   <Folder Name="/.root/changelog/unreleased/">
     <File Path="changelog/unreleased/README.md" />
   </Folder>
@@ -86,9 +87,21 @@
   <Folder Name="/.root/scripts/templates/">
     <File Path="scripts/templates/maintenance-parent-body.md" />
   </Folder>
-  <Folder Name="/benchmarks/" />
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Wolfgang.Wms.Benchmarks/Wolfgang.Wms.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/examples/" />
-  <Folder Name="/src/" />
-  <Folder Name="/tests/" />
+  <Folder Name="/src/">
+    <Project Path="src/Wolfgang.Wms.Api/Wolfgang.Wms.Api.csproj" />
+    <Project Path="src/Wolfgang.Wms.Domain/Wolfgang.Wms.Domain.csproj" />
+    <Project Path="src/Wolfgang.Wms.Infrastructure/Wolfgang.Wms.Infrastructure.csproj" />
+    <Project Path="src/Wolfgang.Wms.Simulator/Wolfgang.Wms.Simulator.csproj" />
+    <Project Path="src/Wolfgang.Wms.Web/Wolfgang.Wms.Web.csproj" />
+    <Project Path="src/Wolfgang.Wms.Worker/Wolfgang.Wms.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Wolfgang.Wms.IntegrationTests/Wolfgang.Wms.IntegrationTests.csproj" />
+    <Project Path="tests/Wolfgang.Wms.UnitTests/Wolfgang.Wms.UnitTests.csproj" />
+  </Folder>
 </Solution>
 

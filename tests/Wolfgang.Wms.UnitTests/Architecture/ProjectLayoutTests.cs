@@ -107,7 +107,7 @@ public sealed class ProjectLayoutTests
     {
         var outside = Path.GetTempPath();
 
-        var exception = Assert.Throws<InvalidOperationException>(() => FindRepositoryRoot(outside));
+        var exception = Assert.Throws<InvalidOperationException>(() => RepositoryFiles.FindRoot(outside));
 
         Assert.Contains("Wolfgang.Wms.slnx", exception.Message, StringComparison.Ordinal);
     }
@@ -116,21 +116,6 @@ public sealed class ProjectLayoutTests
 
     private static XDocument LoadProject(string relativeProjectPath)
     {
-        var path = Path.Combine(FindRepositoryRoot(AppContext.BaseDirectory), relativeProjectPath);
-        return XDocument.Load(path);
-    }
-
-
-
-    private static string FindRepositoryRoot(string startDirectory)
-    {
-        var directory = new DirectoryInfo(startDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Wolfgang.Wms.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName
-            ?? throw new InvalidOperationException("Wolfgang.Wms.slnx not found above " + startDirectory);
+        return RepositoryFiles.LoadProject(relativeProjectPath);
     }
 }

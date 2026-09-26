@@ -240,10 +240,129 @@
           }
         }
       }
+    },
+    "/api/v0/auth/local/login": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled.",
+        "operationId": "LocalLogin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/logout": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Ends the session.",
+        "operationId": "Logout",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/me": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Who is signed in.",
+        "operationId": "GetSession",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/local/password": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces the signed-in local user\u0027s password; clears the must-change flag and refreshes the cookie.",
+        "operationId": "ChangeLocalPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ChangePasswordRequest": {
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "description": "The password in use."
+          },
+          "newPassword": {
+            "type": "string",
+            "description": "The replacement; must satisfy PasswordPolicy."
+          }
+        },
+        "description": "Body of \u0060POST /auth/local/password\u0060 (E9.1, E9.2)."
+      },
+      "LocalLoginRequest": {
+        "required": [
+          "userName",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "userName": {
+            "type": "string",
+            "description": "The sign-in name."
+          },
+          "password": {
+            "type": "string",
+            "description": "The password."
+          }
+        },
+        "description": "Body of \u0060POST /auth/local/login\u0060 (E9.2)."
+      },
       "SchemaStatus": {
         "required": [
           "current",
@@ -271,6 +390,44 @@
           }
         },
         "description": "The database schema as the API sees it (E82.5): the migration the database is at and the one this build\r\nexpects. Read-only; applying migrations is a bootstrap step outside the API (\u0060wms migrate\u0060)."
+      },
+      "SessionInfo": {
+        "required": [
+          "userId",
+          "userName",
+          "displayName",
+          "mustChangePassword",
+          "isLocalAdmin"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The user\u0027s id.",
+            "format": "int64"
+          },
+          "userName": {
+            "type": "string",
+            "description": "The sign-in name."
+          },
+          "displayName": {
+            "type": "string",
+            "description": "The name shown on screen."
+          },
+          "mustChangePassword": {
+            "type": "boolean",
+            "description": "True while the password must be replaced before anything else."
+          },
+          "isLocalAdmin": {
+            "type": "boolean",
+            "description": "True for the break-glass administrator."
+          }
+        },
+        "description": "Who is signed in (\u0060GET /auth/me\u0060, E9)."
       },
       "SetSettingRequest": {
         "required": [

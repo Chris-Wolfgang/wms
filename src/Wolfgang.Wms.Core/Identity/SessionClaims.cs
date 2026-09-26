@@ -2,6 +2,7 @@
 
 using System.Globalization;
 using System.Security.Claims;
+using Wolfgang.Wms.Core.Authorization;
 
 namespace Wolfgang.Wms.Core.Identity;
 
@@ -67,6 +68,11 @@ public static class SessionClaims
         identity.AddClaim(new Claim(DisplayName, user.DisplayName));
         identity.AddClaim(new Claim(MustChangePassword, user.MustChangePassword ? "true" : "false"));
         identity.AddClaim(new Claim(LocalAdmin, user.IsLocalAdmin ? "true" : "false"));
+        foreach (var grant in user.Grants)
+        {
+            identity.AddClaim(new Claim(PermissionClaims.ClaimType, grant));
+        }
+
         return new ClaimsPrincipal(identity);
     }
 

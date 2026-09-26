@@ -323,6 +323,30 @@
           }
         }
       }
+    },
+    "/api/v0/auth/permissions": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every permission the host knows, with its module (E10.1).",
+        "operationId": "GetPermissionCatalog",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PermissionDescriptor"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -363,6 +387,29 @@
         },
         "description": "Body of \u0060POST /auth/local/login\u0060 (E9.2)."
       },
+      "PermissionDescriptor": {
+        "required": [
+          "name",
+          "description",
+          "module"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The permission name (\u0060settings.write\u0060)."
+          },
+          "description": {
+            "type": "string",
+            "description": "What it allows."
+          },
+          "module": {
+            "type": "string",
+            "description": "The module that declares it (\u0060console\u0060 for workspaces)."
+          }
+        },
+        "description": "One catalog entry as the API and the console see it (E10.1)."
+      },
       "SchemaStatus": {
         "required": [
           "current",
@@ -397,7 +444,8 @@
           "userName",
           "displayName",
           "mustChangePassword",
-          "isLocalAdmin"
+          "isLocalAdmin",
+          "permissions"
         ],
         "type": "object",
         "properties": {
@@ -425,6 +473,13 @@
           "isLocalAdmin": {
             "type": "boolean",
             "description": "True for the break-glass administrator."
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The permission grants the session carries (\u0060name@organization\u0060, \u0060name@site:3\u0060, \u0060*@organization\u0060)."
           }
         },
         "description": "Who is signed in (\u0060GET /auth/me\u0060, E9)."

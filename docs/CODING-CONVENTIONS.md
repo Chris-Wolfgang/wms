@@ -109,8 +109,10 @@ a new bootstrap key is added to that list with its story, never read ad hoc from
 Local accounts live in `core.user` and are reached only through `ILocalAccounts`; the password hash is
 `[NotAudited]` and never leaves Infrastructure. The API signs users in with a cookie protected by the shared
 Data Protection ring and answers 401/403 problems, never redirects. Endpoints that need a signed-in user say
-so with `RequireAuthorization()`; permissions per endpoint arrive with E10.1. A signed-in user who must change
-the password reaches only `/auth/local/password`, `/auth/logout` and `/auth/me`.
+so with `RequirePermission(ModulePermissions.X)` (E10.1); an endpoint open to everyone says
+`AllowAnonymous()` with a comment naming why; the architecture test refuses an endpoint that says neither.
+Modules declare their permissions with `WithPermissions(...)`; the catalog is the only list. A signed-in user
+who must change the password reaches only `/auth/local/password`, `/auth/logout` and `/auth/me`.
 
 ## Secrets (E8)
 

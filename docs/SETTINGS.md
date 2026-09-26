@@ -1,0 +1,70 @@
+# Settings
+
+Everything an administrator configures after installation is a setting: defined once in code, stored in the
+database, edited in the Configure workspace, and read through one typed accessor. `appsettings.json` holds
+only what the process needs before it can reach the database (docs/CONFIGURATION.md, E6.5).
+
+## The registry (E6.1)
+
+A setting is a `SettingKey<T>` (`Wolfgang.Wms.Domain.Keys`, E1.13) declared as a `static readonly` field
+in the module that owns it and contributed through `ModuleDescriptor.WithSettings(...)`. The host builds one
+`SettingRegistry` from every registered module; the console's settings pages, the generated documentation
+and the accessor read it, so a key that is not registered cannot be shown, documented or written. Each key
+carries:
+
+| Member | Meaning |
+|--------|---------|
+| `Name` | Lower-case dotted identifier, `picking.lease_timeout`; unique across all modules (the registry refuses duplicates at startup). |
+| `Kind` | How the value is edited and stored: `Boolean`, `Integer`, `Number`, `Enum`, `String`, `Duration`, `Timestamp`, `Secret`, `Json`. Derived from `T` through the codec. |
+| `Scopes` | Where it may be configured: `OrganizationToZone` (default), `OrganizationToSku`, `OrganizationToSite`, or `Organization` alone (E7). |
+| `DefaultValue` / `DefaultText` | Used when nothing is configured at any scope. |
+| `Description` | One line, user-facing. |
+| `Validator` | `Func<T, string?>` returning a reason when the kind alone cannot reject a value (a range, a format). |
+| `RequiresRestart` | The console warns that the change takes effect after a restart. |
+| `TriggersDeviceResync` | Devices resync their settings cache before continuing. |
+
+```csharp
+public static class PickingSettings
+{
+    public static readonly SettingKey<TimeSpan> LeaseTimeout = new("picking.lease_timeout", TimeSpan.FromMinutes(15), "How long a picker holds a task.")
+    {
+        Validator = v => v >= TimeSpan.FromMinutes(1) && v <= TimeSpan.FromHours(1) ? null : "must be between 1 minute and 1 hour",
+        TriggersDeviceResync = true,
+    };
+}
+
+services.AddWmsModule(ModuleDescriptor.Create("picking").WithSettings(PickingSettings.LeaseTimeout));
+```
+
+`GET /api/v0/settings/registry` returns every entry (`name`, `kind`, `scopes`, `default`, `description`,
+`choices`, `requiresRestart`, `triggersDeviceResync`); a secret's default is masked. Values arrive with
+E6.3.
+
+## Stored text and codecs
+
+Every value is stored as invariant-culture text so the console, the API and the CLI write the same bytes on
+every engine (E6.3). `SettingCodec<T>` converts between the value and the text; `SettingCodecs.For<T>()`
+supplies the built-in codecs:
+
+| `T` | Kind | Stored as |
+|-----|------|-----------|
+| `bool` | Boolean | `true` / `false` |
+| `int`, `long` | Integer | digits |
+| `decimal`, `double` | Number | `1.5` (`.` decimal point; `NaN`/infinity rejected) |
+| enum | Enum | the name, parsed case-insensitively; `Choices` lists the names |
+| `string` | String | as is |
+| `TimeSpan` | Duration | `[d.]hh:mm:ss[.fffffff]` |
+| `DateTimeOffset` | Timestamp | ISO 8601 round-trip (`2026-09-20T08:30:00.0000000+02:00`) |
+| `SecretText` | Secret | plain in the codec; encrypted by the store (E8.3), masked on screen |
+| anything else | Json | `SettingCodecs.Json(serialize, deserialize)` with the module's source-generated `JsonTypeInfo`; a key with no codec fails at construction |
+
+Invalid text is reported, never thrown: `key.Validate(text)` returns a reason (kind first, then the
+validator) or null, and the registry's `Check(name, scope, text)` maps failures to the module's error codes:
+`settings.unknown_key` (404), `settings.scope_not_allowed` (400), `settings.invalid_value` (400).
+
+## Scopes (E6.2, E7)
+
+A value lives at a `SettingScopeRef`: a scope type (`organization`, `site`, `zone`, `sku`) and the id of the
+site, zone or SKU (0 for the single organisation). Values cascade organisation → site → zone, or
+organisation → site → SKU for product policies; a child without its own configured value takes its parent's
+effective value. Storage and the cascade follow in E6.2 and E7.

@@ -205,7 +205,11 @@ The installer picks SQL Server or PostgreSQL at run time: `Wms:Database:Provider
 Server `Wms:Database:TrustServerCertificate` (see [docs/CONFIGURATION.md](CONFIGURATION.md)). An unknown
 provider or a missing connection string fails startup with a message naming the setting. `WmsDbContext`
 (`Wolfgang.Wms.Infrastructure.Database`) is the only place a provider is chosen; no provider-specific SQL in
-the shared model (E2.3), migrations per provider (E2.4).
+the shared model (E2.3). Migrations are per provider (E2.4): `Wolfgang.Wms.Infrastructure.Migrations.SqlServer`
+and `.PostgreSql`, generated together by `scripts/Check-Migrations.ps1 -Add <Name>` and never hand-edited except
+for index comments (E3.5); `scripts/Check-Migrations.ps1` (also a CI step) fails when the model changed without
+both migrations. A migration that runs against the wrong engine is impossible: each assembly is only ever
+loaded by its provider.
 
 ## Records and classes (E1.7)
 

@@ -21,6 +21,10 @@ using Wolfgang.Wms.Infrastructure.Secrets;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// E15.1: as a Windows service the host reports to the service controller and roots itself at the executable;
+// under IIS (in-process, E15.2) or on a console this changes nothing.
+builder.Host.UseWindowsService(options => options.ServiceName = "WolfgangWms.Api");
+
 // E12.2: Serilog from Wms:Logging (stdout JSON, file, Event Log, OpenTelemetry); redacted; level switch.
 builder.UseWmsSerilog();
 

@@ -21,6 +21,7 @@ public static class ConsoleProgram
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        builder.Host.UseWindowsService(options => options.ServiceName = "WolfgangWms.Web");   // E15.1: a no-op outside a service
         builder.UseWmsSerilog();   // E12.2: the same log pipeline as the API; the console's level follows Wms:Logging only (its settings ride the API)
 
         // Blazor Web App in Server render mode for v1 (E82.4); components are render-mode-agnostic.

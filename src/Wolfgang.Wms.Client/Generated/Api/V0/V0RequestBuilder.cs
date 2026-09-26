@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System;
+using Wolfgang.Wms.Client.Generated.Api.V0.Settings;
 using Wolfgang.Wms.Client.Generated.Api.V0.System;
 namespace Wolfgang.Wms.Client.Generated.Api.V0
 {
@@ -15,6 +16,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class V0RequestBuilder : BaseRequestBuilder
     {
+        /// <summary>The settings property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Settings.SettingsRequestBuilder Settings
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Settings.SettingsRequestBuilder(PathParameters, RequestAdapter);
+        }
         /// <summary>The system property</summary>
         public global::Wolfgang.Wms.Client.Generated.Api.V0.System.SystemRequestBuilder System
         {

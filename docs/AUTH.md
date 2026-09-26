@@ -121,8 +121,35 @@ through the database grants nothing and cannot sign in (`403 auth.integrity_fail
 re-verifies every signed row every `auth.integrity.verify_interval`. Threat model, signed fields, key
 handling and repair: docs/INTEGRITY.md.
 
+## Identity providers (E11.0)
+
+Providers sit behind one interface (`IAuthProvider`; challenge providers also `IChallengeAuthProvider`):
+a name, a display name, a kind (credentials posted to the API, or a challenge the browser is sent to), a
+settings schema (the keys the console renders as the provider's configuration block, declared by the
+`auth` module so they are registered, validated and audited like any setting) and a health check ("test
+connection"). Implementations are registered in DI at startup, each provider kind in its own project
+(`local` is built into Core; `oidc` arrives with E11.1); adding a kind is a release.
+
+Which providers the console offers is the `auth.providers.enabled` setting (comma-separated, in
+login-page order; default `local`). It is applied at runtime: a challenge provider's authentication scheme
+is added to `IAuthenticationSchemeProvider` when the setting names it and removed when it is dropped, and a
+provider whose settings changed is told to drop its cached handler options; every instance re-reads the
+setting every 5 seconds. Names that are not registered are logged and skipped.
+
+- `GET /auth/providers` (anonymous): the enabled providers for the login page, each with its kind and,
+  for a challenge provider, the URL that starts its sign-in.
+- `GET /auth/{provider}/challenge?returnUrl=` (anonymous): starts a challenge provider's sign-in; only
+  local return URLs are honoured; `404 auth.provider_not_enabled` otherwise.
+- `POST /auth/providers/{name}/check` (`auth.providers.manage`): the provider's health check.
+- `Wms:Auth:ForceLocal=true` in `appsettings` is the emergency override: only `local` is offered whatever
+  the setting says (a lock-out recovery after a broken provider change), never the normal selection.
+
+Pickers (badge/PIN) and integrations (API keys) are separate from console providers and arrive with the
+device and integration stories.
+
 ## What comes next
 
 - E9.3: local sign-in disabled once SSO is verified and re-enabled for a timed window from the host only.
 - A periodic job that audits expired assignments.
-- E11: OIDC and other providers behind one interface, chosen in the console.
+- E11.1: the OIDC provider (authority, client, scopes, group claim as settings; discovery as the check),
+  E11.2 group-to-role mapping, E11.3 verification against Keycloak and a mock provider on every PR.

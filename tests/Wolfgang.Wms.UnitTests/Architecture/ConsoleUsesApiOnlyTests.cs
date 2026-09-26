@@ -14,7 +14,7 @@ public sealed class ConsoleUsesApiOnlyTests
 {
     private const string ConsoleProject = "src/Wolfgang.Wms.Web/Wolfgang.Wms.Web.csproj";
 
-    private static readonly string[] AllowedProjectReferences = ["Wolfgang.Wms.Domain", "Wolfgang.Wms.Client"];
+    private static readonly string[] AllowedProjectReferences = ["Wolfgang.Wms.Domain", "Wolfgang.Wms.Client", "Wolfgang.Wms.Logging"];   // E12.2: the log pipeline is host plumbing, not a way around the API
 
     private static readonly string[] DeniedPackageFamilies =
     [

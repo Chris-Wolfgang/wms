@@ -11,7 +11,7 @@ environment variable with `__` for `:` (`Wms__Database__Provider`). Environment 
 | Key | Story |
 |-----|-------|
 | `Wms:Database:Provider`, `ConnectionString`, `AutoMigrate`, `TrustServerCertificate` | E2, below |
-| `Wms:DataProtection:KeyRingPath` | E8.1 (reserved until it lands) |
+| `Wms:DataProtection:KeyRingPath` | E8.1, below |
 | `Wms:Bootstrap:AdminUserName` | E9.1 (reserved until it lands) |
 | `Urls`, `Kestrel:*`, `AllowedHosts` | ASP.NET Core hosting |
 | `Logging:*` | log levels; runtime control arrives with E12.4 |
@@ -26,7 +26,7 @@ Environment variables are not inspected (the platform sets its own).
 | Key | Values | Notes |
 |-----|--------|-------|
 | `Wms:Database:Provider` | `SqlServer`, `PostgreSql`, `None` | Chosen at install time. `None` starts the host without a database for bootstrap only (`GET /system/schema`, health); it is the shipped default so a fresh install can be probed before it is configured. Anything else fails startup: `Wms:Database:Provider must be one of SqlServer, PostgreSql or None; got 'Oracle'.` |
-| `Wms:Database:ConnectionString` | provider connection string | Required for `SqlServer` and `PostgreSql`; startup fails when missing. Keep secrets out of `appsettings.json`: use an environment variable or the secrets store (E8). |
+| `Wms:Database:ConnectionString` | provider connection string, plain or `enc:v1:…` | Required for `SqlServer` and `PostgreSql`; startup fails when missing. Store it encrypted (`wms-migrate --protect`, E8.2) or supply it from an environment variable / container secret (E8.4); a plain string is accepted for development. |
 | `Wms:Database:AutoMigrate` | `true` / `false` (default) | Apply pending migrations when the API starts instead of refusing to start (E4.4). **Bundled installs only** (the installer's own database, one process): everywhere else run `wms-migrate` as a separate step with the DBA's rights and leave this off. |
 | `Wms:Database:TrustServerCertificate` | `true` / `false` (default) | SQL Server only. Trusts the server certificate without validating its chain, which SQL Server Express and self-signed development servers need. Never on a shared network: install a certificate instead. Setting it with `PostgreSql` fails startup. |
 
@@ -43,3 +43,27 @@ Examples:
 Supported engines: SQL Server 2022 and later including Express (E2.2), PostgreSQL 16 and later (E2.3). The
 model is shared; migrations are generated per provider (E2.4) and applied by `wms migrate`, never by the API
 (docs/BOOTSTRAP.md).
+
+## Secrets and the key ring (E8)
+
+| Key | Values | Notes |
+|-----|--------|-------|
+| `Wms:DataProtection:KeyRingPath` | directory | Where the Data Protection key ring lives. Created on first run with access for the running user only; back it up and mount it into containers. Without it the ring is stored in the database (E8.6), which every instance shares. |
+
+**Encrypted connection string (E8.2).** `wms-migrate --protect --connection-string "<plain>" --key-ring <path>`
+prints the string as `enc:v1:…`; put that in `appsettings.json` or the environment variable instead of the
+plain text. The hosts and the tool decrypt it with the ring at `KeyRingPath`; a plain string still works
+(development). An encrypted connection string needs the **file** ring: the database cannot be opened before
+the string is decrypted, so startup fails with a clear message when `KeyRingPath` is missing or the ring does
+not hold the key. Every instance that shares the encrypted string must share the same ring (a mounted
+volume).
+
+**Environment variables (E8.4).** `Wms__Database__ConnectionString` and `Wms__DataProtection__KeyRingPath`
+override the file values, so a container secret store can inject them; the hosts read variables after
+`appsettings*.json`.
+
+**Corporate vaults (E8.5).** Every secret the product encrypts or decrypts goes through one interface,
+`ISecretProtector` (`Wolfgang.Wms.Core.Secrets`): `Protect(plain)` → `enc:v1:…`, `Unprotect(enc)` → plain.
+The default implementation is Data Protection over the configured ring; a customer whose security team owns
+credentials registers their own implementation before `AddWmsDataProtection` and the product uses it for the
+connection string, secret settings (E8.3) and everything after. Implementations never log plain text.

@@ -6,10 +6,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Wolfgang.Wms.Core.Caching;
+using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Infrastructure.Database.Auditing;
 using Wolfgang.Wms.Infrastructure.Database.Settings;
+using Wolfgang.Wms.Core.Secrets;
+using Wolfgang.Wms.Infrastructure.Secrets;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -74,11 +77,20 @@ public static class DatabaseServiceCollectionExtensions
         }
 
         services.AddWmsAuditing();   // E6.4: AuditTrail options and the on-behalf-of user provider the context needs
-        services.AddDbContext<WmsDbContext>((provider, builder) => Configure(builder, provider.GetRequiredService<IOptions<DatabaseOptions>>().Value));
+        services.AddHostedService<SecretsStartupCheck>();   // E8.2: an encrypted connection string that cannot be decrypted fails here, clearly
+        services.AddDbContext<WmsDbContext>((provider, builder) =>
+        {
+            var database = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+            // The protector is resolved only for an encrypted string: the database ring (E8.6) would need this very context.
+            Configure(builder, database, database.ConnectionStringIsProtected ? provider.GetRequiredService<ISecretProtector>() : null);
+        });
         services.RemoveAll<ISchemaVersionSource>();
         services.AddScoped<ISchemaVersionSource, MigrationsSchemaVersionSource>();
         services.AddScoped<MigrationRunner>();
         services.TryAddSingleton(TimeProvider.System);
+        services.AddWmsModules();
+        services.TryAddSingleton(provider => new SettingRegistry(provider.GetRequiredService<ModuleCollection>()));   // hosts without the settings module (the worker) still get the accessor
+        services.TryAddSingleton<ISettingScopeHierarchy, OrganizationOnlyScopeHierarchy>();
         services.TryAddSingleton<IRowVersionSource, MaxRowVersionSource>();   // E1.12: the caches' one invalidation signal
         services.TryAddSingleton<SettingsCache>();
         services.RemoveAll<ISettings>();
@@ -95,6 +107,19 @@ public static class DatabaseServiceCollectionExtensions
     /// <exception cref="InvalidOperationException">The provider is not one a context can run on.</exception>
     public static DbContextOptionsBuilder Configure(DbContextOptionsBuilder builder, DatabaseOptions options)
     {
+        return Configure(builder, options, protector: null);
+    }
+
+
+
+    /// <summary>
+    /// Configures the provider, decrypting an <c>enc:v1:</c> connection string with <paramref name="protector"/>
+    /// (E8.2).
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="options"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">The provider cannot host a context, or the connection string is encrypted and cannot be decrypted.</exception>
+    public static DbContextOptionsBuilder Configure(DbContextOptionsBuilder builder, DatabaseOptions options, ISecretProtector? protector)
+    {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(options);
 
@@ -102,8 +127,8 @@ public static class DatabaseServiceCollectionExtensions
         {
             // Retry on transient failures (E6.4: the audited context owns the strategy wrap, so this is safe);
             // PostgreSQL batches are capped at 100 rows, where AuditTrail's own benchmarks stop paying off.
-            DatabaseProvider.SqlServer => builder.UseSqlServer(options.EffectiveConnectionString(), sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema).EnableRetryOnFailure()),
-            DatabaseProvider.PostgreSql => builder.UseNpgsql(options.EffectiveConnectionString(), npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema).EnableRetryOnFailure().MaxBatchSize(WmsAuditing.PostgreSqlMaxBatchSize)),
+            DatabaseProvider.SqlServer => builder.UseSqlServer(options.EffectiveConnectionString(protector), sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema).EnableRetryOnFailure()),
+            DatabaseProvider.PostgreSql => builder.UseNpgsql(options.EffectiveConnectionString(protector), npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema).EnableRetryOnFailure().MaxBatchSize(WmsAuditing.PostgreSqlMaxBatchSize)),
             _ => throw new InvalidOperationException($"{DatabaseOptions.SectionName}:Provider '{options.Provider}' cannot host a database context."),
         };
     }

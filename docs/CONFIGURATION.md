@@ -48,7 +48,7 @@ model is shared; migrations are generated per provider (E2.4) and applied by `wm
 
 | Key | Values | Notes |
 |-----|--------|-------|
-| `Wms:DataProtection:KeyRingPath` | directory | Where the Data Protection key ring lives. Created on first run with access for the running user only; back it up and mount it into containers. Without it the ring is stored in the database (E8.6), which every instance shares. |
+| `Wms:DataProtection:KeyRingPath` | directory | Where the Data Protection key ring lives when a directory is wanted (single-node installs, and required for an encrypted connection string). Created on first run with access for the running user only; back it up and mount it into containers. **Without it the ring is stored in the database** (`wms.data_protection_key`, E8.6), the default, so several instances share one ring with no shared volume. |
 
 **Encrypted connection string (E8.2).** `wms-migrate --protect --connection-string "<plain>" --key-ring <path>`
 prints the string as `enc:v1:…`; put that in `appsettings.json` or the environment variable instead of the
@@ -61,6 +61,17 @@ volume).
 **Environment variables (E8.4).** `Wms__Database__ConnectionString` and `Wms__DataProtection__KeyRingPath`
 override the file values, so a container secret store can inject them; the hosts read variables after
 `appsettings*.json`.
+
+**One ring for all instances (E8.6).** Every instance of the API and the worker must use the same key ring,
+or a value one instance encrypted is unreadable to another: with the database ring that is automatic; with
+a directory ring every instance mounts the same directory. Rotating or losing the ring makes every stored
+secret unreadable; back it up with the database. Before the database exists (bootstrap, `Provider` =
+`None`) the framework default ring is used and nothing durable is encrypted.
+
+**Secret settings (E8.3).** A setting of kind `Secret` is stored encrypted in `core.setting` (`enc:v1:`)
+through the same protector, decrypted only for the typed read, and masked in every API response and page;
+the console offers "replace" rather than showing it. A settings export (later) omits secrets unless asked to
+include them.
 
 **Corporate vaults (E8.5).** Every secret the product encrypts or decrypts goes through one interface,
 `ISecretProtector` (`Wolfgang.Wms.Core.Secrets`): `Protect(plain)` → `enc:v1:…`, `Unprotect(enc)` → plain.

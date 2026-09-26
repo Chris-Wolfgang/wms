@@ -8,14 +8,22 @@ using System;
 namespace Wolfgang.Wms.Client.Generated.Models
 {
     /// <summary>
-    /// Body of `PUT /settings/{scope}/{id}/{key}` (E6.3): the value as stored text. Null resets the scopeto inherit (the same as `DELETE`).
+    /// Body of `PUT /settings/{scope}/{id}/{key}` (E6.3, E7.2): a value as stored text, or a cascade mode(`per_site`, `per_zone`, `per_sku`) that delegates the decision downward. Both null resetsthe scope to inherit (the same as `DELETE`); mode `value` alone does the same.
     /// </summary>
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class SetSettingRequest : IAdditionalDataHolder, IParsable
     {
         /// <summary>Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.</summary>
         public IDictionary<string, object> AdditionalData { get; set; }
-        /// <summary>The stored text, or null to reset.</summary>
+        /// <summary>The cascade mode&apos;s stored name, or null to keep or set a value.</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+        public string? Mode { get; set; }
+#nullable restore
+#else
+        public string Mode { get; set; }
+#endif
+        /// <summary>The stored text, or null.</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
         public string? Value { get; set; }
@@ -48,6 +56,7 @@ namespace Wolfgang.Wms.Client.Generated.Models
         {
             return new Dictionary<string, Action<IParseNode>>
             {
+                { "mode", n => { Mode = n.GetStringValue(); } },
                 { "value", n => { Value = n.GetStringValue(); } },
             };
         }
@@ -58,6 +67,7 @@ namespace Wolfgang.Wms.Client.Generated.Models
         public virtual void Serialize(ISerializationWriter writer)
         {
             if(ReferenceEquals(writer, null)) throw new ArgumentNullException(nameof(writer));
+            writer.WriteStringValue("mode", Mode);
             writer.WriteStringValue("value", Value);
             writer.WriteAdditionalData(AdditionalData);
         }

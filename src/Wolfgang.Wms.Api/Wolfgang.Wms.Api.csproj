@@ -8,6 +8,8 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <!-- E1.9: compile minimal-API endpoints to typed request delegates (no reflection), so the AOT/trim analyzers pass. -->
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 

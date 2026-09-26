@@ -285,6 +285,25 @@ View the complete configuration in [.editorconfig](.editorconfig).
 
 ---
 
+## Delivery process
+
+The path from pull request to release is [docs/DELIVERY-PROCESS.md](docs/DELIVERY-PROCESS.md); the checklists
+for each gate are versioned under [`.claude/skills/`](.claude/skills/) so the process cannot drift from the
+code it governs. In short:
+
+- **Every PR**: story ID in the title (`E27.3: …`), each acceptance criterion mapped to a test, docs in the same
+  PR, a changelog fragment with a type (or the `no-changelog` label with a reason), migrations reviewed, a
+  license note for any new dependency, local gate green before push (`pr-gate`).
+- **Branching**: trunk-based, short-lived branches, one PR each, squash-merged; `main` is always releasable and
+  keeps linear history. All CI builds the Release configuration.
+- **Versions**: SemVer from 0.1.0, computed from fragment types and stamped by MinVer from the `vX.Y.Z` tag;
+  `AssemblyVersion` is pinned and moves only on a binary-compatibility break.
+- **Release candidates** get a full review (`prerelease-review`) before `vX.Y.Z-rc.N`; **releases**
+  (`release`) assemble the changelog, run the upgrade test and roll the milestone; **hotfixes** (`hotfix`) go to
+  `main` when it is shippable, otherwise to a `release/N.x` branch that is merged forward as a true merge commit.
+- **Library gaps** are raised upstream on the library repo (its "Upstream gap" issue template) and listed as a
+  dependency on the WMS story.
+
 ## Pull Requests
 
 If this repository requires linear history, stacked pull requests are restacked with `scripts/restack.ps1` after each merge — see [docs/STACKED-PRS.md](docs/STACKED-PRS.md).

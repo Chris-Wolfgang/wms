@@ -113,15 +113,16 @@ function Get-DerivedVersion
     $parts = $Current.Split('.') | ForEach-Object { [int]$_ }
     $types = @($Fragments | ForEach-Object { $_.Type })
     $rank = if ('breaking' -in $types) { 'breaking' } elseif ('feature' -in $types) { 'feature' } else { 'patch' }
-    # Fleet rule: patch releases are lean (fixes only); any new public surface
-    # is a MINOR. In 0.x a breaking change is also a MINOR (SemVer has no
-    # stable major to bump), so breaking and feature both land on 0.(m+1).0.
+    # WMS rule (E85.4): while the product is below 1.0, breaking -> minor and
+    # feature/fix -> patch, so each build phase closes as a 0.x minor and the
+    # minor number tells a customer when something they rely on changed.
+    # From 1.0.0: breaking -> major, feature -> minor, fix -> patch.
     if ($parts[0] -eq 0)
     {
         switch ($rank)
         {
-            'patch'  { return "0.$($parts[1]).$($parts[2] + 1)" }
-            default  { return "0.$($parts[1] + 1).0" }
+            'breaking' { return "0.$($parts[1] + 1).0" }
+            default    { return "0.$($parts[1]).$($parts[2] + 1)" }
         }
     }
     switch ($rank)

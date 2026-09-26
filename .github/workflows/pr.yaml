@@ -1,7 +1,7 @@
 # Sequential PR validation workflow with coverage gating
 # Stage 1: Linux tests with 90% coverage requirement
 # Stage 2: Windows .NET (5.0-10.0) and .NET Framework (4.6.2-4.8.1) tests (only if Linux passes)
-# Stage 3: macOS tests (only if Stage 2 passes)
+# No Stage 3: WMS builds on Windows and Linux only (E1.5); no macOS runner.
 #
 # SECURITY NOTE:
 # - Uses pull_request_target to run workflow from the trusted main branch, not from the PR branch
@@ -30,6 +30,9 @@ env:
   # (compiler-generated async state machines), and the gate reads only the
   # line-coverage column that ReportGenerator puts at end-of-row.
   CODECOV_TEST_MINIMUM: 100
+  # E1.5 per-assembly floors, "Name=percent;Name=percent": Domain (shared with the device) is held
+  # at 100%; assemblies not listed use CODECOV_MINIMUM (src) or CODECOV_TEST_MINIMUM (tests).
+  COVERAGE_FLOORS: "Wolfgang.Wms.Domain=100"
   
 on:
   # zizmor: ignore[dangerous-triggers]
@@ -1063,6 +1066,13 @@ jobs:
                 *"|${module}|"*) applies=$test_threshold; kind="test" ;;
                 *)               applies=$threshold;      kind="src"  ;;
               esac
+              # E1.5: an explicit floor for this assembly overrides the default threshold.
+              for floor in ${COVERAGE_FLOORS//;/ }; do
+                if [ "${floor%%=*}" = "$module" ]; then
+                  applies=${floor#*=}
+                  kind="floor"
+                fi
+              done
 
               echo "Checking ${kind} module: '$module' - Coverage: ${percent}%"
 
@@ -1105,7 +1115,7 @@ jobs:
             echo "For test assemblies: write a test first; if that isn't possible, refactor"
             echo "to make the code testable; use [ExcludeFromCodeCoverage] only as a last resort."
             echo ""
-            echo "Stage 1 failed. Windows, macOS, and .NET Framework tests will NOT run."
+            echo "Stage 1 failed. Windows tests will NOT run."
             exit 1
           else
             echo ""
@@ -1113,7 +1123,7 @@ jobs:
             echo "✅ COVERAGE GATE PASSED"
             echo "=========================================="
             echo "src assemblies meet ${threshold}%; test assemblies meet ${test_threshold}%."
-            echo "Proceeding to Stage 2 (Windows and macOS tests)."
+            echo "Proceeding to Stage 2 (Windows tests)."
           fi
 
       - name: Upload Linux coverage results
@@ -1333,7 +1343,7 @@ jobs:
             # Extract target frameworks via MSBuild property evaluation (handles
             # multi-line XML, Directory.Build.props inheritance and conditional
             # properties — all of which break regex parsing of the raw csproj).
-            # Same approach as Stage 1 / Stage 3. Falls back from
+            # Same approach as Stage 1. Falls back from
             # <TargetFrameworks> (multiple) to <TargetFramework> (single).
             $tfmRaw = (dotnet msbuild $testProj.FullName -noLogo -getProperty:TargetFrameworks 2>$null |
               Where-Object { $_ -and $_.Trim() } | Select-Object -Last 1)
@@ -1511,6 +1521,14 @@ jobs:
               $isTest  = $testAssemblies -contains $module
               $applies = if ($isTest) { $testThreshold } else { $threshold }
               $kind    = if ($isTest) { "test" } else { "src" }
+              # E1.5: an explicit floor for this assembly overrides the default threshold.
+              foreach ($floor in ("$env:COVERAGE_FLOORS" -split ';')) {
+                $parts = $floor -split '=', 2
+                if ($parts.Count -eq 2 -and $parts[0].Trim() -eq $module) {
+                  $applies = [int]$parts[1]
+                  $kind    = "floor"
+                }
+              }
 
               Write-Host "Checking $kind module: '$module' - Coverage: ${percent}%"
 
@@ -1540,7 +1558,7 @@ jobs:
             Write-Host ""
             Write-Host "src assemblies must reach ${threshold}%; test assemblies must reach ${testThreshold}%." -ForegroundColor Red
             Write-Host ""
-            Write-Host "Stage 2 failed. macOS tests will NOT run."
+            Write-Host "Stage 2 failed."
             exit 1
           }
 
@@ -1549,7 +1567,7 @@ jobs:
           Write-Host "✅ COVERAGE GATE PASSED" -ForegroundColor Green
           Write-Host "==========================================" -ForegroundColor Green
           Write-Host "src assemblies meet ${threshold}%; test assemblies meet ${testThreshold}%."
-          Write-Host "Proceeding to Stage 3 (macOS tests)."
+          Write-Host "Stage 2 was the last stage (Windows + Linux matrix only, E1.5). PR is ready to merge."
 
       - name: Upload Windows coverage results
         if: always()
@@ -1559,7 +1577,6 @@ jobs:
           path: |
             TestResults/
             CoverageReport/
-
 
   # ============================================================================
   # Security Scan (Runs in parallel, independently of .NET jobs)

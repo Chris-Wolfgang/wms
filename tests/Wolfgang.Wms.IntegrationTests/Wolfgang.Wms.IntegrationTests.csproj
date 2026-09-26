@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Api\Wolfgang.Wms.Api.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Web\Wolfgang.Wms.Web.csproj" />
   </ItemGroup>
 
 </Project>

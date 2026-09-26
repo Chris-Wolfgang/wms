@@ -99,6 +99,12 @@
     <Project Path="src/Wolfgang.Wms.Infrastructure/Wolfgang.Wms.Infrastructure.csproj" />
     <Project Path="src/Wolfgang.Wms.Simulator/Wolfgang.Wms.Simulator.csproj" />
     <Project Path="src/Wolfgang.Wms.Web/Wolfgang.Wms.Web.csproj" />
+    <Project Path="src/Wolfgang.Wms.Web.Shared/Wolfgang.Wms.Web.Shared.csproj" />
+    <Project Path="src/Wolfgang.Wms.Web.Configure/Wolfgang.Wms.Web.Configure.csproj" />
+    <Project Path="src/Wolfgang.Wms.Web.Supervise/Wolfgang.Wms.Web.Supervise.csproj" />
+    <Project Path="src/Wolfgang.Wms.Web.Resolve/Wolfgang.Wms.Web.Resolve.csproj" />
+    <Project Path="src/Wolfgang.Wms.Web.Report/Wolfgang.Wms.Web.Report.csproj" />
+    <Project Path="src/Wolfgang.Wms.Web.Insights/Wolfgang.Wms.Web.Insights.csproj" />
     <Project Path="src/Wolfgang.Wms.Worker/Wolfgang.Wms.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">

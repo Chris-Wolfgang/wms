@@ -167,6 +167,21 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
 - Compression is on for JSON/XML/text (`WmsCompression`); authentication endpoints call
   `.DisableResponseCompression()`.
 
+## Console (E82.4)
+
+- One deployable (`Wolfgang.Wms.Web`, Blazor Web App in Server render mode for v1) hosting five workspaces,
+  each its own project: `Wolfgang.Wms.Web.Configure`, `.Supervise`, `.Resolve`, `.Report`, `.Insights`
+  (`/configure` … `/insights`), plus `Wolfgang.Wms.Web.Shared` (workspace definitions, layout chrome,
+  `WorkspaceNav`, `ScanListener`). A workspace project references Domain, the API client and `Web.Shared` only.
+- Every workspace is a license feature (`workspace.<name>`) and a permission (`workspace.<name>.enter`)
+  defined once in `Workspaces`; the entry gate is `IWorkspaceAccess` consulted by `WorkspaceLayout`; the
+  free tier is Configure, Supervise, Resolve and Report; Insights is paid. A single-role user lands in their
+  workspace; others pick on `/`.
+- Components are render-mode-agnostic: API client only, no server services, no `DbContext`
+  (`ConsoleUsesApiOnlyTests`). Switching to WebAssembly/Auto later changes the host, not the components.
+- Tethered-scanner input goes through `ScanListener` (keyboard wedge: text then Enter) so every console screen
+  applies the same validation and feedback rules as the device (E40).
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Wolfgang.Wms.Web.Configure</RootNamespace>
+    <!-- One console workspace (E82.4): components only, API client only, no server services. -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <IsTrimmable>false</IsTrimmable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
+    <ProjectReference Include="..\Wolfgang.Wms.Web.Shared\Wolfgang.Wms.Web.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

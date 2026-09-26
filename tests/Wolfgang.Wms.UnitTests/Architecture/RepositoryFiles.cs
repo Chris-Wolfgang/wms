@@ -23,6 +23,7 @@ internal static class RepositoryFiles
     /// <summary>
     /// Walks up from <paramref name="startDirectory"/> to the directory holding the solution file.
     /// </summary>
+    /// <exception cref="InvalidOperationException">No ancestor of <paramref name="startDirectory"/> holds the solution file.</exception>
     public static string FindRoot(string startDirectory)
     {
         var directory = new DirectoryInfo(startDirectory);

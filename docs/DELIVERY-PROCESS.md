@@ -45,7 +45,10 @@ Express LocalDB (`WMS_TEST_SQLSERVER` names the instance; `SqlServerTestDatabase
 test) while the Docker-only tests are skipped naming Chris-Wolfgang/wms#220 — every skip must name an open
 issue, which `scripts/Check-Skips.ps1` verifies from the TRX files (E13.1). Test assemblies are measured at
 100% line coverage. The migration-drift check is the Stage 1 step over `scripts/Check-Migrations.ps1`; the
-OpenAPI diff is the `openapi-diff` job. Not yet wired: Playwright + axe (E82 UI stories).
+logging rules (docs/LOGGING.md) are the Stage 1 step over `scripts/Check-LogLevels.ps1`; the OpenAPI diff is
+the `openapi-diff` job. The compose smoke (`compose-smoke.yaml`: images built from the tree, the stack
+provisioned and migrated, `/health/ready` through Caddy, torn down) runs on `main` merges, weekly and on
+demand, opening an issue on failure (E13.3). Not yet wired: Playwright + axe (E82 UI stories).
 
 ## Main gate (E85.2)
 

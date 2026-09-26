@@ -158,13 +158,13 @@ if (-not $SkipTests -and $failed.Count -eq 0) {
                     $testProj.FullName,
                     '--configuration', 'Release',
                     '--framework', $fw,
+                    '--results-directory', './TestResults',
+                    '--logger', 'trx',
                     '--logger', 'console;verbosity=normal'
                 )
 
                 if ($fw -match '^net([5-9]|[1-9][0-9]+)\.') {
                     $testArgs += '--collect:XPlat Code Coverage'
-                    $testArgs += '--results-directory'
-                    $testArgs += './TestResults'
                     if (Test-Path 'coverlet.runsettings') {
                         $testArgs += '--settings'
                         $testArgs += 'coverlet.runsettings'
@@ -197,6 +197,19 @@ if (-not $SkipTests -and $failed.Count -eq 0) {
         if ($failed.Count -eq 0) {
             Write-Pass "All tests passed"
         }
+
+        # Mirrors pr.yaml: every skipped test names an open issue (E13.1).
+        if ($failed.Count -eq 0 -and (Test-Path 'scripts/Check-Skips.ps1')) {
+            pwsh ./scripts/Check-Skips.ps1 -ResultsDirectory ./TestResults
+            if ($LASTEXITCODE -ne 0) { $failed += 'Skipped tests without an open issue' }
+        }
+    }
+
+    # Mirrors pr.yaml's Stage 1 "Logging rules (E12.2)" step.
+    if (Test-Path 'scripts/Check-LogLevels.ps1') {
+        Write-Step "Step 2b: Logging rules (docs/LOGGING.md)"
+        pwsh ./scripts/Check-LogLevels.ps1
+        if ($LASTEXITCODE -ne 0) { $failed += 'Logging rules' }
     }
 }
 

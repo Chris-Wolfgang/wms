@@ -140,6 +140,19 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
   English is the only shipped language in v1. UI text comes from `IStringLocalizer`, never a literal in a
   component; the Blazor stories (E82) add the markup check.
 
+## API versioning and the one API (E82.1, E82.2)
+
+- Every capability is an endpoint under `/api/v{n}/` (`WmsApi.RouteTemplate`, `Wolfgang.Wms.Core.Api`); modules
+  map into the group `MapWmsApi()` returns, never onto the app directly. The console and every customer tool
+  are clients of the same API; `ConsoleUsesApiOnlyTests` keeps `Wolfgang.Wms.Web` on Domain + the API client
+  only (no Core, Infrastructure or EF).
+- `v0` is the unstable contract through product 0.x: breaking changes ship in place, each with a `breaking`
+  fragment naming the contract. At 1.0, `v1` freezes (`WmsApi.Frozen`); additive changes (new optional fields,
+  endpoints, enum values, error codes) stay in-version and clients must ignore unknown fields. See
+  [docs/API-VERSIONING.md](API-VERSIONING.md).
+- One OpenAPI document per served version at `/openapi/v{n}.json`; the committed copy under `docs/api/` must
+  match the served document (`OpenApiDocumentTests`; regenerate with `WMS_UPDATE_OPENAPI=1`).
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value

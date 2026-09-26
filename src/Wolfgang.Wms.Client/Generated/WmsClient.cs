@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System;
+using Wolfgang.Wms.Client.Generated.Api;
 namespace Wolfgang.Wms.Client.Generated
 {
     /// <summary>
@@ -18,6 +19,11 @@ namespace Wolfgang.Wms.Client.Generated
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class WmsClient : BaseRequestBuilder
     {
+        /// <summary>The api property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.ApiRequestBuilder Api
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.ApiRequestBuilder(PathParameters, RequestAdapter);
+        }
         /// <summary>
         /// Instantiates a new <see cref="global::Wolfgang.Wms.Client.Generated.WmsClient"/> and sets the default values.
         /// </summary>

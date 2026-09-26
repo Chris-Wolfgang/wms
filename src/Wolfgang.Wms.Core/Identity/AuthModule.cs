@@ -70,7 +70,7 @@ public static class AuthModule
         .WithEndpoints(MapEndpoints)
         .WithSettings(AuthSettings.All)
         .WithPermissions(Providers.AuthProviderEndpoints.Manage)
-        .WithErrorCodes(AuthErrorCodes.InvalidCredentials, AuthErrorCodes.LockedOut, AuthErrorCodes.Disabled, AuthErrorCodes.IntegrityFailure, AuthErrorCodes.ProviderNotEnabled, AuthErrorCodes.NotSignedIn, AuthErrorCodes.Forbidden, AuthErrorCodes.PasswordChangeRequired, AuthErrorCodes.PasswordRejected, AuthErrorCodes.Unavailable);
+        .WithErrorCodes(AuthErrorCodes.InvalidCredentials, AuthErrorCodes.LockedOut, AuthErrorCodes.Disabled, AuthErrorCodes.IntegrityFailure, AuthErrorCodes.ProviderNotEnabled, AuthErrorCodes.ProviderFailed, AuthErrorCodes.MappingRejected, AuthErrorCodes.MappingNotFound, AuthErrorCodes.NotSignedIn, AuthErrorCodes.Forbidden, AuthErrorCodes.PasswordChangeRequired, AuthErrorCodes.PasswordRejected, AuthErrorCodes.Unavailable);
 
 
 
@@ -97,6 +97,8 @@ public static class AuthModule
         services.AddExceptionHandler<AuthExceptionHandler>();
         services.TryAddScoped<ILocalAccounts, NoLocalAccounts>();
         services.TryAddScoped<ISessionRevocations, NoSessionRevocations>();
+        services.TryAddScoped<External.IExternalAccounts, External.NoExternalAccounts>();   // E11.1: replaced by AddWmsDatabase
+        services.TryAddScoped<External.IGroupRoleMappings, External.NoGroupRoleMappings>();   // E11.2: replaced by AddWmsDatabase
         services.TryAddEnumerable(ServiceDescriptor.Singleton<Providers.IAuthProvider, Providers.LocalAuthProvider>());   // E11.0: the built-in provider; others register in their own projects
         services.TryAddSingleton<Providers.AuthProviderCatalog>();
         services.TryAddSingleton<Providers.AuthProviderState>();

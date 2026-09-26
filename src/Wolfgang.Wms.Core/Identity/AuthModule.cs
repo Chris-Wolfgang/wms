@@ -69,7 +69,7 @@ public static class AuthModule
         .Create("auth")
         .WithEndpoints(MapEndpoints)
         .WithSettings(AuthSettings.All)
-        .WithErrorCodes(AuthErrorCodes.InvalidCredentials, AuthErrorCodes.LockedOut, AuthErrorCodes.Disabled, AuthErrorCodes.NotSignedIn, AuthErrorCodes.Forbidden, AuthErrorCodes.PasswordChangeRequired, AuthErrorCodes.PasswordRejected, AuthErrorCodes.Unavailable);
+        .WithErrorCodes(AuthErrorCodes.InvalidCredentials, AuthErrorCodes.LockedOut, AuthErrorCodes.Disabled, AuthErrorCodes.IntegrityFailure, AuthErrorCodes.NotSignedIn, AuthErrorCodes.Forbidden, AuthErrorCodes.PasswordChangeRequired, AuthErrorCodes.PasswordRejected, AuthErrorCodes.Unavailable);
 
 
 
@@ -198,6 +198,7 @@ public static class AuthModule
             LocalLoginOutcome.Success => TypedResults.SignIn(SessionClaims.Principal(result.User!), new AuthenticationProperties { IsPersistent = false }, CookieAuthenticationDefaults.AuthenticationScheme),
             LocalLoginOutcome.LockedOut => ApiProblems.Problem(AuthErrorCodes.LockedOut, detail: null, result.LockedUntil?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty),
             LocalLoginOutcome.Disabled => ApiProblems.Problem(AuthErrorCodes.Disabled),
+            LocalLoginOutcome.IntegrityFailure => ApiProblems.Problem(AuthErrorCodes.IntegrityFailure),
             _ => ApiProblems.Problem(AuthErrorCodes.InvalidCredentials),
         };
     }

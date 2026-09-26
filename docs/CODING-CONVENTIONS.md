@@ -246,7 +246,8 @@ loaded by its provider.
 [docs/DATABASE-CONVENTIONS.md](DATABASE-CONVENTIONS.md) is the contract: module schemas (never `dbo`/`public`),
 snake_case names (`container.zone_group_id`, `pk_`/`fk_`/`ix_`/`ux_` prefixes), server-assigned `long` `id`
 keys, no GUIDs, `Restrict` foreign keys with explicit indexes, `decimal(9,3)` quantities, UTC
-`DateTimeOffset` timestamps at millisecond precision. `ModelConventions.Apply` enforces the names and types;
+`DateTimeOffset` timestamps at millisecond precision (truncated, not rounded, on the way in on both
+providers, so a value read back equals the value written and signed). `ModelConventions.Apply` enforces the names and types;
 `ModelConventions.Verify` is asserted empty by `ModelConventionsTests` for both providers, so a violation
 fails the build.
 

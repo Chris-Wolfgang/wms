@@ -2,6 +2,7 @@
 
 using Wolfgang.AuditTrail;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Integrity;
 
 namespace Wolfgang.Wms.Infrastructure.Identity;
 
@@ -9,7 +10,7 @@ namespace Wolfgang.Wms.Infrastructure.Identity;
 /// One row of <c>core.user</c> (E9): a console user. Local accounts carry a password hash (never audited);
 /// provider accounts (E11) carry none. Audited (E6.4), versioned (E5.1), signed later (E10.4).
 /// </summary>
-public sealed class User : IVersionedEntity
+public sealed class User : IVersionedEntity, ISignedEntity
 {
     /// <summary>Longest user name.</summary>
     public const int UserNameLength = 256;
@@ -87,4 +88,20 @@ public sealed class User : IVersionedEntity
 
     /// <inheritdoc/>
     public long RowVersion { get; set; }
+
+
+
+    /// <inheritdoc/>
+    [NotAudited]
+    public string? Signature { get; set; }
+
+
+
+    /// <summary>
+    /// E10.4: the fields a sign-in or an authorisation decision depends on.
+    /// </summary>
+    public string CanonicalContent()
+    {
+        return string.Join('\n', "user", UserNameNormalized, PasswordHash ?? string.Empty, MustChangePassword ? "1" : "0", IsDisabled ? "1" : "0", IsLocalAdmin ? "1" : "0", SignedContent.Timestamp(SessionsValidAfter));
+    }
 }

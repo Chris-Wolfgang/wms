@@ -98,6 +98,29 @@ the next one.
 - **Support window** is defined at 1.0 (default: the previous major receives fixes for a set period after the
   new major ships). `0.x` moves forward only.
 
+## Scheduled workflows and failure handling (E85.11, E85.12)
+
+One workflow per concern, each with `schedule` and `workflow_dispatch`, least-privilege `permissions:` and its
+own notification: `security-alerts.yml` (E86.6, nightly), `docs-check.yaml` (nightly docfx build without deploy
+plus link check, via the reusable `docfx.yaml`), `hygiene.yaml` (weekly: changelog fragments older than 30 days,
+skipped tests without an open issue, feature flags past their removal release; `scripts/hygiene.ps1`), plus the
+template's CodeQL, Scorecard, Stryker, license audit and actions audit. `entra-login.yaml` (E11.5) and
+`backup-restore.yaml` (E65.4) arrive with those epics.
+
+Every scheduled failure is an issue, never just a red run. `scripts/report-failure.ps1` keys one issue per
+workflow + failure signature (`<!-- automated-failure: workflow|signature -->` in the body), labelled
+`automated`, `nightly` and the concern; the body carries the failing output, the signature, a suggested fix and
+the run link; repeats append the run link as a comment; the next successful run closes it. The Monday hygiene
+run also upserts a summary of automated issues open longer than 7 days, with `critical` ones older than two
+days listed first under an escalation heading and a `HIGH PRIORITY` title. Operational checks (backup-restore,
+Entra login) will also notify through the configured channel once one exists (E65/E11); docs and hygiene are
+issue-only.
+
+A failure that is a code regression is fixed by a person or a session through a normal PR; automation never
+edits workflow YAML or other protected paths. Fully automatic PRs only where the change is mechanical and safe
+(Copilot Autofix / Dependabot for security alerts, link rewrites for moved docs targets, deletion of a flag past
+its removal release once it is on everywhere and the deletion is pure), never for backup/restore or Entra.
+
 ## Upstream gaps (E85.7)
 
 When a story needs something a Chris-Wolfgang library lacks, the gap is raised **upstream** as an issue on that

@@ -58,11 +58,34 @@ by the migration that creates the table (`RowVersioning.AddUpdateTrigger` / `Dro
 upserts stage into a temp table and `MERGE`/`UPDATE`, so the trigger fires normally. Sequence values are
 assigned before commit and the sequence is cached, so gaps happen and delta readers apply a safety margin.
 
+## Soft delete, deltas and manifests (E5.3, E5.4)
+
+Master tables devices cache (barcodes, SKUs, locations, paths, settings, messages) implement `ISyncedEntity`
+(`IVersionedEntity` + `ISoftDeletable` + `Id`). A delete sets `deleted_at` instead of removing the row, so
+the deletion travels in the next delta; the conventions add a global query filter (`deleted_at IS NULL`) so
+ordinary reads never see deleted rows. Transactional picking tables are not synced this way and never
+soft-delete. Rows soft-deleted longer ago than the maximum device-offline window are hard-deleted by a
+retention job that arrives with the settings registry (E6), since the window is a site setting.
+
+`SyncQueries` writes the two reads once: `DeltaAsync` reads `WHERE row_version > @since ORDER BY
+row_version` (deleted rows included, `IgnoreQueryFilters`) one page at a time (default 500, max 5000) and
+returns `NextSince`: the last version read while more pages exist, and the last version minus one sequence
+cache window (`SafetyMargin`, 100) on the final page so a commit that drew its version earlier but landed
+later is re-read rather than missed, never below the watermark the client sent. Clients apply rows as
+idempotent upserts. `ManifestAsync` returns `(id, row_version)` of every live row from the two indexed
+columns; devices reconcile against it at login, on a slow schedule, on a stale-cache rejection and on a
+console "resync". `MapSyncedTable` maps both as `GET {table}?since=&size=` and `GET {table}/manifest`
+(API-CONVENTIONS.md). Versioned entities declare their update trigger in the model
+(`ToTable(t => t.HasTrigger(...))` equivalent), which makes EF read generated values back with a query;
+SQL Server refuses `OUTPUT` on a table with triggers.
+
 ## Adding an entity
 
 1. Class in the module with `long Id`, `DateTimeOffset` timestamps, `decimal` quantities, `<Principal>Id`
    foreign keys.
 2. `IEntityTypeConfiguration` with `ToTable("Name", "<module>")`, unique indexes for natural keys.
-3. `scripts/Check-Migrations.ps1 -Add <Name>`; review both providers' migrations; cite the query each new
+3. Synced master tables implement `ISyncedEntity` (row version, soft delete, id) and map their sync reads
+   with `MapSyncedTable`.
+4. `scripts/Check-Migrations.ps1 -Add <Name>`; review both providers' migrations; cite the query each new
    secondary index serves in a comment (E3.5).
-4. The model test fails the build if any convention is broken.
+5. The model test fails the build if any convention is broken.

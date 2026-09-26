@@ -89,6 +89,22 @@ public sealed class ModelConventionsTests
 
 
 
+    [Theory]
+    [InlineData(SqlServer)]
+    [InlineData(PostgreSql)]
+    public void Soft_deletable_entities_hide_deleted_rows_by_default_and_versioned_ones_declare_their_trigger(string provider)
+    {
+        using var context = Sample(provider);
+        var sku = context.Model.FindEntityType(typeof(Sku))!;
+
+        Assert.Equal("deleted_at", sku.FindProperty(nameof(Sku.DeletedAt))!.GetColumnName());
+        Assert.Single(sku.GetDeclaredQueryFilters());
+        Assert.Equal(["trg_sku_row_version"], sku.GetDeclaredTriggers().Select(t => t.ModelName));
+        Assert.Empty(context.Model.FindEntityType(typeof(Container))!.GetDeclaredTriggers());
+    }
+
+
+
     [Fact]
     public void SqlServer_timestamps_round_trip_as_utc_through_the_converter()
     {
@@ -140,6 +156,8 @@ public sealed class ModelConventionsTests
                 "bad_parent.id: GUID columns are not allowed; identifiers are server-assigned long.",
                 "bad_parent: no module schema (tables never land in dbo/public).",
                 "bad_parent: primary key must be a single server-assigned long column named 'id'.",
+                "bad_soft: soft-deletable entities carry a nullable deleted_at timestamp.",
+                "bad_soft: soft-deletable tables hide deleted rows by default (query filter).",
             ],
             violations.Order(StringComparer.Ordinal)
         );

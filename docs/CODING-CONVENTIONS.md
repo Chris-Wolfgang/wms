@@ -78,6 +78,21 @@ equality. EF entities and sqlite-net table models are classes because their fram
 parameterless constructors. Mutable DTOs are rejected at review; a `record` with `init`-only members is the
 default shape for anything that crosses the API or the journal.
 
+## AOT, trimming and packaging (E1.9)
+
+- `IsAotCompatible` and `IsTrimmable` are on for every non-UI product project (`Directory.Build.props`), and the
+  Trimming/AOT/SingleFile analyzer categories fail the build, so reflection-based code is rejected at compile
+  time rather than at publish time.
+- Minimal APIs only (no MVC); endpoints compile to typed request delegates (`EnableRequestDelegateGenerator`);
+  JSON uses source-generated `JsonSerializerContext`s; EF Core uses compiled models.
+- Publish shape: API and worker publish JIT + ReadyToRun until EF Core supports NativeAOT, then flip the flag
+  with no code change; the simulator and the CLI publish NativeAOT from day one (`PublishAot`); the CLI's
+  `migrate` subcommand, which needs EF, ships as a separate JIT executable; MAUI uses its platform defaults;
+  the Blazor Server console is excluded. `Wolfgang.Wms.Infrastructure` is rooted (not trimmed) at publish.
+- One assembly per project, single-file publish for distribution; self-contained runtime for the Windows
+  installer and the CLI, framework-dependent inside containers (runtime patched by rebuilding the base image).
+  Generated code (EF migrations, compiled model, source generators) is `[ExcludeFromCodeCoverage]`.
+
 ## Dependencies (E1.8)
 
 Prefer the BCL and Microsoft packages. Any other package needs a written reason in the PR and sits behind an

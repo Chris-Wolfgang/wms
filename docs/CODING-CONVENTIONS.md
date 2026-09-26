@@ -91,6 +91,23 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
   attribute or `switch` requires one.
 - Modules contribute their keys through `ModuleDescriptor.With…()` so the host can enumerate them.
 
+## Data access (E1.11, ADR 0002)
+
+- Single tenant per install: no `tenant_id`. Site separation is `site_id` on every site-scoped entity with an
+  EF global query filter from the caller's site context; cross-site reads need `IgnoreQueryFilters()` behind
+  a permission and writes outside scope are rejected at `SaveChanges`.
+- One `DbContext` per request or job, behind `IUnitOfWork` (`Wolfgang.Wms.Core.Data`): `SaveChangesAsync`
+  once per operation, `ExecuteInTransactionAsync` only for the listed multi-step operations and never around
+  non-database I/O. No `Set<T>()`, no change tracker.
+- Repositories are per aggregate, not per table: `ISkuRepository : IReadOnlyRepository<Sku, SkuId>,
+  ISearchableRepository<Sku, SkuCriteria>, IWriteOnlyRepository<Sku>` plus the few business-named methods
+  that need EF. Contracts never expose the provider: no `IQueryable`, no `DbContext`, no expression trees;
+  search takes a criteria record. `DataAccessConventionTests` scans `Wolfgang.Wms.Core.Data` for leaks.
+- Handlers depend on repositories and `IUnitOfWork`, never a context (`DataAccessConventionTests` checks
+  constructor parameters of types under `*.Features.*`). Repositories fetch and persist; handlers orchestrate.
+- Screens and reports use query classes projecting to records (`AsNoTracking`), not repositories. Handler
+  unit tests use hand-written fakes of the repository interfaces.
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value

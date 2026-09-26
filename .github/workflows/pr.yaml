@@ -945,6 +945,15 @@ jobs:
           echo ""
           echo "✅ All compatible projects built successfully"
 
+      - name: Migrations cover the model on both providers (E2.4)
+        # Fails when the EF model changed without a new migration for SqlServer AND PostgreSql.
+        # Skipped until the script exists on the PR head (it arrives with the E2.4 code change).
+        if: hashFiles('scripts/Check-Migrations.ps1') != ''
+        shell: pwsh
+        run: |
+          dotnet tool install --global dotnet-ef
+          pwsh ./scripts/Check-Migrations.ps1
+
       - name: Run tests with coverage (.NET Core 5.0 - 10.0)
         # Explicit bash: GitHub's implicit default is `bash -e` WITHOUT
         # pipefail; the explicit form is `bash -eo pipefail`, which the

@@ -896,6 +896,110 @@
           }
         }
       }
+    },
+    "/api/v0/system/license": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "GET: the license page.",
+        "operationId": "GetLicense",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/system/license/keys": {
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "PUT: installs a key.",
+        "operationId": "InstallLicenseKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallLicenseKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/system/license/keys/{keyId}": {
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "DELETE: removes a key by id.",
+        "operationId": "RemoveLicenseKey",
+        "parameters": [
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/system/license/comparison": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "GET: the comparison with the installed tier marked.",
+        "operationId": "GetLicenseComparison",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureComparison"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1010,6 +1114,37 @@
         },
         "description": "Body of \u0060POST /auth/local/password\u0060 (E9.1, E9.2)."
       },
+      "ComparisonRow": {
+        "required": [
+          "name",
+          "description",
+          "area",
+          "cells"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The feature or limit name."
+          },
+          "description": {
+            "type": "string",
+            "description": "Its description."
+          },
+          "area": {
+            "type": "string",
+            "description": "The area the name is grouped under (the part before the first dot)."
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "One cell per tier, in the table\u0027s tier order: \u0022\u2713\u0022 or \u0022\u2014\u0022 for a feature, the number or \u0022unlimited\u0022 for a limit."
+          }
+        },
+        "description": "One row of the feature comparison (E79.10): a feature or a limit and its cell per tier."
+      },
       "CopyRoleRequest": {
         "required": [
           "name"
@@ -1022,6 +1157,14 @@
           }
         },
         "description": "Body of \u0060POST /auth/roles/{id}/copy\u0060 (E10.2)."
+      },
+      "CoverageStatus": {
+        "enum": [
+          "Perpetual",
+          "Covered",
+          "Lapsed"
+        ],
+        "description": "Whether this release is covered by the base key (E79.5)."
       },
       "ElevateLogLevelRequest": {
         "required": [
@@ -1045,6 +1188,51 @@
           }
         },
         "description": "A timed elevation as posted (E12.4): \u0022Debug for 30 minutes\u0022."
+      },
+      "FeatureComparison": {
+        "required": [
+          "version",
+          "tiers",
+          "features",
+          "limits",
+          "installedTier"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "The release."
+          },
+          "tiers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The tier names across the top, lowest first."
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComparisonRow"
+            },
+            "description": "Feature rows, in catalogue order."
+          },
+          "limits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComparisonRow"
+            },
+            "description": "Limit rows, in catalogue order."
+          },
+          "installedTier": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The tier in force here, for the console to highlight; null on the docs page."
+          }
+        },
+        "description": "The feature-by-tier table for a release (E79.10), generated from the same tier table the enforcement\r\nuses, so it can never disagree with what the product does."
       },
       "GroupRoleMappingDraft": {
         "required": [
@@ -1132,6 +1320,358 @@
           }
         },
         "description": "One directory group mapped to one role (E11.2), everywhere or at one site."
+      },
+      "InstalledKeyInfo": {
+        "required": [
+          "keyId",
+          "kind",
+          "tier",
+          "organization",
+          "devices",
+          "features",
+          "coverageFrom",
+          "coverageTo",
+          "issuedAt",
+          "status",
+          "reason",
+          "summary"
+        ],
+        "type": "object",
+        "properties": {
+          "keyId": {
+            "type": "string",
+            "description": "The key id (or the line, for a document that could not be read)."
+          },
+          "kind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Base or add-on; null when unreadable.",
+                "$ref": "#/components/schemas/LicenseKeyKind"
+              }
+            ]
+          },
+          "tier": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The tier of a base key."
+          },
+          "organization": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The organization the key binds to."
+          },
+          "devices": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Devices the key adds.",
+            "format": "int32"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Features the key grants explicitly."
+          },
+          "coverageFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The first covered day, or null when perpetual or co-terminating.",
+            "format": "date"
+          },
+          "coverageTo": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The last covered day, or null when perpetual or co-terminating.",
+            "format": "date"
+          },
+          "issuedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the key was issued.",
+            "format": "date"
+          },
+          "status": {
+            "description": "Its status.",
+            "$ref": "#/components/schemas/KeyStatus"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Why, for a status other than active."
+          },
+          "summary": {
+            "type": "string",
+            "description": "One line: \u0022Pro base, covered to 2027-03-31\u0022 or \u0022\u002B10 devices\u0022."
+          }
+        },
+        "description": "One installed key on the license page (E79.11): what it adds, its coverage and its status."
+      },
+      "InstallLicenseKeyRequest": {
+        "required": [
+          "key"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "The pasted key document."
+          }
+        },
+        "description": "The body of \u0060PUT /system/license/keys\u0060 (E79.3): the signed document as issued."
+      },
+      "KeyStatus": {
+        "enum": [
+          "Active",
+          "Lapsed",
+          "Superseded",
+          "ForeignOrganization",
+          "ExtraBase",
+          "Invalid"
+        ],
+        "description": "How an installed key takes part in the effective license (E79.11)."
+      },
+      "LicenseKeyKind": {
+        "enum": [
+          "Base",
+          "AddOn",
+          null
+        ]
+      },
+      "LicenseStatus": {
+        "required": [
+          "tier",
+          "organization",
+          "coverage",
+          "coveredUntil",
+          "releaseVersion",
+          "releaseDate",
+          "features",
+          "limits",
+          "includedDevices",
+          "purchasedDevices",
+          "allowancePercent",
+          "allowanceMinimumUnits",
+          "graceDays",
+          "usageWarningPercent",
+          "keys",
+          "banners"
+        ],
+        "type": "object",
+        "properties": {
+          "tier": {
+            "type": "string",
+            "description": "The tier name."
+          },
+          "organization": {
+            "type": "string",
+            "description": "The organization the base key binds to; empty on the free tier."
+          },
+          "coverage": {
+            "description": "Whether this release is covered.",
+            "$ref": "#/components/schemas/CoverageStatus"
+          },
+          "coveredUntil": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The last covered day, or null when perpetual.",
+            "format": "date"
+          },
+          "releaseVersion": {
+            "type": "string",
+            "description": "This release."
+          },
+          "releaseDate": {
+            "type": "string",
+            "description": "Its date, the one coverage is checked against.",
+            "format": "date"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The feature names granted."
+          },
+          "limits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LimitUsage"
+            },
+            "description": "Every limit with its usage."
+          },
+          "includedDevices": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Devices the tier includes.",
+            "format": "int32"
+          },
+          "purchasedDevices": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Devices bought through add-ons.",
+            "format": "int32"
+          },
+          "allowancePercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The overage allowance in percent.",
+            "format": "int32"
+          },
+          "allowanceMinimumUnits": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The allowance floor in units.",
+            "format": "int32"
+          },
+          "graceDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The grace period in days.",
+            "format": "int32"
+          },
+          "usageWarningPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The warning threshold.",
+            "format": "int32"
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstalledKeyInfo"
+            },
+            "description": "Every installed key."
+          },
+          "banners": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What the console shows at the top: lapsed coverage, limits over, warnings."
+          }
+        },
+        "description": "The license page (E79.6, E79.11): the tier and coverage, every feature granted, every limit with its\r\nusage, the device totals (\u00225 included \u002B 10 purchased = 15\u0022), every installed key, and the banners."
+      },
+      "LimitOutcome": {
+        "enum": [
+          "Allowed",
+          "WithinAllowance",
+          "Blocked"
+        ],
+        "description": "What a creation against a limit may do (E79.4)."
+      },
+      "LimitUsage": {
+        "required": [
+          "name",
+          "description",
+          "ceiling",
+          "count",
+          "percent",
+          "warning",
+          "outcome",
+          "graceEndsOn",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The limit name."
+          },
+          "description": {
+            "type": "string",
+            "description": "Its description."
+          },
+          "ceiling": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The licensed value, or null when unlimited.",
+            "format": "int32"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The count now.",
+            "format": "int32"
+          },
+          "percent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Count as a percentage of the ceiling, or null when unlimited.",
+            "format": "int32"
+          },
+          "warning": {
+            "type": "boolean",
+            "description": "True when the count has reached the warning threshold."
+          },
+          "outcome": {
+            "description": "The standing: allowed, within the allowance (grace running), or blocked.",
+            "$ref": "#/components/schemas/LimitOutcome"
+          },
+          "graceEndsOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The last day of grace while over, else null.",
+            "format": "date"
+          },
+          "message": {
+            "type": "string",
+            "description": "The banner while over, else empty."
+          }
+        },
+        "description": "One limit on the license page (E79.6): the licensed value, the count now, and the standing."
       },
       "LocalLoginRequest": {
         "required": [

@@ -60,6 +60,8 @@ public static class DatabaseServiceCollectionExtensions
             .ValidateOnStart();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<DatabaseOptions>, DatabaseOptionsValidator>());
 
+        services.AddExceptionHandler<ConcurrencyExceptionHandler>();   // E5.2: stale save → 412, like a failed If-Match
+
         var options = new DatabaseOptions();
         configuration.GetSection(DatabaseOptions.SectionName).Bind(options);
         if (options.ParsedProvider is null or DatabaseProvider.None)

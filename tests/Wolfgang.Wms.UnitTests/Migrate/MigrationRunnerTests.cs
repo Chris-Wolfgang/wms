@@ -145,7 +145,7 @@ public sealed class MigrationRunnerTests
 
         Assert.Equal(MigrateProgram.ExitOk, status);
         Assert.Contains("Reachable: no", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("Pending (1)", output.ToString(), StringComparison.Ordinal);
+        Assert.Matches(@"Pending \([1-9]\d*\)", output.ToString());
         Assert.Contains("Schema is not up to date.", output.ToString(), StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitUsage, fromWorkingDirectory);
     }

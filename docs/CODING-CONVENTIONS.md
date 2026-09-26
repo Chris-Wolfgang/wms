@@ -123,6 +123,23 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
   assets send `public, max-age=31536000, immutable` (`CacheControl.StaticAsset`). Never `no-store`, never
   `max-age` on data.
 
+## Validation, localization and time (E1.14)
+
+- Request validation is hand-written or DataAnnotations with the source-generated validator
+  (`AddValidation()`, AOT-safe); a Domain rule returns `Result<T>` (E1.4), never throws for an expected
+  failure. API JSON is camelCase (`ConfigureHttpJsonOptions` in the host); URLs use natural keys where a
+  customer would (`/skus/{skuCode}`), surrogate ids where they would not.
+- Time is UTC `DateTimeOffset` everywhere except display. No public member of a product assembly exposes
+  `DateTime` (`TimeConventionTests`); the clock is an injected `TimeProvider` (`DateTimeOffset.Now/UtcNow` are
+  banned symbols); time zones are `TimeZoneInfo` from the site's settings. NodaTime is on the deny list until
+  shift math proves `TimeZoneInfo` inadequate, with a written reason.
+- Localization exists from day one: `AddWmsLocalization()` / `UseWmsRequestLocalization()`
+  (`Wolfgang.Wms.Core.Localization`) register resource-file localizers under each host's `Resources/` folder
+  and resolve the request culture from the user's picker cookie, then `Accept-Language`, with parent-culture
+  fallback and `Content-Language` on the response. `WmsLocalization.SupportedCultures` is the one list;
+  English is the only shipped language in v1. UI text comes from `IStringLocalizer`, never a literal in a
+  component; the Blazor stories (E82) add the markup check.
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value

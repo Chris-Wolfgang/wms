@@ -19,6 +19,10 @@ internal static class SmokeRunner
         ("KeyDefinitions: members of other types ignored", KeyDefinitionsSmoke.MembersOfOtherTypesIgnored),
         ("KeyDefinitions: duplicate names rejected", KeyDefinitionsSmoke.DuplicateNamesRejected),
         ("KeyDefinitions: uninitialised definitions rejected", KeyDefinitionsSmoke.UninitialisedDefinitionsRejected),
+        ("SettingCodecs: every built-in type round-trips", SettingCodecsSmoke.EveryBuiltInTypeRoundTrips),
+        ("SettingCodecs: enum through the built-in codec", SettingCodecsSmoke.EnumThroughTheBuiltInCodec),
+        ("SettingCodecs: enum through the typed codec", SettingCodecsSmoke.EnumThroughTheTypedCodec),
+        ("SettingCodecs: JSON codec and unsupported type", SettingCodecsSmoke.JsonCodecAndUnsupportedType),
     ];
 
 

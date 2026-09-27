@@ -173,6 +173,12 @@ internal interface ICleanSampleRepository
 
 
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage
+(
+    "Major Code Smell",
+    "S2094:Classes should not be empty",
+    Justification = "Empty on purpose: the convention test detects a context dependency by the DbContext name suffix."
+)]
 internal sealed class FakeDbContext
 {
 }

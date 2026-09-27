@@ -13,8 +13,13 @@ public static class KeyDefinitions
 {
     /// <summary>
     /// Every public static field or property of type <typeparamref name="TKey"/> declared on
-    /// <paramref name="definitions"/>, in declaration order.
+    /// <paramref name="definitions"/>, sorted by key name (ordinal).
     /// </summary>
+    /// <remarks>
+    /// Declaration order is not available under NativeAOT: <see cref="MemberInfo.MetadataToken"/> throws there, and
+    /// reflection does not promise any member order. Sorting by name gives the same result on every runtime; the
+    /// AOT smoke test (<c>tests/Wolfgang.Wms.AotSmoke</c>) runs this method as a NativeAOT binary in CI.
+    /// </remarks>
     /// <exception cref="InvalidOperationException">Two members define keys with the same name.</exception>
     public static IReadOnlyList<TKey> Enumerate<TKey>
     (
@@ -36,8 +41,8 @@ public static class KeyDefinitions
 
         var keys = fields
             .Concat(properties)
-            .OrderBy(x => x.Member.MetadataToken)
             .Select(x => x.Value ?? throw new InvalidOperationException($"{definitions.Name}.{x.Member.Name} is null; key definitions must be initialised."))
+            .OrderBy(KeyNameOf, StringComparer.Ordinal)
             .ToList();
 
         var duplicate = keys

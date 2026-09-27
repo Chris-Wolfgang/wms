@@ -1,0 +1,4 @@
+# Source files in AOT-compatible src/ projects that use reflection, JSON serialization or configuration binding,
+# and whose AOT-sensitive paths the smoke program calls. AotSmokeCoverageTests fails when such a file is missing
+# here (add a check to SmokeRunner, then list the file) or when a listed file no longer needs it.
+src/Wolfgang.Wms.Domain/Keys/KeyDefinitions.cs

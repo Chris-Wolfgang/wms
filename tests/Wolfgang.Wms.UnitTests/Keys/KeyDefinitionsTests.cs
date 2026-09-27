@@ -7,11 +7,11 @@ namespace Wolfgang.Wms.UnitTests.Keys;
 public sealed class KeyDefinitionsTests
 {
     [Fact]
-    public void Enumerates_static_fields_and_properties_of_the_key_type_in_declaration_order()
+    public void Enumerates_static_fields_and_properties_of_the_key_type_sorted_by_name()
     {
         var permissions = KeyDefinitions.Enumerate<Permission>(typeof(SamplePermissions));
 
-        Assert.Equal(["picking.release", "picking.cancel", "picking.resolve"], permissions.Select(p => p.Name));
+        Assert.Equal(["picking.cancel", "picking.release", "picking.resolve"], permissions.Select(p => p.Name));
     }
 
 

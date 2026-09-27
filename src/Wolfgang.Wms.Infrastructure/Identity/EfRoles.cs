@@ -67,7 +67,7 @@ public sealed class EfRoles : IRoles
         await RequireNameFreeAsync(draft.Name, exceptRoleId: null, cancellationToken).ConfigureAwait(false);
         var role = new Role { Name = draft.Name.Trim(), NameNormalized = Normalize(draft.Name), Description = draft.Description.Trim(), UpdatedBy = updatedBy, UpdatedAt = _timeProvider.GetUtcNow() };
         Replace(role, draft.Permissions);
-        _context.Set<Role>().Add(role);
+        await _context.Set<Role>().AddAsync(role, cancellationToken).ConfigureAwait(false);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return View(role);
     }
@@ -152,7 +152,7 @@ public sealed class EfRoles : IRoles
         if (assignment is null)
         {
             assignment = new UserRole { UserId = userId, RoleId = roleId, SiteId = siteId };
-            _context.Set<UserRole>().Add(assignment);
+            await _context.Set<UserRole>().AddAsync(assignment, cancellationToken).ConfigureAwait(false);
         }
 
         assignment.ExpiresAt = expiresAt;
@@ -209,7 +209,7 @@ public sealed class EfRoles : IRoles
             if (role is null)
             {
                 role = new Role { Name = builtIn.DisplayName(), NameNormalized = Normalize(builtIn.DisplayName()), Description = builtIn.Description(), BuiltInKey = builtIn.Key(), UpdatedBy = WmsAuditing.SystemIdentity, UpdatedAt = now };
-                _context.Set<Role>().Add(role);
+                await _context.Set<Role>().AddAsync(role, cancellationToken).ConfigureAwait(false);
                 created++;
             }
 
@@ -251,7 +251,7 @@ public sealed class EfRoles : IRoles
             : await _context.Set<UserRole>().Where(a => a.RoleId == administrator.Id && a.SiteId == null).Select(a => a.UserId).ToListAsync(cancellationToken).ConfigureAwait(false);
         foreach (var userId in admins.Except(assigned))
         {
-            _context.Set<UserRole>().Add(new UserRole { UserId = userId, Role = administrator, UpdatedAt = now, UpdatedBy = WmsAuditing.SystemIdentity });
+            await _context.Set<UserRole>().AddAsync(new UserRole { UserId = userId, Role = administrator, UpdatedAt = now, UpdatedBy = WmsAuditing.SystemIdentity }, cancellationToken).ConfigureAwait(false);
         }
     }
 

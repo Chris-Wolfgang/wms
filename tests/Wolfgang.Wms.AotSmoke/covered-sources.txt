@@ -2,3 +2,4 @@
 # and whose AOT-sensitive paths the smoke program calls. AotSmokeCoverageTests fails when such a file is missing
 # here (add a check to SmokeRunner, then list the file) or when a listed file no longer needs it.
 src/Wolfgang.Wms.Domain/Keys/KeyDefinitions.cs
+src/Wolfgang.Wms.Domain/Settings/SettingCodecs.cs

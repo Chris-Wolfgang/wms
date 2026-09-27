@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Infrastructure\Wolfgang.Wms.Infrastructure.csproj" />
+    <ProjectReference Include="..\Wolfgang.Wms.Core\Wolfgang.Wms.Core.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

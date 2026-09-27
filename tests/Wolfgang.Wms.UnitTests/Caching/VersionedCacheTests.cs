@@ -106,7 +106,9 @@ public sealed class VersionedCacheTests
         using var cache = CreateCache();
         var release = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
+#pragma warning disable VSTHRD003 // The test controls when the shared load completes; the task is ours.
         var first = cache.GetAsync(_ => release.Task, CancellationToken.None);
+#pragma warning restore VSTHRD003
         var second = cache.GetAsync(Load, CancellationToken.None);
         release.SetResult("shared");
         var values = await Task.WhenAll(first, second);

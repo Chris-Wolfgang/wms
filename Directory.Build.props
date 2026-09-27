@@ -41,6 +41,13 @@
          not match. -->
     <_RelativeProjectDir>$([MSBuild]::EnsureTrailingSlash($([MSBuild]::MakeRelative($(MSBuildThisFileDirectory), $(MSBuildProjectDirectory)))).Replace('\', '/'))</_RelativeProjectDir>
     <GenerateDocumentationFile Condition="'$(GenerateDocumentationFile)' == '' and $(_RelativeProjectDir.StartsWith('src/'))">true</GenerateDocumentationFile>
+
+    <!-- E1.9: AOT and trim analyzers on every non-UI product project so reflection use fails the build.
+         Excluded: the Blazor Server console (.Web), the MAUI handheld (.Android), tests and benchmarks.
+         Infrastructure (EF Core) keeps the analyzers but is rooted (not trimmed) at publish time. -->
+    <_WmsAnalyzeAot Condition="$(_RelativeProjectDir.StartsWith('src/')) and !$(MSBuildProjectName.EndsWith('.Web')) and !$(MSBuildProjectName.EndsWith('.Android'))">true</_WmsAnalyzeAot>
+    <IsAotCompatible Condition="'$(IsAotCompatible)' == '' and '$(_WmsAnalyzeAot)' == 'true'">true</IsAotCompatible>
+    <IsTrimmable Condition="'$(IsTrimmable)' == '' and '$(_WmsAnalyzeAot)' == 'true'">true</IsTrimmable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -50,7 +57,7 @@
 
   <ItemGroup>
     <!-- Roslynator - Code quality and refactoring -->
-    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0">
+    <PackageReference Include="Roslynator.Analyzers" Version="5.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -62,25 +69,25 @@
     </PackageReference>
     
     <!-- Microsoft Threading Analyzers - Thread safety -->
-    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.14.15">
+    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.7.23">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     
     <!-- BannedApiAnalyzers - Prevent usage of specific APIs -->
-    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="4.14.0">
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     
     <!-- Meziantou - Comprehensive code quality -->
-    <PackageReference Include="Meziantou.Analyzer" Version="3.0.98">
+    <PackageReference Include="Meziantou.Analyzer" Version="3.0.290">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
 
     <!-- SonarAnalyzer - Industry-standard analysis -->
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.27.0.140913">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.34.0.3385">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

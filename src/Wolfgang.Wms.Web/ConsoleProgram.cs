@@ -15,7 +15,7 @@ public static class ConsoleProgram
     /// <summary>
     /// Builds and runs the console host.
     /// </summary>
-    public static async Task Main(string[] args)
+    public static Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -45,6 +45,6 @@ public static class ConsoleProgram
             .AddInteractiveServerRenderMode()
             .AddAdditionalAssemblies([.. WorkspaceAssemblies.All]);
 
-        await app.RunAsync().ConfigureAwait(false);
+        return app.RunAsync();
     }
 }

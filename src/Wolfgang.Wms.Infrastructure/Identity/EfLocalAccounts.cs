@@ -155,7 +155,7 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
             UpdatedAt = now,
         };
         admin.PasswordHash = _hasher.HashPassword(admin, PasswordPolicy.BootstrapDefault);
-        _context.Set<User>().Add(admin);
+        await _context.Set<User>().AddAsync(admin, cancellationToken).ConfigureAwait(false);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         LogBootstrapAdmin(_logger, userName);
         return true;

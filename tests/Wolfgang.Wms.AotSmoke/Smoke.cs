@@ -10,6 +10,7 @@ internal static class Smoke
     /// <summary>
     /// Fails unless <paramref name="actual"/> holds exactly <paramref name="expected"/>, in order.
     /// </summary>
+    /// <exception cref="SmokeFailureException">The sequences differ.</exception>
     public static void SequenceEqual(IEnumerable<string> expected, IEnumerable<string> actual)
     {
         var expectedList = expected.ToList();
@@ -26,6 +27,7 @@ internal static class Smoke
     /// Fails unless <paramref name="action"/> throws <typeparamref name="TException"/> with a message containing
     /// <paramref name="messageFragment"/>.
     /// </summary>
+    /// <exception cref="SmokeFailureException">Nothing was thrown, or the exception or its message differ.</exception>
     public static void Throws<TException>(Action action, string messageFragment)
         where TException : Exception
     {
@@ -47,10 +49,32 @@ internal static class Smoke
 /// <summary>
 /// A smoke check found a result that differs from the expected one.
 /// </summary>
-internal sealed class SmokeFailureException : Exception
+public sealed class SmokeFailureException : Exception
 {
+    /// <summary>
+    /// Creates the exception with no message.
+    /// </summary>
+    public SmokeFailureException()
+    {
+    }
+
+
+
+    /// <summary>
+    /// Creates the exception with a message.
+    /// </summary>
     public SmokeFailureException(string message)
         : base(message)
+    {
+    }
+
+
+
+    /// <summary>
+    /// Creates the exception with a message and a cause.
+    /// </summary>
+    public SmokeFailureException(string message, Exception innerException)
+        : base(message, innerException)
     {
     }
 }

@@ -14,23 +14,28 @@ public sealed class AotSmokeCoverageTests
 {
     private const string ManifestPath = "tests/Wolfgang.Wms.AotSmoke/covered-sources.txt";
 
+    // E3.8 convention for every regex in the product: no backtracking and a match timeout (MA0009), explicit
+    // capture only (MA0023).
+    private const RegexOptions Options = RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking;
+    private static readonly TimeSpan Timeout = TimeSpan.FromMilliseconds(100);
+
     private static readonly Regex[] AotSensitivePatterns =
     [
-        new(@"\.(GetFields|GetProperties|GetMethods?|GetMembers?|GetConstructors?|GetInterfaces|GetTypes|GetExportedTypes)\(", RegexOptions.CultureInvariant),
-        new(@"\.GetCustomAttributes?\b", RegexOptions.CultureInvariant),
-        new(@"\bType\.GetType\(", RegexOptions.CultureInvariant),
-        new(@"\bActivator\.", RegexOptions.CultureInvariant),
-        new(@"\.(MakeGenericType|MakeGenericMethod)\(", RegexOptions.CultureInvariant),
-        new(@"\.MetadataToken\b", RegexOptions.CultureInvariant),
-        new(@"\bAssembly\.(Load|LoadFrom|GetExecutingAssembly|GetEntryAssembly)\b", RegexOptions.CultureInvariant),
-        new(@"\bExpression\.(Lambda|Compile)\b|\.Compile\(\)", RegexOptions.CultureInvariant),
-        new(@"\bEnum\.(GetValues|GetNames)\(typeof", RegexOptions.CultureInvariant),
-        new(@"\bJsonSerializer\.", RegexOptions.CultureInvariant),
-        new(@"\[(DynamicallyAccessedMembers|RequiresUnreferencedCode|RequiresDynamicCode|UnconditionalSuppressMessage)\b", RegexOptions.CultureInvariant),
-        new(@"\bConfigurationBinder\.|\.Bind\(", RegexOptions.CultureInvariant),
+        new(@"\.(GetFields|GetProperties|GetMethods?|GetMembers?|GetConstructors?|GetInterfaces|GetTypes|GetExportedTypes)\(", Options, Timeout),
+        new(@"\.GetCustomAttributes?\b", Options, Timeout),
+        new(@"\bType\.GetType\(", Options, Timeout),
+        new(@"\bActivator\.", Options, Timeout),
+        new(@"\.(MakeGenericType|MakeGenericMethod)\(", Options, Timeout),
+        new(@"\.MetadataToken\b", Options, Timeout),
+        new(@"\bAssembly\.(Load|LoadFrom|GetExecutingAssembly|GetEntryAssembly)\b", Options, Timeout),
+        new(@"\bExpression\.(Lambda|Compile)\b|\.Compile\(\)", Options, Timeout),
+        new(@"\bEnum\.(GetValues|GetNames)\(typeof", Options, Timeout),
+        new(@"\bJsonSerializer\.", Options, Timeout),
+        new(@"\[(DynamicallyAccessedMembers|RequiresUnreferencedCode|RequiresDynamicCode|UnconditionalSuppressMessage)\b", Options, Timeout),
+        new(@"\bConfigurationBinder\.|\.Bind\(", Options, Timeout),
     ];
 
-    private static readonly Regex LineComment = new(@"//.*$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+    private static readonly Regex LineComment = new(@"//.*$", RegexOptions.Multiline | Options, Timeout);
 
 
 

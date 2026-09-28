@@ -20,14 +20,30 @@ public interface IUnitOfWork
 
 
     /// <summary>
-    /// Runs <paramref name="operation"/> inside one database transaction. The delegate form lets the
-    /// implementation roll back on failure and retry on transient errors without the caller knowing;
-    /// the operation must not perform non-database I/O.
+    /// Runs <paramref name="operation"/> inside one database transaction. The delegate form is deliberate:
+    /// the transaction's scope is the delegate, so commit and rollback are bound to it (an exception rolls
+    /// back, there is no flag to forget to clear), the operation may call <see cref="SaveChangesAsync"/> more
+    /// than once inside the same transaction, and the provider's execution strategy can replay the whole
+    /// delegate on a transient error, which an ambient "start a transaction on the next save" flag cannot.
+    /// A single <see cref="SaveChangesAsync"/> is already atomic on its own, so this is only for the listed
+    /// multi-step operations, and the operation must not perform non-database I/O.
     /// </summary>
     /// <typeparam name="TResult">Result of the operation.</typeparam>
     Task<TResult> ExecuteInTransactionAsync<TResult>
     (
         Func<CancellationToken, Task<TResult>> operation,
+        CancellationToken cancellationToken
+    );
+
+
+
+    /// <summary>
+    /// Runs <paramref name="operation"/> inside one database transaction, for operations without a result.
+    /// Same contract as <see cref="ExecuteInTransactionAsync{TResult}"/>.
+    /// </summary>
+    Task ExecuteInTransactionAsync
+    (
+        Func<CancellationToken, Task> operation,
         CancellationToken cancellationToken
     );
 }

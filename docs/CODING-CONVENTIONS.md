@@ -94,8 +94,12 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
 ## Data access (E1.11, ADR 0002)
 
 - Single tenant per install: no `tenant_id`. Site separation is `site_id` on every site-scoped entity with an
-  EF global query filter from the caller's site context; cross-site reads need `IgnoreQueryFilters()` behind
-  a permission and writes outside scope are rejected at `SaveChanges`.
+  EF global query filter from the caller's site context. The context carries the set of sites the caller has
+  been granted (`site_id IN (granted)`), not one site: a user granted sites A, B and C reads across those three
+  and never sees E, F or G. The current working site is a narrowing the caller applies on top (criteria or
+  handler parameter). `IgnoreQueryFilters()` is not how a user reads across sites; it is reserved for system
+  jobs and for an explicit all-sites permission, and each use is reviewed. Writes to a site outside the
+  granted set are rejected at `SaveChanges`.
 - One `DbContext` per request or job, behind `IUnitOfWork` (`Wolfgang.Wms.Core.Data`): `SaveChangesAsync`
   once per operation, `ExecuteInTransactionAsync` only for the listed multi-step operations and never around
   non-database I/O. No `Set<T>()`, no change tracker.

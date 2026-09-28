@@ -33,7 +33,10 @@ domain and stays AOT-safe (E1.9). Reads for screens and reports have very differ
    (`AsNoTracking`), not repositories; that is where Dapper is benchmarked (E36.5). Handler unit tests use
    fakes of the repository interfaces; DbContextBuilder tests the EF repositories themselves.
 8. **Site scoping.** `site_id` on every site-scoped entity with an EF global query filter from the caller's
-   site context; cross-site reads require `IgnoreQueryFilters()` behind a permission; writes outside scope
+   site context. The filter is the caller's *granted* site set (`site_id IN (granted)`), so a user granted
+   sites A, B and C reads across those three and never sees E, F or G; the current working site is a
+   narrowing applied on top of that set. `IgnoreQueryFilters()` is reserved for system jobs and an explicit
+   all-sites permission, never the way a user reads across sites. Writes to a site outside the granted set
    are rejected at `SaveChanges`; global tables (users, roles, global settings, SKUs, barcodes, license) are
    unfiltered; `site_id` leads most indexes.
 

@@ -933,6 +933,17 @@ jobs:
               tfm_raw=$(dotnet msbuild "$test_proj" -noLogo -getProperty:TargetFramework 2>/dev/null \
                 | sed '/^[[:space:]]*$/d' | tail -n1 | sed 's/^TargetFramework[=:][[:space:]]*//' | tr -d '[:space:]')
             fi
+            # A project under tests/ that is not a test project (a NativeAOT smoke program, a fixture host)
+            # declares <IsTestProject>false</IsTestProject>; `dotnet test` would run nothing and the zero-tests
+            # guard below would fail the job, so it is skipped here instead.
+            is_test=$(dotnet msbuild "$test_proj" -noLogo -getProperty:IsTestProject 2>/dev/null \
+              | sed '/^[[:space:]]*$/d' | tail -n1 | sed 's/^IsTestProject[=:][[:space:]]*//' | tr -d '[:space:]')
+            if [ "${is_test,,}" = "false" ]; then
+              echo "⊘ Skipping: not a test project (IsTestProject=false)"
+              echo ""
+              continue
+            fi
+
             frameworks=$(printf '%s' "$tfm_raw" | tr ';' '\n' | grep -E '^(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)|netcoreapp3\.1)$' || true)
             
             if [ -z "$frameworks" ]; then
@@ -1025,6 +1036,7 @@ jobs:
           test_assemblies="|"
           if [ -d ./tests ]; then
             while IFS= read -r -d '' proj; do
+              if grep -qiE '<IsTestProject>\s*false\s*</IsTestProject>' "$proj" 2>/dev/null; then continue; fi
               asm=$(grep -oE '<AssemblyName>[^<]+' "$proj" 2>/dev/null | head -1 | cut -d'>' -f2)
               if [ -z "$asm" ]; then
                 asm=$(basename "$proj"); asm="${asm%.*}"
@@ -1495,6 +1507,16 @@ jobs:
             }
             $tfmRaw = ("$tfmRaw" -replace '^TargetFrameworks?[=:]\s*', '') -replace '\s', ''
 
+            # A project under tests/ that is not a test project declares <IsTestProject>false</IsTestProject>
+            # (a NativeAOT smoke program, a fixture host); skip it, the zero-tests guard would fail otherwise.
+            $isTest = (dotnet msbuild $testProj.FullName -noLogo -getProperty:IsTestProject 2>$null |
+              Where-Object { $_ -and $_.Trim() } | Select-Object -Last 1)
+            if (("$isTest" -replace '^IsTestProject[=:]\s*', '').Trim() -ieq 'false') {
+              Write-Host "⊘ Skipping: not a test project (IsTestProject=false)" -ForegroundColor Yellow
+              Write-Host ""
+              continue
+            }
+
             if (-not $tfmRaw) {
               Write-Host "⊘ Skipping: No target frameworks found" -ForegroundColor Yellow
               Write-Host ""
@@ -1620,7 +1642,9 @@ jobs:
           $testAssemblies = @()
           if (Test-Path "tests") {
             Get-ChildItem -Path "tests" -Recurse -File -Include *.csproj,*.vbproj,*.fsproj | ForEach-Object {
-              $m = [regex]::Match((Get-Content $_.FullName -Raw), '<AssemblyName>([^<]+)</AssemblyName>')
+              $raw = Get-Content $_.FullName -Raw
+              if ($raw -match '<IsTestProject>\s*false\s*</IsTestProject>') { return }
+              $m = [regex]::Match($raw, '<AssemblyName>([^<]+)</AssemblyName>')
               $testAssemblies += $(if ($m.Success) { $m.Groups[1].Value.Trim() } else { $_.BaseName })
             }
           }

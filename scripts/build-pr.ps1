@@ -30,6 +30,12 @@
     Defaults to 100 — test code that never executes has no purpose. Mirrors
     CODECOV_TEST_MINIMUM in pr.yaml.
 
+.PARAMETER CoverageFloors
+    Per-assembly floors that override the default thresholds, as
+    "Name=percent;Name=percent". Defaults to the E1.5 floor for the Domain
+    assembly (shared with the device, held at 100). Mirrors COVERAGE_FLOORS in
+    pr.yaml.
+
 .EXAMPLE
     pwsh ./scripts/build-pr.ps1
     pwsh ./scripts/build-pr.ps1 -SkipSecurity
@@ -40,7 +46,8 @@ param(
     [switch]$SkipCoverage,
     [switch]$SkipSecurity,
     [int]$CoverageThreshold = 90,
-    [int]$TestCoverageThreshold = 100
+    [int]$TestCoverageThreshold = 100,
+    [string]$CoverageFloors = "Wolfgang.Wms.Domain=100"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -204,7 +211,7 @@ if (-not $SkipTests -and $failed.Count -eq 0) {
 # STEP 3: Coverage Report and Threshold
 # ============================================================================
 if (-not $SkipTests -and -not $SkipCoverage -and $failed.Count -eq 0) {
-    Write-Step "Step 3: Coverage Report (src ${CoverageThreshold}%, tests ${TestCoverageThreshold}%)"
+    Write-Step "Step 3: Coverage Report (src ${CoverageThreshold}%, tests ${TestCoverageThreshold}%, floors '${CoverageFloors}')"
 
     $coverageFiles = Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml -ErrorAction SilentlyContinue
 
@@ -271,6 +278,14 @@ if (-not $SkipTests -and -not $SkipCoverage -and $failed.Count -eq 0) {
 
                     $isTest    = $testAssemblies -contains $module
                     $applies   = if ($isTest) { $TestCoverageThreshold } else { $CoverageThreshold }
+                    # E1.5: an explicit floor for this assembly overrides the default
+                    # threshold — mirrors COVERAGE_FLOORS in pr.yaml (both stages).
+                    foreach ($floor in ("$CoverageFloors" -split ';')) {
+                        $parts = $floor -split '=', 2
+                        if ($parts.Count -eq 2 -and $parts[0].Trim() -eq $module) {
+                            $applies = [int]$parts[1]
+                        }
+                    }
 
                     if ($percent -lt $applies) {
                         Write-Fail "  $module — ${percent}% (below ${applies}%)"

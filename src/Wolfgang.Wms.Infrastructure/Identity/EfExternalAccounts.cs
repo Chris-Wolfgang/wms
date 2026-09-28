@@ -55,7 +55,7 @@ public sealed partial class EfExternalAccounts : IExternalAccounts
         {
             user = new User { Provider = provider, ProviderSubject = identity.Subject, CreatedAt = now };
             await NameAsync(user, identity, cancellationToken).ConfigureAwait(false);
-            _context.Users.Add(user);
+            await _context.Users.AddAsync(user, cancellationToken).ConfigureAwait(false);
             await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);   // the id is needed for the assignments (E10.4)
             LogCreated(_logger, user.UserName, provider);
         }
@@ -130,7 +130,7 @@ public sealed partial class EfExternalAccounts : IExternalAccounts
 
         foreach (var missing in wanted.Where(w => !current.Any(a => a.RoleId == w.RoleId && a.SiteId == w.SiteId)))
         {
-            _context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = missing.RoleId, SiteId = missing.SiteId, UpdatedAt = now, UpdatedBy = provider });
+            await _context.UserRoles.AddAsync(new UserRole { UserId = user.Id, RoleId = missing.RoleId, SiteId = missing.SiteId, UpdatedAt = now, UpdatedBy = provider }, cancellationToken).ConfigureAwait(false);
             changed = true;
         }
 

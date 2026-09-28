@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    NativeAOT smoke test. CI publishes this project with PublishAot on Linux (IL warnings are errors) and runs the
+    binary; a non-zero exit fails the PR. It calls every AOT-sensitive code path in the AOT-compatible src/ projects
+    that a host's startup does not reach. covered-sources.txt lists the source files it exercises, and
+    AotSmokeCoverageTests fails when a file uses reflection, JSON or configuration binding without being listed.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+
+</Project>

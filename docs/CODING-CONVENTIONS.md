@@ -71,6 +71,26 @@ A blocked server thread is a picker waiting at a bin, so:
 | Return the task directly when nothing follows the `await` | `AsyncFixer01` (off in test projects, where `await` is needed for `Assert.ThrowsAsync`) |
 | `ValueTask` on hot paths (scan, deposit, task-list) | review; `CA2012` guards misuse |
 
+## Typed keys, no magic strings (E1.13)
+
+Feature flags, setting keys, permissions, license limits and features, error codes, issue types and job names
+are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `SettingKey<T>`, `Permission`,
+`LicenseLimit`, `LicenseFeature`, `ErrorCode`, `IssueType`, `JobName`):
+
+- Defined once, as `static readonly` instances in a definitions class per module (string + metadata, one
+  place only); `KeyDefinitions.Enumerate<TKey>(typeof(PickingPermissions))` builds registries (settings
+  pages, the permission catalog, the troubleshooting reference) from those definitions.
+- Every API takes the key type, never a string: `IFeatures.IsEnabled(Features.BulkPicking, site)`,
+  `ISettings.Get(SettingKeys.LeaseTimeout, scope)` with `T` inferred from the key,
+  `ILicense.Check(LicenseLimits.Devices, n)`. String overloads are not written; a reviewer rejects one on
+  sight and the module descriptor only accepts the key types.
+- Key names are lower-case dotted identifiers (`picking.lease_timeout`) validated at construction.
+- Feature flags are settings `feature.<name>` (bool, organisation → site cascade), checked only at edges;
+  hidden endpoints return 404; a ship-dark flag names the release that removes it.
+- Error codes carry HTTP status, message template, docs anchor and severity; `const` strings only where an
+  attribute or `switch` requires one.
+- Modules contribute their keys through `ModuleDescriptor.With…()` so the host can enumerate them.
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value

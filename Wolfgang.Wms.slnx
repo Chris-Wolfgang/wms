@@ -102,6 +102,7 @@
     <Project Path="src/Wolfgang.Wms.Worker/Wolfgang.Wms.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Wolfgang.Wms.AotSmoke/Wolfgang.Wms.AotSmoke.csproj" />
     <Project Path="tests/Wolfgang.Wms.IntegrationTests/Wolfgang.Wms.IntegrationTests.csproj" />
     <Project Path="tests/Wolfgang.Wms.UnitTests/Wolfgang.Wms.UnitTests.csproj" />
   </Folder>

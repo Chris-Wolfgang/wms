@@ -88,7 +88,7 @@ public sealed partial class EfLeaderLock : ILeaderLock
             return false;   // another live holder
         }
 
-        context.Set<LeaderLock>().Add(new LeaderLock { Name = name, Holder = holder, AcquiredAt = now, ExpiresAt = until });
+        await context.Set<LeaderLock>().AddAsync(new LeaderLock { Name = name, Holder = holder, AcquiredAt = now, ExpiresAt = until }, cancellationToken).ConfigureAwait(false);
         try
         {
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

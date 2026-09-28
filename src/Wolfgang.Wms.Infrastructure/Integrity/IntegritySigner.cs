@@ -59,6 +59,13 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
         ArgumentNullException.ThrowIfNull(content);
 
         var key = await KeyAsync(cancellationToken).ConfigureAwait(false);
+        return Sign(key, content);
+    }
+
+
+
+    private static string Sign(byte[] key, string content)
+    {
         return Convert.ToBase64String(HMACSHA256.HashData(key, Encoding.UTF8.GetBytes(content)));
     }
 
@@ -135,7 +142,7 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
             }
 
             var key = RandomNumberGenerator.GetBytes(32);
-            context.Set<IntegrityKey>().Add(new IntegrityKey { ProtectedKey = ProtectedText.Wrap(protector.Protect(Convert.ToBase64String(key))), CreatedAt = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow() });
+            await context.Set<IntegrityKey>().AddAsync(new IntegrityKey { ProtectedKey = ProtectedText.Wrap(protector.Protect(Convert.ToBase64String(key))), CreatedAt = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow() }, cancellationToken).ConfigureAwait(false);
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             LogKeyCreated(_logger);
             _key = key;

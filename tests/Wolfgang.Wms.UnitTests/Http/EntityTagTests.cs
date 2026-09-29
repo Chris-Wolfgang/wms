@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Wolfgang.Wms.Core.Caching;
 using Wolfgang.Wms.Core.Http;
 
 namespace Wolfgang.Wms.UnitTests.Http;
@@ -23,8 +24,18 @@ public sealed class EntityTagTests
         var before = EntityTag.FromCollection(0x10, 3);
         var afterDelete = EntityTag.FromCollection(0x10, 2);
 
-        Assert.Equal("\"10-3\"", before.Value);
+        Assert.Equal("\"10|3\"", before.Value);
         Assert.NotEqual(before, afterDelete);
+    }
+
+
+
+    [Fact]
+    public void FromCollection_from_a_stamp_equals_the_tag_built_from_its_parts()
+    {
+        var tag = EntityTag.FromCollection(new RowVersionStamp(0x10, 3));
+
+        Assert.Equal(EntityTag.FromCollection(0x10, 3), tag);
     }
 
 

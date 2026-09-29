@@ -6,7 +6,7 @@ namespace Wolfgang.Wms.UnitTests.Caching;
 
 public sealed class VersionedCacheTests
 {
-    private static readonly string[] Tables = ["release", "release_line"];
+    private static readonly Type[] EntityTypes = [typeof(ReleaseSample), typeof(ReleaseLineSample)];
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(3);
     private readonly FakeRowVersionSource _source = new();
     private readonly FakeTimeProvider _clock = new();
@@ -25,7 +25,7 @@ public sealed class VersionedCacheTests
         Assert.Equal("value 1", value);
         Assert.Equal(1, _source.Probes);
         Assert.Equal(1, _loads);
-        Assert.Equal(5UL, cache.CachedVersion);
+        Assert.Equal(new RowVersionStamp(5, 0), cache.CachedStamp);
     }
 
 
@@ -77,7 +77,26 @@ public sealed class VersionedCacheTests
 
         Assert.Equal("value 2", value);
         Assert.Equal(2, _loads);
-        Assert.Equal(6UL, cache.CachedVersion);
+        Assert.Equal(new RowVersionStamp(6, 0), cache.CachedStamp);
+    }
+
+
+
+    [Fact]
+    public async Task GetAsync_after_the_interval_with_a_changed_row_count_reloads_even_when_the_version_is_unchanged()
+    {
+        using var cache = CreateCache();
+        _source.Version = 5;
+        _source.Count = 3;
+        await cache.GetAsync(Load, CancellationToken.None);
+        _source.Count = 2;   // a delete moves the count, not the highest row version
+        _clock.Advance(Interval);
+
+        var value = await cache.GetAsync(Load, CancellationToken.None);
+
+        Assert.Equal("value 2", value);
+        Assert.Equal(2, _loads);
+        Assert.Equal(new RowVersionStamp(5, 2), cache.CachedStamp);
     }
 
 
@@ -89,7 +108,7 @@ public sealed class VersionedCacheTests
         await cache.GetAsync(Load, CancellationToken.None);
 
         cache.Invalidate();
-        var versionAfterInvalidate = cache.CachedVersion;
+        var versionAfterInvalidate = cache.CachedStamp;
         var value = await cache.GetAsync(Load, CancellationToken.None);
 
         Assert.Null(versionAfterInvalidate);
@@ -129,7 +148,7 @@ public sealed class VersionedCacheTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cache.GetAsync(Load, cancellation.Token));
 
-        Assert.Null(cache.CachedVersion);
+        Assert.Null(cache.CachedStamp);
         Assert.Equal(0, _loads);
     }
 
@@ -169,10 +188,10 @@ public sealed class VersionedCacheTests
     [Fact]
     public void Constructor_when_an_argument_is_invalid_throws()
     {
-        Assert.Throws<ArgumentNullException>(() => new VersionedCache<string>(null!, Tables, Interval, _clock));
+        Assert.Throws<ArgumentNullException>(() => new VersionedCache<string>(null!, EntityTypes, Interval, _clock));
         Assert.Throws<ArgumentNullException>(() => new VersionedCache<string>(_source, null!, Interval, _clock));
-        Assert.Throws<ArgumentNullException>(() => new VersionedCache<string>(_source, Tables, Interval, null!));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new VersionedCache<string>(_source, Tables, TimeSpan.FromSeconds(-1), _clock));
+        Assert.Throws<ArgumentNullException>(() => new VersionedCache<string>(_source, EntityTypes, Interval, null!));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new VersionedCache<string>(_source, EntityTypes, TimeSpan.FromSeconds(-1), _clock));
         Assert.Throws<ArgumentException>(() => new VersionedCache<string>(_source, [], Interval, _clock));
     }
 
@@ -180,7 +199,7 @@ public sealed class VersionedCacheTests
 
     private VersionedCache<string> CreateCache()
     {
-        return new VersionedCache<string>(_source, Tables, Interval, _clock);
+        return new VersionedCache<string>(_source, EntityTypes, Interval, _clock);
     }
 
 
@@ -197,21 +216,31 @@ public sealed class VersionedCacheTests
     {
         public ulong Version { get; set; }
 
+        public long Count { get; set; }
+
         public int Probes { get; private set; }
 
         public Action? OnProbe { get; set; }
 
 
 
-        public Task<ulong> GetMaxRowVersionAsync(IReadOnlyCollection<string> tables, CancellationToken cancellationToken)
+        public Task<RowVersionStamp> GetStampAsync(IReadOnlyCollection<Type> entityTypes, CancellationToken cancellationToken)
         {
-            Assert.Equal(Tables, tables);
+            Assert.Equal(EntityTypes, entityTypes);
             Probes++;
             OnProbe?.Invoke();
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(Version);
+            return Task.FromResult(new RowVersionStamp(Version, Count));
         }
     }
+
+
+
+    private sealed class ReleaseSample;
+
+
+
+    private sealed class ReleaseLineSample;
 
 
 

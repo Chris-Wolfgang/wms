@@ -4,17 +4,18 @@ namespace Wolfgang.Wms.Core.Caching;
 
 /// <summary>
 /// A per-instance in-memory cache of one value invalidated by row version (E1.12, ADR 0003). The value is
-/// reloaded only when the highest <c>row_version</c> of the tables it was built from has moved, and that
-/// version is probed at most once per <see cref="PollInterval"/>, so a hot read costs nothing between polls
-/// and at most one cheap version query otherwise. There is no shared cache component: every process holds its
-/// own copy and the database is the source of truth.
+/// reloaded only when the <see cref="RowVersionStamp"/> of the entity types it was built from has changed
+/// (a higher <c>row_version</c> for an insert or update, a different row count for a delete), and that stamp
+/// is probed at most once per <see cref="PollInterval"/>, so a hot read costs nothing between polls and at
+/// most one cheap stamp query otherwise. There is no shared cache component: every process holds its own
+/// copy and the database is the source of truth.
 /// </summary>
-/// <typeparam name="TValue">The cached value; a read model built from the watched tables.</typeparam>
+/// <typeparam name="TValue">The cached value; a read model built from the watched entity types.</typeparam>
 public sealed class VersionedCache<TValue> : IDisposable
     where TValue : class
 {
     private readonly IRowVersionSource _source;
-    private readonly IReadOnlyCollection<string> _tables;
+    private readonly IReadOnlyCollection<Type> _entityTypes;
     private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private Entry? _entry;
@@ -22,35 +23,35 @@ public sealed class VersionedCache<TValue> : IDisposable
 
 
     /// <summary>
-    /// Creates a cache over <paramref name="tables"/> that re-checks their row version at most once per
-    /// <paramref name="pollInterval"/>.
+    /// Creates a cache over the tables of <paramref name="entityTypes"/> that re-checks their stamp at most
+    /// once per <paramref name="pollInterval"/>.
     /// </summary>
     /// <exception cref="ArgumentNullException">A reference argument is null.</exception>
-    /// <exception cref="ArgumentException"><paramref name="tables"/> is empty.</exception>
+    /// <exception cref="ArgumentException"><paramref name="entityTypes"/> is empty.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="pollInterval"/> is negative.</exception>
     public VersionedCache
     (
         IRowVersionSource source,
-        IReadOnlyCollection<string> tables,
+        IReadOnlyCollection<Type> entityTypes,
         TimeSpan pollInterval,
         TimeProvider timeProvider
     )
     {
         ArgumentNullException.ThrowIfNull(source);
-        ArgumentNullException.ThrowIfNull(tables);
+        ArgumentNullException.ThrowIfNull(entityTypes);
         ArgumentNullException.ThrowIfNull(timeProvider);
         if (pollInterval < TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(pollInterval), pollInterval, "The poll interval cannot be negative.");
         }
 
-        if (tables.Count == 0)
+        if (entityTypes.Count == 0)
         {
-            throw new ArgumentException("A versioned cache must watch at least one table.", nameof(tables));
+            throw new ArgumentException("A versioned cache must watch at least one entity type.", nameof(entityTypes));
         }
 
         _source = source;
-        _tables = tables;
+        _entityTypes = entityTypes;
         PollInterval = pollInterval;
         _timeProvider = timeProvider;
     }
@@ -65,18 +66,18 @@ public sealed class VersionedCache<TValue> : IDisposable
 
 
     /// <summary>
-    /// The row version the cached value was built at, or null when nothing is cached.
+    /// The stamp the cached value was built at, or null when nothing is cached.
     /// </summary>
-    public ulong? CachedVersion => _entry?.Version;
+    public RowVersionStamp? CachedStamp => _entry?.Stamp;
 
 
 
     /// <summary>
-    /// The cached value, reloaded through <paramref name="load"/> when the watched tables' row version has
-    /// moved since it was built. Concurrent callers share one load.
+    /// The cached value, reloaded through <paramref name="load"/> when the watched tables' stamp has changed
+    /// since it was built. Concurrent callers share one load.
     /// </summary>
     /// <param name="load">Builds the value from the database; receives the cancellation token.</param>
-    /// <param name="cancellationToken">Cancels the version probe or the load.</param>
+    /// <param name="cancellationToken">Cancels the stamp probe or the load.</param>
     public async Task<TValue> GetAsync(Func<CancellationToken, Task<TValue>> load, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(load);
@@ -91,15 +92,15 @@ public sealed class VersionedCache<TValue> : IDisposable
                 return entry.Value;
             }
 
-            var version = await _source.GetMaxRowVersionAsync(_tables, cancellationToken).ConfigureAwait(false);
-            if (entry is not null && entry.Version == version)
+            var stamp = await _source.GetStampAsync(_entityTypes, cancellationToken).ConfigureAwait(false);
+            if (entry is not null && entry.Stamp == stamp)
             {
                 _entry = entry with { ProbedAt = now };
                 return entry.Value;
             }
 
             var value = await load(cancellationToken).ConfigureAwait(false);
-            _entry = new Entry(version, value, now);
+            _entry = new Entry(stamp, value, now);
             return value;
         }
         finally
@@ -131,5 +132,5 @@ public sealed class VersionedCache<TValue> : IDisposable
 
 
 
-    private sealed record Entry(ulong Version, TValue Value, DateTimeOffset ProbedAt);
+    private sealed record Entry(RowVersionStamp Stamp, TValue Value, DateTimeOffset ProbedAt);
 }

@@ -3,14 +3,17 @@
 namespace Wolfgang.Wms.Core.Caching;
 
 /// <summary>
-/// Reads the highest <c>row_version</c> across a set of tables (E1.12, ADR 0003). One cheap query answers
-/// "did anything in these tables change?", which is the only invalidation signal the per-instance caches use.
-/// Infrastructure implements it per provider.
+/// Reads the change stamp of a set of entity types (E1.12, ADR 0003): the highest <c>row_version</c> and
+/// the row count across their tables. One cheap query answers "did anything in these tables change?",
+/// which is the only invalidation signal the per-instance caches use. Callers name entity types, never
+/// tables: the storage names stay in Infrastructure, which implements this per provider and maps each type
+/// through the model.
 /// </summary>
 public interface IRowVersionSource
 {
     /// <summary>
-    /// The highest row version among <paramref name="tables"/>, or 0 when they are all empty.
+    /// The change stamp across the tables of <paramref name="entityTypes"/>: the highest row version (0 when
+    /// they are all empty) and the total row count.
     /// </summary>
-    Task<ulong> GetMaxRowVersionAsync(IReadOnlyCollection<string> tables, CancellationToken cancellationToken);
+    Task<RowVersionStamp> GetStampAsync(IReadOnlyCollection<Type> entityTypes, CancellationToken cancellationToken);
 }

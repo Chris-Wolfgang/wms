@@ -1,6 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using System.Globalization;
+using Wolfgang.Wms.Core.Caching;
 
 namespace Wolfgang.Wms.Core.Http;
 
@@ -42,14 +43,25 @@ public readonly record struct EntityTag
 
     /// <summary>
     /// The tag for a list or report: the highest row version in scope and the number of rows, so that a
-    /// delete (count changes) is as visible as an update (version changes).
+    /// delete (count changes) is as visible as an update (version changes). The two hex numbers are joined
+    /// with <c>|</c>; the value is opaque to clients (RFC 9110 allows any visible character but the quote).
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is negative.</exception>
-    public static EntityTag FromCollection(ulong maxRowVersion, int count)
+    public static EntityTag FromCollection(ulong maxRowVersion, long count)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(count);
 
-        return new EntityTag(string.Create(CultureInfo.InvariantCulture, $"\"{maxRowVersion:x}-{count:x}\""));
+        return new EntityTag(string.Create(CultureInfo.InvariantCulture, $"\"{maxRowVersion:x}|{count:x}\""));
+    }
+
+
+
+    /// <summary>
+    /// The tag for a list or report from the stamp an <see cref="IRowVersionSource"/> read for it.
+    /// </summary>
+    public static EntityTag FromCollection(RowVersionStamp stamp)
+    {
+        return FromCollection(stamp.MaxRowVersion, stamp.RowCount);
     }
 
 

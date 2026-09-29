@@ -14,12 +14,12 @@ public sealed class ConditionalResultsTests
 
 
     [Fact]
-    public void NotModifiedOr_when_If_None_Match_matches_returns_304_without_producing_the_body()
+    public void GetOrNotModified_when_If_None_Match_matches_returns_304_without_producing_the_body()
     {
         var context = new DefaultHttpContext();
         context.Request.Headers.IfNoneMatch = Current.Value;
 
-        var result = ConditionalResults.NotModifiedOr(context.Request, Current, Produce);
+        var result = ConditionalResults.GetOrNotModified(context.Request, Current, Produce);
 
         Assert.Equal(StatusCodes.Status304NotModified, Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode);
         Assert.False(_produced);
@@ -30,12 +30,12 @@ public sealed class ConditionalResultsTests
 
 
     [Fact]
-    public void NotModifiedOr_when_If_None_Match_is_stale_produces_the_body_and_sets_validation_headers()
+    public void GetOrNotModified_when_If_None_Match_is_stale_produces_the_body_and_sets_validation_headers()
     {
         var context = new DefaultHttpContext();
         context.Request.Headers.IfNoneMatch = EntityTag.FromRowVersion(0x29).Value;
 
-        var result = ConditionalResults.NotModifiedOr(context.Request, Current, Produce);
+        var result = ConditionalResults.GetOrNotModified(context.Request, Current, Produce);
 
         Assert.Same(_body, result);
         Assert.True(_produced);
@@ -46,11 +46,11 @@ public sealed class ConditionalResultsTests
 
 
     [Fact]
-    public void NotModifiedOr_when_no_If_None_Match_produces_the_body()
+    public void GetOrNotModified_when_no_If_None_Match_produces_the_body()
     {
         var context = new DefaultHttpContext();
 
-        var result = ConditionalResults.NotModifiedOr(context.Request, Current, Produce);
+        var result = ConditionalResults.GetOrNotModified(context.Request, Current, Produce);
 
         Assert.Same(_body, result);
         Assert.Equal(Current.Value, context.Response.Headers.ETag);
@@ -59,12 +59,12 @@ public sealed class ConditionalResultsTests
 
 
     [Fact]
-    public void NotModifiedOr_when_an_argument_is_null_throws()
+    public void GetOrNotModified_when_an_argument_is_null_throws()
     {
         var context = new DefaultHttpContext();
 
-        Assert.Throws<ArgumentNullException>(() => ConditionalResults.NotModifiedOr(null!, Current, Produce));
-        Assert.Throws<ArgumentNullException>(() => ConditionalResults.NotModifiedOr(context.Request, Current, null!));
+        Assert.Throws<ArgumentNullException>(() => ConditionalResults.GetOrNotModified(null!, Current, Produce));
+        Assert.Throws<ArgumentNullException>(() => ConditionalResults.GetOrNotModified(context.Request, Current, null!));
     }
 
 

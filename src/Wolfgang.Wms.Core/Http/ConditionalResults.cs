@@ -12,13 +12,14 @@ namespace Wolfgang.Wms.Core.Http;
 public static class ConditionalResults
 {
     /// <summary>
-    /// Sets <c>ETag</c> and <c>Cache-Control</c> on the response, then returns <c>304</c> when the request's
-    /// <c>If-None-Match</c> matches <paramref name="tag"/>, otherwise the result of <paramref name="produce"/>.
+    /// The GET response, or <c>304 Not Modified</c> when the client already has it: sets <c>ETag</c> and
+    /// <c>Cache-Control</c> on the response, then returns <c>304</c> when the request's <c>If-None-Match</c>
+    /// matches <paramref name="tag"/>, otherwise the result of <paramref name="produce"/>.
     /// </summary>
     /// <param name="request">The current request.</param>
     /// <param name="tag">The current tag of the resource, read from its version column.</param>
     /// <param name="produce">Builds the full response; called only when the client's copy is stale.</param>
-    public static IResult NotModifiedOr(HttpRequest request, EntityTag tag, Func<IResult> produce)
+    public static IResult GetOrNotModified(HttpRequest request, EntityTag tag, Func<IResult> produce)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(produce);

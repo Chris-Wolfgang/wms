@@ -34,59 +34,19 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Validate release tag matches csproj version
+      - name: Validate release tag format
         shell: pwsh
         env:
           RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
-          # Strip leading 'v' or 'v.' from the tag (v0.3.0 -> 0.3.0, v.0.1.0 -> 0.1.0)
+          # E85.4: the tag IS the version (MinVer reads it); csprojs carry none. `vX.Y.Z` is a release,
+          # `vX.Y.Z-rc.N` a release candidate. Anything else is refused before a single build minute is spent.
           $tagName = $env:RELEASE_TAG_NAME
-          $tagVersion = $tagName -replace '^v\.?', ''
-          Write-Host "Release tag:      $tagName" -ForegroundColor Cyan
-          Write-Host "Expected version: $tagVersion" -ForegroundColor Cyan
-          Write-Host ""
-
-          $srcCsprojs = @(Get-ChildItem -Path './src' -Recurse -Filter '*.csproj' -ErrorAction SilentlyContinue)
-          if ($srcCsprojs.Count -eq 0) {
-            Write-Warning "No src csprojs found - skipping version validation"
-            exit 0
-          }
-
-          # Collect <Version> and <PackageVersion> values from every src csproj
-          $found = @()
-          foreach ($proj in $srcCsprojs) {
-            try {
-              [xml]$xml = Get-Content $proj.FullName -Raw
-              $nodes = $xml.SelectNodes('//Version | //PackageVersion')
-              foreach ($node in $nodes) {
-                $v = $node.InnerText.Trim()
-                if ($v) {
-                  $found += [pscustomobject]@{ Project = $proj.Name; Version = $v }
-                }
-              }
-            } catch {
-              Write-Warning "Failed to parse $($proj.Name): $($_.Exception.Message)"
-            }
-          }
-
-          Write-Host "Versions found in src csprojs:" -ForegroundColor Cyan
-          foreach ($f in $found) {
-            Write-Host "  $($f.Project): $($f.Version)" -ForegroundColor DarkGray
-          }
-          Write-Host ""
-
-          if ($found.Count -eq 0) {
-            Write-Error "No <Version> or <PackageVersion> found in any src csproj"
+          if ($tagName -notmatch '^v(\d+)\.(\d+)\.(\d+)(-rc\.\d+)?$') {
+            Write-Error "Release tag '$tagName' is not vX.Y.Z or vX.Y.Z-rc.N. Delete the release and tag it correctly."
             exit 1
           }
-
-          if ($found.Version -contains $tagVersion) {
-            Write-Host "Release tag matches at least one src csproj version" -ForegroundColor Green
-          } else {
-            $allVersions = ($found.Version | Sort-Object -Unique) -join ', '
-            Write-Error "Release tag '$tagName' (version '$tagVersion') does not match any src csproj version. Found: $allVersions. Bump the csproj <Version> or correct the release tag before re-running."
-            exit 1
-          }
+          Write-Host "Release tag: $tagName" -ForegroundColor Cyan
 
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
@@ -102,6 +62,24 @@ jobs:
 
       - name: Restore dependencies
         run: dotnet restore
+
+      - name: Validate release tag matches the MinVer version
+        shell: pwsh
+        env:
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          # The checkout is the tag's commit, so MinVer must resolve exactly the tag's version; a mismatch
+          # means the tag is not on the commit that was built, or MinVer's tag prefix/settings drifted.
+          $tagVersion = $env:RELEASE_TAG_NAME -replace '^v', ''
+          $project = Get-ChildItem ./src -Recurse -Filter '*.csproj' | Where-Object { $_.Name -notmatch 'Android' } | Select-Object -First 1
+          if (-not $project) { Write-Error 'No src csproj found'; exit 1 }
+          $minVer = (dotnet msbuild $project.FullName -target:MinVer -getProperty:MinVerVersion -p:Configuration=Release).Trim()
+          Write-Host "Tag version:    $tagVersion" -ForegroundColor Cyan
+          Write-Host "MinVer version: $minVer" -ForegroundColor Cyan
+          if ($minVer -ne $tagVersion) {
+            Write-Error "MinVer resolved '$minVer' but the release tag is '$tagVersion'. The tag must point at the built commit."
+            exit 1
+          }
 
       - name: Build Solution (Release)
         run: dotnet build --no-restore --configuration Release

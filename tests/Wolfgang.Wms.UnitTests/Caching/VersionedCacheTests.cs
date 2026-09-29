@@ -6,7 +6,7 @@ namespace Wolfgang.Wms.UnitTests.Caching;
 
 public sealed class VersionedCacheTests
 {
-    private static readonly Type[] EntityTypes = [typeof(ReleaseSample), typeof(ReleaseLineSample)];
+    private static readonly Type[] EntityTypes = [typeof(string), typeof(Uri)];   // any two types stand in for entities
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(3);
     private readonly FakeRowVersionSource _source = new();
     private readonly FakeTimeProvider _clock = new();
@@ -233,14 +233,6 @@ public sealed class VersionedCacheTests
             return Task.FromResult(new RowVersionStamp(Version, Count));
         }
     }
-
-
-
-    private sealed class ReleaseSample;
-
-
-
-    private sealed class ReleaseLineSample;
 
 
 

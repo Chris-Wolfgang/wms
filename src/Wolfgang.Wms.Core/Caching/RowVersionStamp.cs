@@ -1,5 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Runtime.InteropServices;
+
 namespace Wolfgang.Wms.Core.Caching;
 
 /// <summary>
@@ -9,4 +11,5 @@ namespace Wolfgang.Wms.Core.Caching;
 /// </summary>
 /// <param name="MaxRowVersion">The highest row version across the tables, or 0 when they are all empty.</param>
 /// <param name="RowCount">The total number of rows across the tables.</param>
+[StructLayout(LayoutKind.Auto)]
 public readonly record struct RowVersionStamp(ulong MaxRowVersion, long RowCount);

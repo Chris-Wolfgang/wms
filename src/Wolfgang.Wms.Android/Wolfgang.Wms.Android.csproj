@@ -14,6 +14,7 @@
     <!-- Display name and application id are brand-neutral until the E1.0 ADR picks the product name. -->
     <ApplicationTitle>Wolfgang.Wms</ApplicationTitle>
     <ApplicationId>com.wolfgang.wms.device</ApplicationId>
+    <!-- Placeholders; WmsAndroidVersionFromTag below overwrites both from the MinVer-derived version (E85.4). -->
     <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
 
@@ -36,5 +37,15 @@
   <ItemGroup>
     <ProjectReference Include="..\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
   </ItemGroup>
+
+  <!-- E85.4: versionName is the SemVer string from the tag; versionCode = major*10000 + minor*100 + patch,
+       so every release has a higher code than the last and the code identifies the version. Runs after MinVer
+       (Directory.Build.props) and is a no-op when MinVer is absent. -->
+  <Target Name="WmsAndroidVersionFromTag" AfterTargets="MinVer" Condition="'$(MinVerMajor)' != ''">
+    <PropertyGroup>
+      <ApplicationDisplayVersion>$(MinVerVersion)</ApplicationDisplayVersion>
+      <ApplicationVersion>$([MSBuild]::Add($([MSBuild]::Add($([MSBuild]::Multiply($(MinVerMajor), 10000)), $([MSBuild]::Multiply($(MinVerMinor), 100)))), $(MinVerPatch)))</ApplicationVersion>
+    </PropertyGroup>
+  </Target>
 
 </Project>

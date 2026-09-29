@@ -1,54 +1,47 @@
-## Description
+<!-- Title: "E27.3: Short imperative summary" — the story ID first. One story per PR.
+     Config-only PRs (workflows, .editorconfig, Directory.Build.props, BannedSymbols.txt, coverlet.runsettings)
+     are separate from code PRs. Checklist: .claude/skills/pr-gate/SKILL.md -->
 
-<!-- Please include a summary of the change and which issue is fixed. Also include relevant motivation and context. List any dependencies that are required for this change. -->
+Refs #<story issue> (E27.3).
+<!-- Stacked on #<pr> — merge that first, then restack. (delete if not stacked) -->
 
-Fixes/Complete # (issue)
+## What
 
-<!--
-If this PR addresses a Maintenance framework sub-issue, link it explicitly so the
-project board auto-marks the item as Done on merge:
+<!-- What changed and why, in a paragraph a reviewer can read without the diff. -->
 
-  Fixes #<maintenance-task-issue-number>
+## AC → tests
 
-The Maintenance framework tracks ongoing improvement work (security, performance,
-testing, cleanup, docs, API, CI/CD) — see the parent `Maintenance: <repo>` issue
-for details.
--->
+<!-- Every acceptance criterion of the story this PR covers, and the test that proves it. "doc" for a
+     documentation-only AC; "E<n> (reason)" when another epic delivers it. -->
 
+| AC | Test |
+|----|------|
+|    |      |
 
-## Type of change
+## Docs
 
-Please delete options that are not relevant.
+<!-- Conventions section, ADR, docfx page touched — or "none needed" with a reason. -->
 
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
-- [ ] Documentation update
-- [ ] Refactor
+## Migration
 
-## How Has This Been Tested?
+<!-- "no migration", or: reviewed for data loss, lock duration, both providers, site_id and row_version on
+     new tables, Up/Down round-trip. -->
 
-<!-- Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. -->
+## Dependencies
 
-- [ ] Test A
-- [ ] Test B
+<!-- "none", or per new package: why the BCL does not cover it, its license, the interface it sits behind. -->
+
+## Verification
+
+<!-- Local gate summary: build warnings, tests passed, coverage per assembly. -->
 
 ## Checklist
 
-- [ ] My code follows the style guidelines of this project
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
-- [ ] If this PR changes `src/`, I added a fragment under `changelog/unreleased/` (or applied the `no-changelog` label) — see [changelog/unreleased/README.md](../blob/main/changelog/unreleased/README.md)
-- [ ] I did not bundle protected configuration files (`.editorconfig`, `Directory.Build.props`, workflows, …) with unrelated code — they are held for maintainer review
-
-## Screenshots (if applicable)
-
-<!-- Please add any screenshots or gifs to help reviewers understand your changes. -->
-
-## Additional context
-
-<!-- Add any other context about the pull request here. -->
+- [ ] Title starts with the story ID; one story per PR
+- [ ] Every AC above maps to a test (or says which epic delivers it)
+- [ ] Docs changed in this PR where behaviour or rules changed
+- [ ] `src/` changed → fragment under `changelog/unreleased/` with a type; otherwise `no-changelog` label with a reason
+- [ ] Migration reviewed (or "no migration")
+- [ ] New dependency has a license note (or "none")
+- [ ] Protected configuration files are not bundled with code in this PR
+- [ ] Local gate passed: 0 warnings, all tests, coverage at the floors

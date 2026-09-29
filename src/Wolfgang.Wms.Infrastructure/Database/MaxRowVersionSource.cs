@@ -8,9 +8,10 @@ using Wolfgang.Wms.Infrastructure.Database.Conventions;
 namespace Wolfgang.Wms.Infrastructure.Database;
 
 /// <summary>
-/// <see cref="IRowVersionSource"/> over the product model (E1.12, E6.3): one <c>MAX(row_version)</c> per
-/// table, the identifiers taken from the model (never from the caller) so only versioned tables of the
-/// schema can be asked about. Runs in its own scope because the caches that use it are singletons.
+/// <see cref="IRowVersionSource"/> over the product model (E1.12, E6.3): one <c>MAX(row_version)</c> plus
+/// <c>COUNT(*)</c> per entity type, the table identifiers taken from the model (the caller names a type,
+/// never a table) so only versioned tables of the schema can be asked about. Runs in its own scope because
+/// the caches that use it are singletons.
 /// </summary>
 public sealed class MaxRowVersionSource : IRowVersionSource
 {
@@ -30,42 +31,61 @@ public sealed class MaxRowVersionSource : IRowVersionSource
 
 
     /// <inheritdoc/>
-    /// <exception cref="ArgumentException">A table is not a versioned table of the model.</exception>
-    public async Task<ulong> GetMaxRowVersionAsync(IReadOnlyCollection<string> tables, CancellationToken cancellationToken)
+    /// <exception cref="ArgumentException">An entity type is not a versioned entity of the model.</exception>
+    public async Task<RowVersionStamp> GetStampAsync(IReadOnlyCollection<Type> entityTypes, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(tables);
+        ArgumentNullException.ThrowIfNull(entityTypes);
 
         using var scope = _scopes.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
         var max = 0UL;
-        foreach (var table in tables)
+        var count = 0L;
+        foreach (var entityType in entityTypes)
         {
-            var sql = Sql(context, table);
-            var version = await context.Database.SqlQueryRaw<long>(sql).SingleAsync(cancellationToken).ConfigureAwait(false);
-            max = Math.Max(max, (ulong)Math.Max(0, version));
+            var sql = Sql(context, entityType);
+            var row = await context.Database.SqlQueryRaw<StampRow>(sql).SingleAsync(cancellationToken).ConfigureAwait(false);
+            max = Math.Max(max, (ulong)Math.Max(0, row.MaxVersion));
+            count += row.RowCount;
         }
 
-        return max;
+        return new RowVersionStamp(max, count);
     }
 
 
 
     /// <summary>
-    /// The query for one table, built from the model's own identifiers.
+    /// The query for one entity type's table, built from the model's own identifiers: the highest row
+    /// version and the row count in one round trip.
     /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
-    /// <exception cref="ArgumentException"><paramref name="table"/> is not a versioned table of the model.</exception>
-    public static string Sql(WmsDbContext context, string table)
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="entityType"/> is not a versioned entity of the model.</exception>
+    public static string Sql(WmsDbContext context, Type entityType)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(entityType);
 
-        var entity = context.Model.GetEntityTypes()
-            .FirstOrDefault(e => typeof(IVersionedEntity).IsAssignableFrom(e.ClrType) && string.Equals(e.GetSchema() + "." + e.GetTableName(), table, StringComparison.Ordinal))
-            ?? throw new ArgumentException($"'{table}' is not a versioned table of the model.", nameof(table));
+        var entity = context.Model.FindEntityType(entityType);
+        if (entity is null || !typeof(IVersionedEntity).IsAssignableFrom(entity.ClrType))
+        {
+            throw new ArgumentException($"'{entityType.Name}' is not a versioned entity of the model.", nameof(entityType));
+        }
+
         var schema = entity.GetSchema()!;
         var name = entity.GetTableName()!;
         return string.Equals(context.Database.ProviderName, RowVersioning.SqlServer, StringComparison.Ordinal)
-            ? "SELECT COALESCE(MAX([" + RowVersioning.ColumnName + "]), 0) AS [Value] FROM [" + schema + "].[" + name + "]"
-            : "SELECT COALESCE(MAX(" + RowVersioning.ColumnName + "), 0) AS \"Value\" FROM " + schema + "." + name;
+            ? "SELECT COALESCE(MAX([" + RowVersioning.ColumnName + "]), 0) AS [MaxVersion], COUNT_BIG(*) AS [RowCount] FROM [" + schema + "].[" + name + "]"
+            : "SELECT COALESCE(MAX(" + RowVersioning.ColumnName + "), 0) AS \"MaxVersion\", COUNT(*) AS \"RowCount\" FROM " + schema + "." + name;
+    }
+
+
+
+    /// <summary>
+    /// One row of <see cref="Sql"/>: the projection EF materialises from the raw query.
+    /// </summary>
+    private sealed class StampRow
+    {
+        public long MaxVersion { get; init; }
+
+        public long RowCount { get; init; }
     }
 }

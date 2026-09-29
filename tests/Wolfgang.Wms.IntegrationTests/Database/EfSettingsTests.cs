@@ -177,13 +177,13 @@ public sealed class EfSettingsTests
 
         Assert.Equal(TimeSpan.FromMinutes(20), await settings.GetAsync(LeaseTimeout, Zone10, CancellationToken.None));
         Assert.Equal("hunter2", (await settings.GetAsync(Password, SettingScopeRef.Organization, CancellationToken.None)).Value);
-        Assert.NotNull(cache.CachedVersion);
+        Assert.NotNull(cache.CachedStamp);
 
-        var before = cache.CachedVersion;
+        var before = cache.CachedStamp;
         var set = await settings.SetAsync(Level, Sku5, SettingScope.Zone, "tester", CancellationToken.None);
         Assert.Equal("Zone", set.ConfiguredValue);
         Assert.Equal("tester", set.UpdatedBy);
-        Assert.NotEqual(before, cache.CachedVersion);
+        Assert.NotEqual(before, cache.CachedStamp);
         Assert.Equal(SettingScope.Zone, await settings.GetAsync(Level, Sku5, CancellationToken.None));
         Assert.Equal(SettingScope.Site, await settings.GetAsync(Level, Site2, CancellationToken.None));
 
@@ -197,8 +197,8 @@ public sealed class EfSettingsTests
         await Assert.ThrowsAsync<ArgumentException>(() => settings.SetAsync(LeaseTimeout, Site1, TimeSpan.FromMinutes(2), " ", CancellationToken.None));
 
         var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
-        Assert.Throws<ArgumentException>(() => MaxRowVersionSource.Sql(context, "core.nothing"));
-        Assert.Contains("row_version", MaxRowVersionSource.Sql(context, SettingsCache.Table), StringComparison.Ordinal);
+        Assert.Throws<ArgumentException>(() => MaxRowVersionSource.Sql(context, typeof(string)));
+        Assert.Contains("row_version", MaxRowVersionSource.Sql(context, typeof(Setting)), StringComparison.Ordinal);
     }
 
 

@@ -20,6 +20,7 @@ public sealed class DependencyPolicyTests
         ["FluentAssertions"] = "xUnit built-in asserts only; no assertion libraries",
         ["Hangfire"] = "worker jobs are hosted services with table-backed scheduling, no job queue",
         ["MassTransit"] = "no message bus; the outbox carries side effects",
+        ["NodaTime"] = "TimeZoneInfo and DateTimeOffset are the time API (E1.14); NodaTime only with a written reason once shift math proves them inadequate",
     };
 
 

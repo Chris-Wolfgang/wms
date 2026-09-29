@@ -1,13 +1,27 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Text.Json;
+using Wolfgang.Wms.Core.Localization;
 using Wolfgang.Wms.Core.Modules;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// E1.14: source-generated DataAnnotations validation for minimal-API parameters (AOT-safe), camelCase JSON,
+// resource-file localization with the culture resolved per request.
+builder.Services.AddValidation();
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.SerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
+});
+builder.Services.AddWmsLocalization();
 
 // Modules register here explicitly (ADR 0001): services.AddPickingModule() etc. No assembly scanning.
 builder.Services.AddWmsModules();
 
 var app = builder.Build();
+
+app.UseWmsRequestLocalization();
 
 app.MapGet("/", () => "Wolfgang.Wms API");
 app.MapWmsModules();

@@ -35,15 +35,16 @@ public sealed class SettingsCache : IDisposable
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
     public SettingsCache(IRowVersionSource source, TimeProvider timeProvider)
     {
-        _cache = new VersionedCache<SettingsSnapshot>(source, [Table], PollInterval, timeProvider);
+        _cache = new VersionedCache<SettingsSnapshot>(source, [typeof(Setting)], PollInterval, timeProvider);
     }
 
 
 
     /// <summary>
-    /// The version the cached snapshot was built at, or null when nothing is cached.
+    /// The stamp (highest row version and row count) the cached snapshot was built at, or null when nothing
+    /// is cached.
     /// </summary>
-    public ulong? CachedVersion => _cache.CachedVersion;
+    public RowVersionStamp? CachedStamp => _cache.CachedStamp;
 
 
 

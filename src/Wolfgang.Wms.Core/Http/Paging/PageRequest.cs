@@ -1,13 +1,15 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Wolfgang.Wms.Core.Http.Paging;
 
 /// <summary>
 /// The paging parameters every list endpoint accepts (E82.3): a bidirectional keyset cursor (<c>after</c> or
-/// <c>before</c>, never both), a page size capped at <see cref="MaxSize"/>, and an optional id range
-/// (<c>id_from</c>/<c>id_to</c>) so parallel clients can split a table. Bind with <c>[AsParameters]</c>.
+/// <c>before</c>, never both), a sort (<c>sort</c>, one the endpoint declares in its <see cref="PageSorting"/>), a
+/// page size capped at <see cref="MaxSize"/>, and an optional id range (<c>id_from</c>/<c>id_to</c>) so parallel
+/// clients can split a table. Bind with <c>[AsParameters]</c>.
 /// </summary>
 public sealed record PageRequest
 {
@@ -38,6 +40,15 @@ public sealed record PageRequest
     /// </summary>
     [FromQuery(Name = "before")]
     public string? Before { get; init; }
+
+
+
+    /// <summary>
+    /// Requested sort: a field name for ascending, <c>-</c> plus the field for descending; the endpoint's
+    /// default when absent.
+    /// </summary>
+    [FromQuery(Name = "sort")]
+    public string? Sort { get; init; }
 
 
 
@@ -73,43 +84,52 @@ public sealed record PageRequest
 
 
     /// <summary>
-    /// Validates the combination and decodes the cursor; the error names the offending parameter so the
-    /// endpoint can answer 400 with it.
+    /// Validates the combination against the endpoint's sorts and decodes the cursor; the error names the
+    /// offending parameter so the endpoint can answer 400 with it. A cursor issued under another sort is refused,
+    /// never read as a position in this one: a client that changes the sort starts from the first page.
     /// </summary>
-    /// <param name="direction">Where to page from; <see cref="PageDirection.Forward"/> with no cursor means the first page.</param>
-    /// <param name="cursor">The decoded cursor, or the default when none was sent.</param>
+    /// <param name="sorting">The sorts the endpoint serves.</param>
+    /// <param name="query">The validated request, or null when invalid.</param>
     /// <param name="error">Why the request is invalid, or null.</param>
-    public bool TryResolve(out PageDirection direction, out Cursor cursor, out string? error)
+    public bool TryResolve(PageSorting sorting, [NotNullWhen(true)] out PageQuery? query, out string? error)
     {
-        direction = PageDirection.Forward;
-        cursor = default;
-        error = null;
+        ArgumentNullException.ThrowIfNull(sorting);
+        query = null;
 
+        error = ValidateCombination();
+        if (error is not null || !sorting.TryResolve(Sort, out var sort, out error))
+        {
+            return false;
+        }
+
+        var parameter = After is not null ? "after" : "before";
+        var text = After ?? Before;
+        var cursor = default(Cursor);
+        if (text is not null && !Cursor.TryParse(text, out cursor))
+        {
+            error = $"'{parameter}' is not a cursor this API issued.";
+            return false;
+        }
+
+        if (text is not null && !cursor.Sort.Equals(sort))
+        {
+            error = $"'{parameter}' was issued for sort '{cursor.Sort}', not '{sort}'; after changing the sort, start again from the first page.";
+            return false;
+        }
+
+        query = new PageQuery(Before is not null ? PageDirection.Backward : PageDirection.Forward, cursor, sort, EffectiveSize);
+        return true;
+    }
+
+
+
+    private string? ValidateCombination()
+    {
         if (After is not null && Before is not null)
         {
-            error = "Send either 'after' or 'before', not both.";
-            return false;
+            return "Send either 'after' or 'before', not both.";
         }
 
-        if (IdFrom is not null && IdTo is not null && IdFrom > IdTo)
-        {
-            error = "'id_from' must not exceed 'id_to'.";
-            return false;
-        }
-
-        var text = After ?? Before;
-        if (text is null)
-        {
-            return true;
-        }
-
-        if (!Cursor.TryParse(text, out cursor))
-        {
-            error = After is not null ? "'after' is not a cursor this API issued." : "'before' is not a cursor this API issued.";
-            return false;
-        }
-
-        direction = Before is not null ? PageDirection.Backward : PageDirection.Forward;
-        return true;
+        return IdFrom is not null && IdTo is not null && IdFrom > IdTo ? "'id_from' must not exceed 'id_to'." : null;
     }
 }

@@ -39,13 +39,22 @@ the key when a form opens and navigates to the created resource on success (post
 
 ## Pagination: keyset, bidirectional
 
-List endpoints take `[AsParameters] PageRequest`: `after` or `before` (opaque `Cursor`, never both), `size`
-(default 50, capped at 500), and `id_from`/`id_to` so parallel clients can split a table. They return
-`Page<T>`: `items` in the endpoint's fixed indexed sort, `next_cursor`/`previous_cursor`, the exact
-`total_count`, and `min_id`/`max_id` for the scope. Cursors are stable and may appear in shareable console
-URLs; filters always live in the URL; console grids are virtualised (scroll-loaded, `focus=<id>` centres on a
-row), no page numbers. Endpoints over unbounded tables (scan events, deposits, audit) require a time-range
-filter and answer `400` without one.
+List endpoints take `[AsParameters] PageRequest`: `after` or `before` (opaque `Cursor`, never both), `sort`,
+`size` (default 50, capped at 500), and `id_from`/`id_to` so parallel clients can split a table. They return
+`Page<T>`: `items` in the requested sort, `next_cursor`/`previous_cursor`, the exact `total_count`, and
+`min_id`/`max_id` for the scope. Cursors are stable and may appear in shareable console URLs; filters and the
+sort always live in the URL; console grids are virtualised (scroll-loaded, `focus=<id>` centres on a row), no
+page numbers. Endpoints over unbounded tables (scan events, deposits, audit) require a time-range filter and
+answer `400` without one.
+
+**Sorting.** `sort` names one field, ascending (`sort=created_at`) or descending with a leading `-`
+(`sort=-created_at`); the row id is always the tiebreaker, so the order is total. Each endpoint declares the
+fields it sorts on and its default in a `PageSorting`; every sortable field needs an index ending with the id,
+so columns are sortable by opt-in, and an undeclared or malformed `sort` answers `400` listing the choices.
+`after`/`before` are the paging direction and are independent of the sort direction (`PageQuery.SeeksGreater`
+gives the keyset comparison for the four combinations). A cursor records the sort it was issued under and is
+refused (`400`) under any other: when the user re-sorts a grid, the console drops the cursor and loads the first
+page of the new sort instead of reading a wrong page.
 
 ## Compression
 

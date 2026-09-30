@@ -167,8 +167,9 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
   delete/body-less; 409 for an `If-Match` miss, 422 for an `Idempotency-Key` reused with a different body.
 - `POST`/`PATCH` handlers honour `Idempotency-Key` (`IdempotencyKey`, `IIdempotencyStore`, `IdempotencyRules.Decide`)
   inside their transaction; the console generates the key when a form opens.
-- Lists take `[AsParameters] PageRequest` and return `Page<T>` (keyset, bidirectional `Cursor`, exact
-  `total_count`, `min_id`/`max_id`); unbounded tables require a time-range filter.
+- Lists take `[AsParameters] PageRequest`, resolve it against the endpoint's `PageSorting` (the fields it sorts
+  on, each backed by an index ending with the id) and return `Page<T>` (keyset, bidirectional `Cursor` bound to
+  its sort, exact `total_count`, `min_id`/`max_id`); unbounded tables require a time-range filter.
 - Compression is on for JSON/XML/text (`WmsCompression`); authentication endpoints call
   `.DisableResponseCompression()`.
 

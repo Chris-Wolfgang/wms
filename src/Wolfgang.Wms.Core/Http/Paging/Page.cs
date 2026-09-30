@@ -7,7 +7,7 @@ namespace Wolfgang.Wms.Core.Http.Paging;
 /// total in scope, and the id bounds so a parallel client can split the range with <c>id_from</c>/<c>id_to</c>.
 /// </summary>
 /// <typeparam name="TItem">The API record the endpoint projects to.</typeparam>
-/// <param name="Items">The page, in the endpoint's fixed sort.</param>
+/// <param name="Items">The page, in the requested sort (<see cref="PageQuery.Sort"/>).</param>
 /// <param name="NextCursor">Cursor for the page after this one (<c>after=</c>), or null on the last page.</param>
 /// <param name="PreviousCursor">Cursor for the page before this one (<c>before=</c>), or null on the first page.</param>
 /// <param name="TotalCount">Exact number of rows matching the filters in scope, not just this page.</param>

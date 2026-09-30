@@ -70,6 +70,16 @@ public sealed class IdempotencyTests
 
 
     [Fact]
+    public void Decide_proceeds_for_an_expired_record_even_when_the_body_differs()
+    {
+        var record = CreateRecord("f1", Now - IdempotencyRules.Retention);
+
+        Assert.Equal(IdempotencyDecision.Proceed, IdempotencyRules.Decide(record, "f2", Now));
+    }
+
+
+
+    [Fact]
     public void Decide_replays_a_matching_body_and_conflicts_on_a_different_one()
     {
         var record = CreateRecord("f1", Now - TimeSpan.FromHours(23));

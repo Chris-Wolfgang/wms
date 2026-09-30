@@ -17,8 +17,10 @@ public interface IIdempotencyStore
 
 
     /// <summary>
-    /// Stores the record for the completed request. Storing a second record for the same caller and key is an
-    /// error; callers check with <see cref="FindAsync"/> first, inside the same transaction.
+    /// Stores the record for the completed request. Storing a second record while an unexpired one exists for the
+    /// same caller and key is an error; callers check with <see cref="FindAsync"/> first, inside the same
+    /// transaction. An expired record for that caller and key that the purge job has not removed yet is replaced:
+    /// after <see cref="IdempotencyRules.Retention"/> the key is forgotten and a retry runs as a new request.
     /// </summary>
     Task SaveAsync(IdempotencyRecord record, CancellationToken cancellationToken);
 }

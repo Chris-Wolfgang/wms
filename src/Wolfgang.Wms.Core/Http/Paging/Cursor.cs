@@ -44,12 +44,9 @@ public readonly record struct Cursor
             throw new ArgumentException("A cursor needs at least one key.", nameof(keys));
         }
 
-        foreach (var key in keys)
+        if (keys.Any(key => key is null || key.Contains(Separator, StringComparison.Ordinal)))
         {
-            if (key is null || key.Contains(Separator, StringComparison.Ordinal))
-            {
-                throw new ArgumentException("A cursor key cannot be null or contain '|'.", nameof(keys));
-            }
+            throw new ArgumentException("A cursor key cannot be null or contain '|'.", nameof(keys));
         }
 
         return new Cursor(keys);

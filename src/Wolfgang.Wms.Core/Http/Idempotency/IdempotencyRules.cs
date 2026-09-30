@@ -9,7 +9,7 @@ namespace Wolfgang.Wms.Core.Http.Idempotency;
 /// one definition: bodies are compared by fingerprint, records live 24 hours, and the decision for a repeat is
 /// replay, conflict or proceed.
 /// </summary>
-public static class Idempotency
+public static class IdempotencyRules
 {
     /// <summary>
     /// How long a record is honoured after it is stored.

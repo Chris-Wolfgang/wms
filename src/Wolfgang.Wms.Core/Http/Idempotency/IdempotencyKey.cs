@@ -49,12 +49,9 @@ public readonly record struct IdempotencyKey
             return false;
         }
 
-        foreach (var c in headerValue)
+        if (headerValue.Any(c => c is < '!' or > '~'))
         {
-            if (c is < '!' or > '~')
-            {
-                return false;
-            }
+            return false;
         }
 
         key = new IdempotencyKey(headerValue);

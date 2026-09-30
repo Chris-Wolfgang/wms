@@ -46,12 +46,12 @@ public sealed class IdempotencyTests
         Assert.Equal
         (
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            Idempotency.Fingerprint(ReadOnlySpan<byte>.Empty)
+            IdempotencyRules.Fingerprint(ReadOnlySpan<byte>.Empty)
         );
         Assert.Equal
         (
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-            Idempotency.Fingerprint(Encoding.UTF8.GetBytes("abc"))
+            IdempotencyRules.Fingerprint(Encoding.UTF8.GetBytes("abc"))
         );
     }
 
@@ -60,10 +60,10 @@ public sealed class IdempotencyTests
     [Fact]
     public void Decide_proceeds_when_nothing_is_stored_or_the_record_expired()
     {
-        var record = CreateRecord("f1", Now - Idempotency.Retention);
+        var record = CreateRecord("f1", Now - IdempotencyRules.Retention);
 
-        Assert.Equal(IdempotencyDecision.Proceed, Idempotency.Decide(null, "f1", Now));
-        Assert.Equal(IdempotencyDecision.Proceed, Idempotency.Decide(record, "f1", Now));
+        Assert.Equal(IdempotencyDecision.Proceed, IdempotencyRules.Decide(null, "f1", Now));
+        Assert.Equal(IdempotencyDecision.Proceed, IdempotencyRules.Decide(record, "f1", Now));
         Assert.True(record.IsExpired(Now));
     }
 
@@ -74,8 +74,8 @@ public sealed class IdempotencyTests
     {
         var record = CreateRecord("f1", Now - TimeSpan.FromHours(23));
 
-        Assert.Equal(IdempotencyDecision.Replay, Idempotency.Decide(record, "f1", Now));
-        Assert.Equal(IdempotencyDecision.Conflict, Idempotency.Decide(record, "f2", Now));
+        Assert.Equal(IdempotencyDecision.Replay, IdempotencyRules.Decide(record, "f1", Now));
+        Assert.Equal(IdempotencyDecision.Conflict, IdempotencyRules.Decide(record, "f2", Now));
         Assert.False(record.IsExpired(Now));
     }
 
@@ -84,7 +84,7 @@ public sealed class IdempotencyTests
     [Fact]
     public void Decide_and_the_record_require_a_caller_and_a_fingerprint()
     {
-        Assert.Throws<ArgumentException>(() => Idempotency.Decide(null, " ", Now));
+        Assert.Throws<ArgumentException>(() => IdempotencyRules.Decide(null, " ", Now));
         Assert.Throws<ArgumentException>(() => CreateRecord(" ", Now));
         Assert.Throws<ArgumentException>(() => new IdempotencyRecord(" ", Key("k"), "f", 200, null, null, Now));
     }
@@ -101,7 +101,7 @@ public sealed class IdempotencyTests
         Assert.Equal(201, record.StatusCode);
         Assert.Equal("application/json", record.ContentType);
         Assert.Equal([1, 2, 3], record.Body);
-        Assert.Equal(TimeSpan.FromHours(24), Idempotency.Retention);
+        Assert.Equal(TimeSpan.FromHours(24), IdempotencyRules.Retention);
     }
 
 

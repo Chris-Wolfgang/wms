@@ -53,7 +53,7 @@ public sealed class PagingTests
     public void Cursor_For_rejects_no_keys_null_keys_and_the_separator()
     {
         Assert.Throws<ArgumentException>(() => Cursor.For());
-        Assert.Throws<ArgumentException>(() => Cursor.For(new string[] { null! }));
+        Assert.Throws<ArgumentException>(() => Cursor.For((string)null!));
         Assert.Throws<ArgumentException>(() => Cursor.For("a|b"));
         Assert.Throws<ArgumentNullException>(() => Cursor.For((string[])null!));
     }

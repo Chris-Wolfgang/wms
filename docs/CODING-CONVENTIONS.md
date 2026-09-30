@@ -165,7 +165,7 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
 - Errors are `ApiProblems.Problem(code, …)` from a typed `ErrorCode`; never `Results.BadRequest("text")`.
 - Status codes: 200 read/update/replay, 201 + `Location` + body create (never 3xx), 202 outbox work, 204
   delete/body-less; 409 for an `If-Match` miss, 422 for an `Idempotency-Key` reused with a different body.
-- `POST`/`PATCH` handlers honour `Idempotency-Key` (`IdempotencyKey`, `IIdempotencyStore`, `Idempotency.Decide`)
+- `POST`/`PATCH` handlers honour `Idempotency-Key` (`IdempotencyKey`, `IIdempotencyStore`, `IdempotencyRules.Decide`)
   inside their transaction; the console generates the key when a form opens.
 - Lists take `[AsParameters] PageRequest` and return `Page<T>` (keyset, bidirectional `Cursor`, exact
   `total_count`, `min_id`/`max_id`); unbounded tables require a time-range filter.

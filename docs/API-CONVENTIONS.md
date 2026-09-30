@@ -27,13 +27,15 @@ message; they pick a code, and the catalog of codes is generated from the defini
 
 ## Idempotency
 
-`POST` and `PATCH` accept an optional `Idempotency-Key` header (1–128 visible ASCII characters,
+`POST` and `PATCH` accept an optional `Idempotency-Key` header (16–128 visible ASCII characters,
 `IdempotencyKey`). The API stores, per caller and key for 24 hours (`IdempotencyRules.Retention`), the SHA-256
 fingerprint of the accepted body and the response it sent (`IdempotencyRecord`, `IIdempotencyStore`). A retry
 with the same key and body gets the stored response again; the same key with a different body gets `422`
 (`IdempotencyRules.Decide`). The check runs inside the handler's transaction so a race cannot create two side
-effects. The console generates the key when a form opens and navigates to the created resource on success
-(post-redirect-get); updates send `If-Match` with the `ETag` they read.
+effects. After 24 hours the key is forgotten: a retry with it, whatever its body, is processed as a new
+request (and can create a second resource), and its record replaces the expired one. The console generates
+the key when a form opens and navigates to the created resource on success (post-redirect-get); updates send
+`If-Match` with the `ETag` they read.
 
 ## Pagination: keyset, bidirectional
 

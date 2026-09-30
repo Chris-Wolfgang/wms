@@ -15,9 +15,9 @@ public sealed class PagingTests
 
 
     [Fact]
-    public void Cursor_round_trips_its_sort_and_keys_through_an_opaque_url_safe_string()
+    public void Cursor_round_trips_its_sort_value_and_id_through_an_opaque_url_safe_string()
     {
-        var cursor = Cursor.For(NewestFirst, "2026-09-19T12:00:00Z", "42");
+        var cursor = Cursor.For(NewestFirst, "2026-09-19T12:00:00Z", 42);
 
         var encoded = cursor.Encode();
         var parsed = Cursor.TryParse(encoded, out var back);
@@ -25,8 +25,11 @@ public sealed class PagingTests
         Assert.True(parsed);
         Assert.Equal(cursor, back);
         Assert.Equal(NewestFirst, back.Sort);
-        Assert.Equal(["2026-09-19T12:00:00Z", "42"], back.Keys);
+        Assert.Equal("2026-09-19T12:00:00Z", back.Value);
+        Assert.Equal(42, back.Id);
+        Assert.False(back.IsEmpty);
         Assert.Equal(encoded, cursor.ToString());
+        Assert.Equal("-created_at|2026-09-19T12:00:00Z|42", Decode(encoded));
         Assert.DoesNotContain('+', encoded);
         Assert.DoesNotContain('/', encoded);
         Assert.DoesNotContain('=', encoded);
@@ -35,12 +38,17 @@ public sealed class PagingTests
 
 
     [Fact]
-    public void Cursor_for_an_id_uses_the_invariant_representation()
+    public void Cursor_for_a_sort_on_the_id_holds_only_the_id()
     {
         var cursor = Cursor.For(ById, 1234567890123);
 
-        Assert.Equal(["1234567890123"], cursor.Keys);
-        Assert.Equal(ById, cursor.Sort);
+        Assert.True(Cursor.TryParse(cursor.Encode(), out var back));
+        Assert.Equal(cursor, back);
+        Assert.Null(back.Value);
+        Assert.Equal(1234567890123, back.Id);
+        Assert.Equal(ById, back.Sort);
+        Assert.Equal("id|1234567890123", Decode(cursor.Encode()));
+        Assert.Equal("id", Cursor.IdField);
     }
 
 
@@ -56,48 +64,63 @@ public sealed class PagingTests
         var parsed = Cursor.TryParse(text, out var cursor);
 
         Assert.False(parsed);
-        Assert.Empty(cursor.Keys);
+        Assert.True(cursor.IsEmpty);
     }
 
 
 
     [Theory]
     [InlineData("42")]
-    [InlineData("Created_At|42")]
+    [InlineData("Created_At|v|42")]
     [InlineData("-|42")]
     [InlineData("id|")]
-    [InlineData("id|4\u00012")]
-    public void Cursor_TryParse_rejects_a_payload_without_a_valid_sort_and_keys(string payload)
+    [InlineData("id|-1")]
+    [InlineData("id|+1")]
+    [InlineData("id| 1")]
+    [InlineData("id|x")]
+    [InlineData("id|1|2")]
+    [InlineData("created_at|42")]
+    [InlineData("created_at|v|w|42")]
+    [InlineData("created_at||42")]
+    [InlineData("created_at|v\u0001|42")]
+    [InlineData("created_at|v|")]
+    [InlineData("created_at|v|9223372036854775808")]
+    public void Cursor_TryParse_rejects_a_payload_whose_shape_does_not_match_its_sort(string payload)
     {
-        var text = System.Buffers.Text.Base64Url.EncodeToString(System.Text.Encoding.UTF8.GetBytes(payload));
-
-        Assert.False(Cursor.TryParse(text, out _));
+        Assert.False(Cursor.TryParse(Encode(payload), out _));
     }
 
 
 
     [Fact]
-    public void Cursor_For_rejects_no_sort_no_keys_null_keys_and_the_separator()
+    public void Cursor_For_rejects_no_sort_the_wrong_overload_bad_values_and_negative_ids()
     {
-        Assert.Equal("sort", Assert.Throws<ArgumentException>(() => Cursor.For(default, "1")).ParamName);
-        Assert.Equal("keys", Assert.Throws<ArgumentException>(() => Cursor.For(ById)).ParamName);
-        Assert.Equal("keys", Assert.Throws<ArgumentException>(() => Cursor.For(ById, (string)null!)).ParamName);
-        Assert.Equal("keys", Assert.Throws<ArgumentException>(() => Cursor.For(ById, "a|b")).ParamName);
-        Assert.Throws<ArgumentNullException>(() => Cursor.For(ById, (string[])null!));
+        Assert.Equal("sort", Assert.Throws<ArgumentException>(() => Cursor.For(default, "v", 1)).ParamName);
+        Assert.Equal("sort", Assert.Throws<ArgumentException>(() => Cursor.For(default, 1)).ParamName);
+        Assert.Equal("sort", Assert.Throws<ArgumentException>(() => Cursor.For(ById, "v", 1)).ParamName);
+        Assert.Equal("sort", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, 1)).ParamName);
+        Assert.Equal("value", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, null!, 1)).ParamName);
+        Assert.Equal("value", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, string.Empty, 1)).ParamName);
+        Assert.Equal("value", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, "a|b", 1)).ParamName);
+        Assert.Equal("value", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, "a\u0001", 1)).ParamName);
+        Assert.Equal("id", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, "v", -1)).ParamName);
+        Assert.Equal("id", Assert.Throws<ArgumentException>(() => Cursor.For(ById, -1)).ParamName);
     }
 
 
 
     [Fact]
-    public void Cursor_equality_is_by_sort_and_keys_and_the_default_cursor_is_empty()
+    public void Cursor_equality_is_by_sort_value_and_id_and_the_default_cursor_is_empty()
     {
-        Assert.Equal(Cursor.For(ById, "1"), Cursor.For(ById, "1"));
-        Assert.NotEqual(Cursor.For(ById, "1"), Cursor.For(ById, "2"));
-        Assert.NotEqual(Cursor.For(SortOrder.Ascending("id"), "1"), Cursor.For(SortOrder.Descending("id"), "1"));
-        Assert.Equal(Cursor.For(ById, "1").GetHashCode(), Cursor.For(ById, "1").GetHashCode());
+        Assert.Equal(Cursor.For(NewestFirst, "v", 1), Cursor.For(NewestFirst, "v", 1));
+        Assert.NotEqual(Cursor.For(NewestFirst, "v", 1), Cursor.For(NewestFirst, "v", 2));
+        Assert.NotEqual(Cursor.For(NewestFirst, "v", 1), Cursor.For(NewestFirst, "w", 1));
+        Assert.NotEqual(Cursor.For(SortOrder.Ascending("id"), 1), Cursor.For(SortOrder.Descending("id"), 1));
+        Assert.Equal(Cursor.For(NewestFirst, "v", 1).GetHashCode(), Cursor.For(NewestFirst, "v", 1).GetHashCode());
         Assert.Equal(default, default(Cursor));
         Assert.Equal(string.Empty, default(Cursor).Encode());
-        Assert.Empty(default(Cursor).Keys);
+        Assert.True(default(Cursor).IsEmpty);
+        Assert.Null(default(Cursor).Value);
     }
 
 
@@ -243,14 +266,14 @@ public sealed class PagingTests
     [Fact]
     public void PageRequest_resolves_after_as_forward_and_before_as_backward_in_the_cursor_sort()
     {
-        var encoded = Cursor.For(SortOrder.Ascending("sku"), "A-100", "7").Encode();
+        var encoded = Cursor.For(SortOrder.Ascending("sku"), "A-100", 7).Encode();
 
         Assert.True(new PageRequest { After = encoded, Sort = "sku" }.TryResolve(Sorting, out var forward, out _));
         Assert.True(new PageRequest { Before = encoded, Sort = "sku" }.TryResolve(Sorting, out var backward, out _));
 
         Assert.Equal(PageDirection.Forward, forward.Direction);
         Assert.Equal(PageDirection.Backward, backward.Direction);
-        Assert.Equal(["A-100", "7"], forward.Cursor.Keys);
+        Assert.Equal(("A-100", 7L), (forward.Cursor.Value, forward.Cursor.Id));
         Assert.False(forward.IsFirstPage);
         Assert.Equal(SortOrder.Ascending("sku"), backward.Sort);
     }
@@ -260,7 +283,7 @@ public sealed class PagingTests
     [Fact]
     public void PageRequest_refuses_a_cursor_issued_under_another_sort()
     {
-        var newestFirstCursor = Cursor.For(NewestFirst, "2026-09-19T12:00:00Z", "42").Encode();
+        var newestFirstCursor = Cursor.For(NewestFirst, "2026-09-19T12:00:00Z", 42).Encode();
 
         Assert.False(new PageRequest { After = newestFirstCursor, Sort = "created_at" }.TryResolve(Sorting, out var flipped, out var flippedError));
         Assert.False(new PageRequest { Before = newestFirstCursor, Sort = "sku" }.TryResolve(Sorting, out _, out var otherFieldError));
@@ -276,7 +299,7 @@ public sealed class PagingTests
     [Fact]
     public void PageRequest_rejects_both_cursors_an_inverted_id_range_a_foreign_cursor_and_an_unknown_sort()
     {
-        var encoded = Cursor.For(NewestFirst, "2026-09-19T12:00:00Z", "7").Encode();
+        var encoded = Cursor.For(NewestFirst, "2026-09-19T12:00:00Z", 7).Encode();
 
         Assert.False(new PageRequest { After = encoded, Before = encoded }.TryResolve(Sorting, out _, out var both));
         Assert.False(new PageRequest { IdFrom = 10, IdTo = 5 }.TryResolve(Sorting, out _, out var range));
@@ -333,5 +356,19 @@ public sealed class PagingTests
         Assert.Equal(0, empty.TotalCount);
         Assert.Throws<ArgumentNullException>(() => new Page<string>(Items: null!, NextCursor: null, PreviousCursor: null, TotalCount: 0, MinId: null, MaxId: null));
         Assert.Throws<ArgumentOutOfRangeException>(() => new Page<string>(Items: [], NextCursor: null, PreviousCursor: null, TotalCount: -1, MinId: null, MaxId: null));
+    }
+
+
+
+    private static string Encode(string payload)
+    {
+        return System.Buffers.Text.Base64Url.EncodeToString(System.Text.Encoding.UTF8.GetBytes(payload));
+    }
+
+
+
+    private static string Decode(string encoded)
+    {
+        return System.Text.Encoding.UTF8.GetString(System.Buffers.Text.Base64Url.DecodeFromChars(encoded));
     }
 }

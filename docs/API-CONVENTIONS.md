@@ -48,13 +48,15 @@ page numbers. Endpoints over unbounded tables (scan events, deposits, audit) req
 answer `400` without one.
 
 **Sorting.** `sort` names one field, ascending (`sort=created_at`) or descending with a leading `-`
-(`sort=-created_at`); the row id is always the tiebreaker, so the order is total. Each endpoint declares the
-fields it sorts on and its default in a `PageSorting`; every sortable field needs an index ending with the id,
-so columns are sortable by opt-in, and an undeclared or malformed `sort` answers `400` listing the choices.
-`after`/`before` are the paging direction and are independent of the sort direction (`PageQuery.SeeksGreater`
-gives the keyset comparison for the four combinations). A cursor records the sort it was issued under and is
-refused (`400`) under any other: when the user re-sorts a grid, the console drops the cursor and loads the first
-page of the new sort instead of reading a wrong page.
+(`sort=-created_at`); the row id is always the tiebreaker, in the same direction, so the order is total and
+a position is one `(value, id)` pair read from one index. Sorting on several columns at once is not
+supported: a cursor holds exactly the sorted field's value and the id (only the id for `sort=id`). Each
+endpoint declares the fields it sorts on and its default in a `PageSorting`; every sortable field needs an
+index ending with the id, so columns are sortable by opt-in, and an undeclared or malformed `sort` answers
+`400` listing the choices. `after`/`before` are the paging direction and are independent of the sort
+direction (`PageQuery.SeeksGreater` gives the keyset comparison for the four combinations). A cursor records
+the sort it was issued under and is refused (`400`) under any other: when the user re-sorts a grid, the
+console drops the cursor and loads the first page of the new sort instead of reading a wrong page.
 
 ## Compression
 

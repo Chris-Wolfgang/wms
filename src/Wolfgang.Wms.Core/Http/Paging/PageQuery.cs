@@ -15,12 +15,13 @@ public sealed record PageQuery(PageDirection Direction, Cursor Cursor, SortOrder
     /// <summary>
     /// True when the request starts at the beginning of the sort (no cursor).
     /// </summary>
-    public bool IsFirstPage => Cursor.Keys.Count == 0;
+    public bool IsFirstPage => Cursor.IsEmpty;
 
 
 
     /// <summary>
-    /// The keyset comparison against the cursor's key values: true for <c>&gt;</c>, false for <c>&lt;</c>. Reading
+    /// The keyset comparison of the row's <c>(value, id)</c> against the cursor's <see cref="Cursor.Value"/> and
+    /// <see cref="Cursor.Id"/> (the id alone for a sort on the id): true for <c>&gt;</c>, false for <c>&lt;</c>. Reading
     /// forward in an ascending sort, or backward in a descending one, seeks greater values; the other two
     /// combinations seek smaller ones. A backward read takes the rows nearest the cursor, then reverses them so the
     /// page is still in the requested sort.

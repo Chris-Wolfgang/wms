@@ -8,22 +8,29 @@ namespace Wolfgang.Wms.Core.Http.Paging;
 
 /// <summary>
 /// An opaque, stable keyset cursor (E82.3): the position of a row in one sort of an endpoint's list. Encoded as
-/// URL-safe base64 so it can live in a shareable console URL; decoded only by the endpoint that issued it. The
-/// payload is the sort it was issued under followed by the sort key value(s), joined by <c>|</c>, never a page
-/// number. A cursor only means something in its own sort: <see cref="PageRequest.TryResolve"/> refuses it under
-/// another, so a grid re-sorted by the user starts again from the first page instead of reading a wrong one.
+/// URL-safe base64 so it can live in a shareable console URL; decoded only by the endpoint that issued it. A
+/// sort is one field in one direction, and the row id breaks ties in that same direction, so a position is the
+/// sorted field's <see cref="Value"/> and the row's <see cref="Id"/> (only the id when the sort is on
+/// <see cref="IdField"/> itself). The payload is <c>sort|value|id</c> or <c>sort|id</c>, never a page number. A
+/// cursor only means something in its own sort: <see cref="PageRequest.TryResolve"/> refuses it under another,
+/// so a grid re-sorted by the user starts again from the first page instead of reading a wrong one.
 /// </summary>
 public readonly record struct Cursor
 {
+    /// <summary>
+    /// The row id field: the tiebreaker of every sort, and a sort of its own.
+    /// </summary>
+    public const string IdField = "id";
+
     private const char Separator = '|';
-    private readonly IReadOnlyList<string>? _keys;
 
 
 
-    private Cursor(SortOrder sort, IReadOnlyList<string> keys)
+    private Cursor(SortOrder sort, string? value, long id)
     {
         Sort = sort;
-        _keys = keys;
+        Value = value;
+        Id = id;
     }
 
 
@@ -36,54 +43,74 @@ public readonly record struct Cursor
 
 
     /// <summary>
-    /// The sort key values the cursor points at, in <see cref="Sort"/> order (the sorted field, then the id as
-    /// tiebreaker); empty for the default cursor.
+    /// The sorted field's value at the position, in the field's invariant text form; null when the sort is on
+    /// <see cref="IdField"/> and for the default cursor.
     /// </summary>
-    public IReadOnlyList<string> Keys => _keys ?? [];
+    public string? Value { get; }
 
 
 
     /// <summary>
-    /// A cursor for a position in <paramref name="sort"/> given by its sort key values (the sorted field's value,
-    /// then the id as tiebreaker).
+    /// The row id at the position: the tiebreaker, ordered in the same direction as <see cref="Sort"/>.
     /// </summary>
-    /// <exception cref="ArgumentException">The sort is unset, there are no keys, or a key is null or contains the separator.</exception>
-    public static Cursor For(SortOrder sort, params string[] keys)
+    public long Id { get; }
+
+
+
+    /// <summary>
+    /// True for the default cursor, which points at no row (the first page).
+    /// </summary>
+    public bool IsEmpty => Sort.Field is null;
+
+
+
+    /// <summary>
+    /// A cursor for a position in a sort on a field other than <see cref="IdField"/>: that field's value and the
+    /// row id as tiebreaker.
+    /// </summary>
+    /// <exception cref="ArgumentException">The sort is unset or is on <see cref="IdField"/>; the value is empty or
+    /// contains the separator or a control character; the id is negative.</exception>
+    public static Cursor For(SortOrder sort, string value, long id)
     {
-        ArgumentNullException.ThrowIfNull(keys);
-        if (sort.Field is null)
+        RequireSort(sort);
+        if (IsIdSort(sort))
         {
-            throw new ArgumentException("A cursor needs the sort it was issued under.", nameof(sort));
+            throw new ArgumentException($"A sort on '{IdField}' has no separate value; use For(sort, id).", nameof(sort));
         }
 
-        if (keys.Length == 0)
+        if (!IsValue(value))
         {
-            throw new ArgumentException("A cursor needs at least one key.", nameof(keys));
+            throw new ArgumentException("A cursor value cannot be empty or contain '|' or control characters.", nameof(value));
         }
 
-        if (keys.Any(key => key is null || key.Contains(Separator, StringComparison.Ordinal)))
-        {
-            throw new ArgumentException("A cursor key cannot be null or contain '|'.", nameof(keys));
-        }
-
-        return new Cursor(sort, keys);
+        RequireId(id);
+        return new Cursor(sort, value, id);
     }
 
 
 
     /// <summary>
-    /// A cursor for a position in <paramref name="sort"/> given by a numeric id (a sort on the id itself).
+    /// A cursor for a position in a sort on <see cref="IdField"/> itself.
     /// </summary>
-    /// <exception cref="ArgumentException">The sort is unset.</exception>
+    /// <exception cref="ArgumentException">The sort is unset or is on another field; the id is negative.</exception>
     public static Cursor For(SortOrder sort, long id)
     {
-        return For(sort, id.ToString(CultureInfo.InvariantCulture));
+        RequireSort(sort);
+        if (!IsIdSort(sort))
+        {
+            throw new ArgumentException($"A sort on '{sort.Field}' needs the field's value; use For(sort, value, id).", nameof(sort));
+        }
+
+        RequireId(id);
+        return new Cursor(sort, value: null, id);
     }
 
 
 
     /// <summary>
-    /// Decodes a cursor received from a client; false when the text is not one this API issued.
+    /// Decodes a cursor received from a client; false when the text is not one this API issued: not base64url, an
+    /// invalid sort, the wrong number of segments for the sort, an empty or control-character value, or an id that
+    /// is not a non-negative integer.
     /// </summary>
     public static bool TryParse(string? text, out Cursor cursor)
     {
@@ -94,18 +121,19 @@ public readonly record struct Cursor
         }
 
         var segments = Encoding.UTF8.GetString(Base64Url.DecodeFromChars(text)).Split(Separator);
-        if (segments.Length < 2 || !SortOrder.TryParse(segments[0], out var sort))
+        if (!SortOrder.TryParse(segments[0], out var sort) || segments.Length != (IsIdSort(sort) ? 2 : 3))
         {
             return false;
         }
 
-        var keys = segments[1..];
-        if (keys.Any(key => key.Length == 0 || key.Any(char.IsControl)))
+        var value = segments.Length == 3 ? segments[1] : null;
+        if ((value is not null && !IsValue(value))
+            || !long.TryParse(segments[^1], NumberStyles.None, CultureInfo.InvariantCulture, out var id))
         {
             return false;
         }
 
-        cursor = new Cursor(sort, keys);
+        cursor = new Cursor(sort, value, id);
         return true;
     }
 
@@ -117,9 +145,16 @@ public readonly record struct Cursor
     /// </summary>
     public string Encode()
     {
-        return _keys is null
-            ? string.Empty
-            : Base64Url.EncodeToString(Encoding.UTF8.GetBytes(Sort.ToString() + Separator + string.Join(Separator, _keys)));
+        if (IsEmpty)
+        {
+            return string.Empty;
+        }
+
+        var id = Id.ToString(CultureInfo.InvariantCulture);
+        var payload = Value is null
+            ? $"{Sort}{Separator}{id}"
+            : $"{Sort}{Separator}{Value}{Separator}{id}";
+        return Base64Url.EncodeToString(Encoding.UTF8.GetBytes(payload));
     }
 
 
@@ -132,24 +167,37 @@ public readonly record struct Cursor
 
 
 
-    /// <inheritdoc/>
-    public bool Equals(Cursor other)
+    private static bool IsIdSort(SortOrder sort)
     {
-        return Sort.Equals(other.Sort) && Keys.SequenceEqual(other.Keys, StringComparer.Ordinal);
+        return string.Equals(sort.Field, IdField, StringComparison.Ordinal);
     }
 
 
 
-    /// <inheritdoc/>
-    public override int GetHashCode()
+    private static bool IsValue(string? value)
     {
-        var hash = new HashCode();
-        hash.Add(Sort);
-        foreach (var key in Keys)
-        {
-            hash.Add(key, StringComparer.Ordinal);
-        }
+        return !string.IsNullOrEmpty(value)
+            && !value.Contains(Separator, StringComparison.Ordinal)
+            && !value.Any(char.IsControl);
+    }
 
-        return hash.ToHashCode();
+
+
+    private static void RequireSort(SortOrder sort)
+    {
+        if (sort.Field is null)
+        {
+            throw new ArgumentException("A cursor needs the sort it was issued under.", nameof(sort));
+        }
+    }
+
+
+
+    private static void RequireId(long id)
+    {
+        if (id < 0)
+        {
+            throw new ArgumentException("A row id cannot be negative.", nameof(id));
+        }
     }
 }

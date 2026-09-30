@@ -27,7 +27,7 @@ message; they pick a code, and the catalog of codes is generated from the defini
 
 ## Idempotency
 
-`POST` and `PATCH` accept an optional `Idempotency-Key` header (1–128 visible ASCII characters,
+`POST` and `PATCH` accept an optional `Idempotency-Key` header (16–128 visible ASCII characters,
 `IdempotencyKey`). The API stores, per caller and key for 24 hours (`IdempotencyRules.Retention`), the SHA-256
 fingerprint of the accepted body and the response it sent (`IdempotencyRecord`, `IIdempotencyStore`). A retry
 with the same key and body gets the stored response again; the same key with a different body gets `422`

@@ -117,6 +117,7 @@ public sealed class ConsoleHostTests : IClassFixture<WebApplicationFactory<App>>
 
         Assert.Contains("class=\"scan-listener\"", html, StringComparison.Ordinal);
         Assert.Contains("aria-label=\"Scan\"", html, StringComparison.Ordinal);
+        Assert.Matches("<input class=\"scan-listener\"[^>]* autofocus[ =/>]", html);
     }
 
 

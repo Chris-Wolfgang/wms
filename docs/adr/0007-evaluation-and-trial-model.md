@@ -1,6 +1,6 @@
-# ADR 0007: Evaluation and trial model — Free floor, trial keys, local trial first, database-per-visitor sandbox
+# ADR 0007: Evaluation and trial model — Free floor, trial keys, local trial first, install-per-visitor sandbox
 
-**Status:** Accepted (design discussion 2026-09-22) · **Date:** 2026-09-22 · **Amends:** ADR 0002 (hosted model)
+**Status:** Accepted (design discussion 2026-09-22; sandbox topology 2026-10-01) · **Date:** 2026-09-22 · **Related:** ADR 0002 (single tenant per install)
 
 ## Context
 
@@ -93,25 +93,27 @@ own box with their scanners on their network. What that requires, all of it prod
   a build flavour. Distribution: Play listing plus the APK attached to the GitHub release. The app checks
   the server's minimum version (E82.7) and says "update the app" plainly.
 
-### 5. The cloud sandbox is one process, one database per visitor — never a `tenant_id`
+### 5. The cloud sandbox is one ordinary install per visitor — never a shared process or a `tenant_id`
 
-For prospects who want to look before involving IT, a hosted sandbox provisions **one database per
-visitor** on a shared machine served by **one process**. The schema is exactly the product schema: no
-`tenant_id`, site scoping unchanged, users, devices and the license inside the visitor's database. The
-host resolves the database before anything else runs, from the subdomain (`v7k3.demo.<host>`) or the
-pairing code a device was given. What this needs in the product, and only this:
+For prospects who want to look before involving IT, a hosted sandbox gives **each visitor their own
+install**: one process (container) and one database, exactly as a customer would run it (decided
+2026-10-01). Nothing in the product knows other sandboxes exist: the schema is the product schema (no
+`tenant_id`, site scoping unchanged), users, devices and the license live in the visitor's database, and
+caches, background jobs, Data Protection keys and sessions are per process as they are for every customer.
+The product therefore needs **no** database resolver, per-database caches, per-database worker loops or a
+catalogue of visitor databases; the isolation problems a shared process would raise (sessions crossing
+databases, routing devices by token, process-wide settings and license state) do not arise.
 
-- A **database resolver seam** in Infrastructure: host name or pairing token → connection string, read by
-  the `DbContext` factory per request. Single-tenant installs resolve to one fixed connection; the product
-  path does not change.
-- **Per-database instances** of every per-instance cache (`VersionedCache<T>`, ADR 0003); a process-wide
-  cache is a bug in a multi-database host.
-- **Worker jobs iterate databases** (lease expiry, outbox, rollups): same code, outer loop.
-- **Provisioning is a script**, not a feature: create database, migrate, seed the demo warehouse, issue an
-  Enterprise trial key with a short clock, return the subdomain and pairing QR. At trial expiry the sandbox
-  reverts to Free and parks like any install, and is deleted after the retention period (decision 2).
-  A cost cap and abuse controls (rate limits, one sandbox per requester) live in the provisioning layer.
-  Release-time migrations run across every live visitor database.
+- **Provisioning is a script**, not a feature: start a container and create its database from the
+  release image, migrate, seed the demo warehouse, issue an Enterprise trial key with a short clock,
+  and return the visitor's subdomain (`v7k3.demo.<host>`, routed by the hosting proxy to that container)
+  and the pairing QR. The pairing QR works exactly as on a local install.
+- **Expiry**: at trial expiry the sandbox reverts to Free and parks like any install, and the container
+  and its database are deleted after the retention period (decision 2).
+- **Releases**: a release rolls each live sandbox to the new image the same way a customer upgrades;
+  migrations run in each install on start-up as they do everywhere (E4).
+- A cost cap and abuse controls (rate limits, one sandbox per requester, idle sandboxes stopped and
+  started on demand) live in the provisioning and hosting layer, not in the product.
 
 A single shared demo installation used by many strangers at once is ruled out: it breaks the single-tenant
 rule, every visitor sees every other visitor's data, and it is the least representative of what they buy.
@@ -131,14 +133,14 @@ on by default, payload documented). Blocked outbound traffic simply means the in
   `LicenseKeyJson`'s required organization stands.
 - E79.5 splits into two behaviours (paid lapse freezes; trial end reverts and parks sites and devices), and
   the parking step is new product surface on the console and in the device task list.
-- The database resolver seam, per-database caches and per-database worker loops are small, but they must
-  exist before the first cache or job is written process-wide; DomainPurity-style architecture tests guard
-  that no cache is registered as a process singleton keyed on nothing.
-- ADR 0002's hosted model changes from "one database and one Kubernetes namespace per customer" to "one
-  database per customer; a shared process is allowed". That is also the architecture if hosting is ever
-  sold.
+- The product stays strictly one process, one database: no resolver seam, per-database caches or
+  per-database job loops are built, and process-wide singletons (settings cache, license state, Data
+  Protection) remain correct. The cost moves to hosting: one container per active visitor, which the
+  provisioning layer caps and stops when idle.
+- ADR 0002's hosted model is unchanged ("one database and one isolated process per customer"); the
+  cloud sandbox is the same shape, one install per visitor, and so is hosting if it is ever sold.
 - The evaluation stories (seed pack, simulator start, reset, go-live, QR pairing with pinning, barcode seam,
-  hardware check, resolver seam, provisioning) are tracked in the "Evaluation" epic (#234, stories EV.n);
+  hardware check, provisioning) are tracked in the "Evaluation" epic (#234, stories EV.n);
   the multi-instance work in the "Multi-instance" epic (#245, stories MI.n; ADR 0008); the licensing
   changes (trial keys, installation id, trial expiry, issuing tool) in E79. EV and MI are the permanent
   ids for those two epics.

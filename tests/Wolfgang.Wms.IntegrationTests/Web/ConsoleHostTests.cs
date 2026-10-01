@@ -96,7 +96,27 @@ public sealed class ConsoleHostTests : IClassFixture<WebApplicationFactory<App>>
 
         Assert.Contains("Configure is not available to you", configure, StringComparison.Ordinal);
         Assert.Contains("workspace.configure.enter", configure, StringComparison.Ordinal);
+        Assert.DoesNotContain("class=\"scan-listener\"", configure, StringComparison.Ordinal);
         Assert.Contains("None of the console workspaces are available to you", root, StringComparison.Ordinal);
+    }
+
+
+
+    [Theory]
+    [InlineData("/configure")]
+    [InlineData("/supervise")]
+    [InlineData("/resolve")]
+    [InlineData("/report")]
+    [InlineData("/insights")]
+    public async Task Every_workspace_takes_tethered_scanner_input(string route)
+    {
+        using var host = WithAccess(_factory, _ => WorkspaceAccessResult.Allowed);
+        using var client = host.CreateClient();
+
+        var html = await client.GetStringAsync(new Uri(route, UriKind.Relative));
+
+        Assert.Contains("class=\"scan-listener\"", html, StringComparison.Ordinal);
+        Assert.Contains("aria-label=\"Scan\"", html, StringComparison.Ordinal);
     }
 
 

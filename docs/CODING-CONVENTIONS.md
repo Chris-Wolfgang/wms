@@ -178,15 +178,20 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
 - One deployable (`Wolfgang.Wms.Web`, Blazor Web App in Server render mode for v1) hosting five workspaces,
   each its own project: `Wolfgang.Wms.Web.Configure`, `.Supervise`, `.Resolve`, `.Report`, `.Insights`
   (`/configure` … `/insights`), plus `Wolfgang.Wms.Web.Shared` (workspace definitions, layout chrome,
-  `WorkspaceNav`, `ScanListener`). A workspace project references Domain, the API client and `Web.Shared` only.
+  `WorkspaceNav`, `ScanListener`, `ScanDispatcher`). A workspace project references Domain and `Web.Shared`;
+  the API client (`Wolfgang.Wms.Client`, E82.8) is the only other project it may reference, added when the
+  workspace first calls the API (`ConsoleUsesApiOnlyTests` holds the console to an explicit project list).
 - Every workspace is a license feature (`workspace.<name>`) and a permission (`workspace.<name>.enter`)
   defined once in `Workspaces`; the entry gate is `IWorkspaceAccess` consulted by `WorkspaceLayout`; the
   free tier is Configure, Supervise, Resolve and Report; Insights is paid. A single-role user lands in their
   workspace; others pick on `/`.
 - Components are render-mode-agnostic: API client only, no server services, no `DbContext`
   (`ConsoleUsesApiOnlyTests`). Switching to WebAssembly/Auto later changes the host, not the components.
-- Tethered-scanner input goes through `ScanListener` (keyboard wedge: text then Enter) so every console screen
-  applies the same validation and feedback rules as the device (E40).
+- Tethered-scanner input goes through the one `ScanListener` (keyboard wedge: text then Enter) that
+  `WorkspaceLayout` renders for every workspace. A screen takes scans by calling `Listen` on the cascading
+  `ScanDispatcher` and disposing the registration when it goes away (the most recent listener wins); a scan no
+  screen takes shows "not used on this screen". The listener applies the device's validation and feedback rules
+  (E40) once they exist.
 
 ## Records and classes (E1.7)
 

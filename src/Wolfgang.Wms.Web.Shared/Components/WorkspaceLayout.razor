@@ -15,7 +15,14 @@
     }
     else if (_result == WorkspaceAccessResult.Allowed)
     {
-        @Body
+        <ScanListener OnScan="OnScanAsync" />
+        @if (_unusedScan is not null)
+        {
+            <p class="scan-feedback" role="status">Scan <code>@_unusedScan</code> is not used on this screen.</p>
+        }
+        <CascadingValue Value="_scans" IsFixed="true">
+            @Body
+        </CascadingValue>
     }
     else if (_result == WorkspaceAccessResult.NotLicensed)
     {
@@ -30,10 +37,19 @@
 </main>
 
 @code {
+    private readonly ScanDispatcher _scans = new();
     private WorkspaceAccessResult? _result;
+    private string? _unusedScan;
 
     protected override async Task OnInitializedAsync()
     {
         _result = await Access.CheckAsync(Workspace, CancellationToken.None);
+    }
+
+    // Every workspace takes tethered-scanner input here; the screen that registered with the cascading
+    // ScanDispatcher handles it, and a scan no screen takes is reported instead of silently dropped (E82.4).
+    private async Task OnScanAsync(string scan)
+    {
+        _unusedScan = await _scans.DispatchAsync(scan) ? null : scan;
     }
 }

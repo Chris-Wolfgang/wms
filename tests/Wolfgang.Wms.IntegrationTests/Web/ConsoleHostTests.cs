@@ -96,7 +96,7 @@ public sealed class ConsoleHostTests : IClassFixture<WebApplicationFactory<App>>
 
         Assert.Contains("Configure is not available to you", configure, StringComparison.Ordinal);
         Assert.Contains("workspace.configure.enter", configure, StringComparison.Ordinal);
-        Assert.Contains("None of the console workspaces is available to you", root, StringComparison.Ordinal);
+        Assert.Contains("None of the console workspaces are available to you", root, StringComparison.Ordinal);
     }
 
 

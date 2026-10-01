@@ -19,8 +19,10 @@ Free (1 site, 5 devices, unlimited users, locations and SKUs, no expiry) is comp
 from the vendor. A prospect who wants Free installs and uses it; there is no separate demo of Free. A
 **trial key** is a base key for the `pro` or `enterprise` tier with `trial: true`, a short coverage period
 (30 to 60 days, sales chooses), an explicit `devices` limit (default 10, above the 5 included at every tier
-so several phones and scanners can be tested at once), no organization or installation binding, and
-otherwise unlimited (sites, users, locations, SKUs). Renewal is a new trial key with a later coverage end;
+so several phones and scanners can be tested at once), the **prospect's name as its organization** (decided
+2026-10-01: a trial is never organization-less, because an empty organization is reserved for the
+compiled-in Free base; `trial: true`, not the organization, is what marks a trial), no installation binding,
+and otherwise unlimited (sites, users, locations, SKUs). Renewal is a new trial key with a later coverage end;
 the newest base key wins, as E79.11 already rules. A trial key applied over a running Free install keeps
 every row: it is an upgrade in place, and buying is the same operation with a paid key.
 
@@ -42,13 +44,20 @@ above a Free limit is **parked, never deleted**. Parking is chosen by the custom
 - Sites: the console asks which site stays active (Free allows 1). Parked sites are visible, readable and
   exportable; no new releases, no picking; a device assigned to a parked site sees "site parked" instead of
   tasks. Locations, SKUs and history inside a parked site are untouched.
-- Devices: the active-device count (E79.4) above 5 blocks new enrolment through the normal soft-limit path;
-  enrolled devices keep working. No device is parked.
+- Devices (decided 2026-10-01): the console asks which devices stay active (Free allows 5). A parked device
+  cannot sign in or receive tasks and shows "device parked"; its enrolment, history and settings are kept, and
+  un-parking restores it as it was. New enrolment above the limit is refused through the normal soft-limit
+  path (E79.4).
 - Until the customer chooses, everything stays active behind a persistent banner; there is no midnight
   lockout. Applying a key that raises the limit un-parks immediately.
 
 Warnings at 14, 7 and 1 days before the end read "Pro features end on …", not "your license expires".
 The same parking step is the one mechanism for any future limit a revert can cross (users, integrations).
+
+The **cloud sandbox** (decision 5) is the only place a trial's data is ever deleted (decided 2026-10-01): at
+trial expiry it reverts to Free and parks exactly like any installation, and the whole sandbox is then
+deleted after a fixed retention period, with an export offered before deletion. A local install is never
+deleted by the product.
 
 ### 3. Paid keys bind to an installation id; trial and Free do not
 
@@ -67,11 +76,12 @@ own box with their scanners on their network. What that requires, all of it prod
 - **Trivial install**: one Windows installer or one compose file; a first-run wizard (admin, site, time
   zone, optional key, "load the demo warehouse").
 - **Demo warehouse seed pack**: SKUs (a few dozen), locations, open releases; the simulator generates
-  picker activity so the console is alive within a minute. "Reset to seed" exists only while the seed is
-  present and no paid key is installed; it never changes the installation id.
-- **Go live**: a one-time wizard, offered only while demo data is present, that removes demo operational
-  data (SKUs, locations, releases, history, devices) and keeps settings, users, sites, keys and the
-  installation id. It is never available on a warehouse with real history.
+  picker activity so the console is alive within a minute.
+- **Removing demo data is deferred** (decided 2026-10-01): "Go live" (remove the demo data, keep settings,
+  users, sites, keys and the installation id) and "Reset to seed" both delete data, and neither is designed
+  until the demo data set itself is defined. When they are, each needs a guard that cannot mistake real data
+  for demo data (a stored demo-mode marker that the first real write clears for good), not "demo data is
+  present".
 - **Device pairing by QR** from the console: server URL, one-time enrolment token, and the server
   certificate's fingerprint. Android refuses plain HTTP and a LAN install has no public certificate, so the
   app pins the fingerprint from the QR (single-use enrolment is a Free feature; the QR is its transport).
@@ -98,7 +108,8 @@ pairing code a device was given. What this needs in the product, and only this:
   cache is a bug in a multi-database host.
 - **Worker jobs iterate databases** (lease expiry, outbox, rollups): same code, outer loop.
 - **Provisioning is a script**, not a feature: create database, migrate, seed the demo warehouse, issue an
-  Enterprise trial key with a short clock, return the subdomain and pairing QR; expiry drops the database.
+  Enterprise trial key with a short clock, return the subdomain and pairing QR. At trial expiry the sandbox
+  reverts to Free and parks like any install, and is deleted after the retention period (decision 2).
   A cost cap and abuse controls (rate limits, one sandbox per requester) live in the provisioning layer.
   Release-time migrations run across every live visitor database.
 
@@ -116,9 +127,10 @@ on by default, payload documented). Blocked outbound traffic simply means the in
 
 - The tier table gains no new tier: a trial is a `pro` or `enterprise` base key with `trial: true` and
   explicit limits. The key schema gains `trial` and `installation_id`; both optional, so existing keys and
-  the compiled-in Free base are unaffected.
-- E79.5 splits into two behaviours (paid lapse freezes; trial end reverts and parks), and the parking step
-  is new product surface on the console and in the device task list.
+  the compiled-in Free base are unaffected. A trial key carries an `organization` like any other key, so
+  `LicenseKeyJson`'s required organization stands.
+- E79.5 splits into two behaviours (paid lapse freezes; trial end reverts and parks sites and devices), and
+  the parking step is new product surface on the console and in the device task list.
 - The database resolver seam, per-database caches and per-database worker loops are small, but they must
   exist before the first cache or job is written process-wide; DomainPurity-style architecture tests guard
   that no cache is registered as a process singleton keyed on nothing.

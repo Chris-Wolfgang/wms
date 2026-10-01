@@ -51,14 +51,22 @@ public sealed class DatabaseOptions
 
     /// <summary>
     /// The connection string the provider receives: for SQL Server with <see cref="TrustServerCertificate"/>
-    /// the switch is applied to the string, otherwise the string as configured.
+    /// the switch is applied to the string and encryption is required (<c>Encrypt=Mandatory</c>, or
+    /// <c>Strict</c> when configured), since without certificate validation encryption is the protection that
+    /// remains; otherwise the string as configured.
     /// </summary>
     public string EffectiveConnectionString()
     {
         var connectionString = ConnectionString ?? string.Empty;
         if (ParsedProvider == DatabaseProvider.SqlServer && TrustServerCertificate)
         {
-            return new SqlConnectionStringBuilder(connectionString) { TrustServerCertificate = true }.ConnectionString;
+            var builder = new SqlConnectionStringBuilder(connectionString) { TrustServerCertificate = true };
+            if (builder.Encrypt != SqlConnectionEncryptOption.Strict)
+            {
+                builder.Encrypt = SqlConnectionEncryptOption.Mandatory;
+            }
+
+            return builder.ConnectionString;
         }
 
         return connectionString;

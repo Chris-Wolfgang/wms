@@ -73,6 +73,26 @@ public sealed class DatabaseOptionsTests
 
 
     [Fact]
+    public void TrustServerCertificate_requires_encryption_and_keeps_Strict()
+    {
+        Assert.Equal(SqlConnectionEncryptOption.Mandatory, EncryptionWhenTrusting(SqlConnectionEncryptOption.Optional));
+        Assert.Equal(SqlConnectionEncryptOption.Mandatory, EncryptionWhenTrusting(SqlConnectionEncryptOption.Mandatory));
+        Assert.Equal(SqlConnectionEncryptOption.Strict, EncryptionWhenTrusting(SqlConnectionEncryptOption.Strict));
+    }
+
+
+
+    private static SqlConnectionEncryptOption EncryptionWhenTrusting(SqlConnectionEncryptOption configured)
+    {
+        var configuredString = new SqlConnectionStringBuilder { DataSource = "db", InitialCatalog = "wms", Encrypt = configured }.ConnectionString;
+        var options = new DatabaseOptions { Provider = "SqlServer", ConnectionString = configuredString, TrustServerCertificate = true };
+
+        return new SqlConnectionStringBuilder(options.EffectiveConnectionString()).Encrypt;
+    }
+
+
+
+    [Fact]
     public void The_validator_reports_every_error_and_succeeds_when_valid()
     {
         var validator = new DatabaseOptionsValidator();

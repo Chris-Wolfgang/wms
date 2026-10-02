@@ -17,6 +17,8 @@ Declarative: you name a target, never a direction; the tool states the direction
 | `wms-migrate --script [--from <m>] [--to <m>] [--output <file>]` | idempotent, provider-specific SQL for a DBA to review and run; needs **no** database connection; `--from` emits a delta; a downgrade script starts with a `-- Downgrade` header listing every data-losing step |
 | `--confirm-data-loss` | required for an applied downgrade whose reverted migrations drop tables, columns, schemas or rows |
 | `--provider`, `--connection-string`, `--trust-server-certificate` | override the configured `Wms:Database` values |
+| `--key-ring <path>` | overrides `Wms:DataProtection:KeyRingPath`; needed to decrypt an `enc:v1:` connection string (E8.2) |
+| `wms-migrate --protect [--connection-string <plain>] [--key-ring <path>]` | prints the connection string encrypted with the key ring as `enc:v1:…` for `appsettings.json` or an environment variable; the string must not already be encrypted |
 
 Exit codes: `0` ok, `1` a migration failed (the output names it), `2` usage or configuration error, `3` the
 downgrade needs `--confirm-data-loss`.

@@ -26,11 +26,14 @@ public sealed record MigrateCommandLine
           --provider <SqlServer|PostgreSql>   overrides Wms:Database:Provider
           --connection-string <cs>   overrides Wms:Database:ConnectionString
           --trust-server-certificate overrides Wms:Database:TrustServerCertificate (SQL Server)
+          --key-ring <path>          overrides Wms:DataProtection:KeyRingPath (decrypts an enc:v1: connection string)
+          --protect                  print the connection string (--connection-string or configured) encrypted
+                                     with the key ring as enc:v1:..., for appsettings or an environment variable
           --help, -h                 this text
 
-        Configuration is read from appsettings.json in the working directory and Wms__Database__* environment
-        variables; flags win. Exit codes: 0 ok, 1 a migration failed (named in the output), 2 usage or
-        configuration error, 3 confirmation required.
+        Configuration is read from appsettings.json in the working directory and Wms__Database__* /
+        Wms__DataProtection__* environment variables; flags win. Exit codes: 0 ok, 1 a migration failed (named
+        in the output), 2 usage or configuration error, 3 confirmation required.
         """;
 
 
@@ -62,6 +65,20 @@ public sealed record MigrateCommandLine
     /// <summary>SQL Server certificate trust override.</summary>
     public bool? TrustServerCertificate { get; init; }
 
+
+
+    /// <summary>
+    /// <c>--key-ring</c>: the key ring directory, overriding <c>Wms:DataProtection:KeyRingPath</c>.
+    /// </summary>
+    public string? KeyRing { get; init; }
+
+
+
+    /// <summary>
+    /// <c>--protect</c>: encrypt the connection string and print it instead of migrating.
+    /// </summary>
+    public bool Protect { get; init; }
+
     /// <summary>Show usage.</summary>
     public bool Help { get; init; }
 
@@ -84,7 +101,7 @@ public sealed record MigrateCommandLine
         {
             var argument = args[i].ToLowerInvariant();
             string? error = null;
-            var value = argument is "--to" or "--from" or "--output" or "--provider" or "--connection-string" ? Value(args, ref i, out error) : null;
+            var value = argument is "--to" or "--from" or "--output" or "--provider" or "--connection-string" or "--key-ring" ? Value(args, ref i, out error) : null;
             if (error is not null)
             {
                 return result with { Error = error };
@@ -102,6 +119,8 @@ public sealed record MigrateCommandLine
                 "--output" => result with { Output = value },
                 "--provider" => result with { Provider = value },
                 "--connection-string" => result with { ConnectionString = value },
+                "--key-ring" => result with { KeyRing = value },
+                "--protect" => result with { Protect = true },
                 _ => result with { Error = $"Unknown argument '{args[i]}'." },
             };
 
@@ -111,9 +130,9 @@ public sealed record MigrateCommandLine
             }
         }
 
-        if (result.Status && result.Script)
+        if ((result.Status && result.Script) || (result.Protect && (result.Status || result.Script)))
         {
-            return result with { Error = "--status and --script cannot be combined." };
+            return result with { Error = "--status, --script and --protect cannot be combined." };
         }
 
         if (result.From is not null && !result.Script)

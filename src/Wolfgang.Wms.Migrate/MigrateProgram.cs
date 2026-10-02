@@ -2,7 +2,9 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Wolfgang.Wms.Core.Secrets;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Secrets;
 
 namespace Wolfgang.Wms.Migrate;
 
@@ -56,7 +58,13 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        var options = Options(command, configuration ?? DefaultConfiguration());
+        configuration ??= DefaultConfiguration();
+        var options = Options(command, configuration);
+        if (command.Protect)
+        {
+            return await ProtectAsync(command, configuration, options, output, error).ConfigureAwait(false);
+        }
+
         var problems = options.Validate();
         if (options.ParsedProvider is DatabaseProvider.None)
         {
@@ -73,8 +81,28 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
+        return await ExecuteAsync(command, configuration, options, output, error, cancellationToken).ConfigureAwait(false);
+    }
+
+
+
+    /// <summary>
+    /// Opens the context (decrypting an <c>enc:v1:</c> connection string with the key ring, E8.2) and runs
+    /// the chosen mode.
+    /// </summary>
+    private static async Task<int> ExecuteAsync(MigrateCommandLine command, IConfiguration configuration, DatabaseOptions options, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    {
         var builder = new DbContextOptionsBuilder<WmsDbContext>();
-        DatabaseServiceCollectionExtensions.Configure(builder, options);
+        try
+        {
+            DatabaseServiceCollectionExtensions.Configure(builder, options, options.ConnectionStringIsProtected ? Protector(command, configuration) : null);
+        }
+        catch (InvalidOperationException exception)
+        {
+            await error.WriteLineAsync(exception.Message).ConfigureAwait(false);
+            return ExitUsage;
+        }
+
         using var context = new WmsDbContext(builder.Options);
         var runner = new MigrationRunner(context);
         try
@@ -126,6 +154,44 @@ public static class MigrateProgram
         }
 
         return options;
+    }
+
+
+
+    /// <summary>
+    /// <c>--protect</c> (E8.2): prints the connection string encrypted with the key ring, for the installer to
+    /// put in appsettings or an environment variable.
+    /// </summary>
+    private static async Task<int> ProtectAsync(MigrateCommandLine command, IConfiguration configuration, DatabaseOptions options, TextWriter output, TextWriter error)
+    {
+        if (string.IsNullOrWhiteSpace(options.ConnectionString))
+        {
+            await error.WriteLineAsync("--protect needs a connection string (--connection-string or Wms:Database:ConnectionString).").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        if (options.ConnectionStringIsProtected)
+        {
+            await error.WriteLineAsync("The connection string is already encrypted (enc:v1:).").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        var protector = Protector(command, configuration);
+        if (protector is null)
+        {
+            await error.WriteLineAsync($"--protect needs the key ring: --key-ring <path> or {KeyRingOptions.PathKey}.").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        await output.WriteLineAsync(protector.Protect(options.ConnectionString)).ConfigureAwait(false);
+        return ExitOk;
+    }
+
+
+
+    private static ISecretProtector? Protector(MigrateCommandLine command, IConfiguration configuration)
+    {
+        return command.KeyRing is not null ? KeyRing.CreateProtector(command.KeyRing) : KeyRing.TryCreateProtector(configuration);
     }
 
 

@@ -191,8 +191,9 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
 - Tethered-scanner input goes through the one `ScanListener` (keyboard wedge: text then Enter) that
   `WorkspaceLayout` renders for every workspace. A screen takes scans by calling `Listen` on the cascading
   `ScanDispatcher` and disposing the registration when it goes away (the most recent listener wins); a scan no
-  screen takes shows "not used on this screen". The listener applies the device's validation and feedback rules
-  (E40) once they exist.
+  screen takes shows "not used on this screen". When focus lands on nothing (the page body), the listener's script
+  returns it to the scan field; focus on another input, button or link is left alone. The listener applies the
+  device's validation and feedback rules (E40) once they exist.
 - Console text lives in `Web.Shared/Resources/ConsoleText.resx` and is read through
   `IStringLocalizer<ConsoleText>`; the host registers it with `AddConsoleLocalization()` (the console may not
   reference Core). A workspace's title and description are keys (`Workspace.TitleKey`, `DescriptionKey`).

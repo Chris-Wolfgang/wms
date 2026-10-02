@@ -16,6 +16,7 @@ using Wolfgang.Wms.Infrastructure.Secrets;
 using Microsoft.AspNetCore.Identity;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Identity.External;
 using Wolfgang.Wms.Infrastructure.Identity;
 using Wolfgang.Wms.Infrastructure.Integrity;
 
@@ -122,6 +123,10 @@ public static class DatabaseServiceCollectionExtensions
         services.AddScoped<IRoles, EfRoles>();   // E10.2: the stored roles replace the placeholder
         services.RemoveAll<ISessionRevocations>();
         services.AddScoped<ISessionRevocations, EfSessionRevocations>();   // E10.5: per-user "sessions valid after"
+        services.RemoveAll<IExternalAccounts>();
+        services.AddScoped<IExternalAccounts, EfExternalAccounts>();   // E11.1: provider accounts in core.user
+        services.RemoveAll<IGroupRoleMappings>();
+        services.AddScoped<IGroupRoleMappings, EfGroupRoleMappings>();   // E11.2: directory groups → roles
         services.AddHostedService<BuiltInRolesCheck>();   // E10.2: built-in roles follow the catalog; local administrators hold Administrator
     }
 

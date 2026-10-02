@@ -18,6 +18,12 @@ public sealed class User : IVersionedEntity, ISignedEntity
     /// <summary>Longest display name.</summary>
     public const int DisplayNameLength = 256;
 
+    /// <summary>Longest provider name.</summary>
+    public const int ProviderLength = 32;
+
+    /// <summary>Longest provider subject.</summary>
+    public const int ProviderSubjectLength = 256;
+
 
 
     /// <summary>The server-assigned identifier.</summary>
@@ -48,6 +54,16 @@ public sealed class User : IVersionedEntity, ISignedEntity
 
     /// <summary>True until the user has replaced the bootstrap or reset password (E9.1).</summary>
     public bool MustChangePassword { get; set; }
+
+
+
+    /// <summary>The identity provider of a provider account (E11.1), or null for a local account.</summary>
+    public string? Provider { get; set; }
+
+
+
+    /// <summary>The provider's stable identifier for the person (E11.1), or null for a local account.</summary>
+    public string? ProviderSubject { get; set; }
 
 
 
@@ -102,6 +118,6 @@ public sealed class User : IVersionedEntity, ISignedEntity
     /// </summary>
     public string CanonicalContent()
     {
-        return string.Join('\n', "user", UserNameNormalized, PasswordHash ?? string.Empty, MustChangePassword ? "1" : "0", IsDisabled ? "1" : "0", IsLocalAdmin ? "1" : "0", SignedContent.Timestamp(SessionsValidAfter));
+        return string.Join('\n', "user", UserNameNormalized, PasswordHash ?? string.Empty, MustChangePassword ? "1" : "0", IsDisabled ? "1" : "0", IsLocalAdmin ? "1" : "0", SignedContent.Timestamp(SessionsValidAfter), Provider ?? string.Empty, ProviderSubject ?? string.Empty);
     }
 }

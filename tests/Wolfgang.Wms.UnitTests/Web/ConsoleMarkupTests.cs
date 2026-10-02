@@ -32,6 +32,7 @@ public sealed class ConsoleMarkupTests : IDisposable
     {
         _context.Services.AddSingleton<IStringLocalizerFactory, MarkingLocalizerFactory>();
         _context.Services.AddSingleton(typeof(IStringLocalizer<>), typeof(StringLocalizer<>));
+        _context.JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
 

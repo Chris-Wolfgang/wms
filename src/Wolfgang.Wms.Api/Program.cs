@@ -4,6 +4,7 @@ using System.Text.Json;
 using Wolfgang.Wms.Core.Api;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Configuration;
+using Wolfgang.Wms.Core.Hosting;
 using Wolfgang.Wms.Core.Devices;
 using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Identity;
@@ -36,6 +37,11 @@ builder.Services.AddWmsApiVersioning();
 builder.Services.AddWmsProblemDetails();
 builder.Services.AddWmsCompression();
 
+// E10.6: X-Forwarded-* honoured only when Wms:Hosting:BehindProxy says a proxy fronts the host; browser
+// origins allowed by the api.cors.allowed_origins setting, applied without a restart.
+builder.Services.AddWmsForwardedHeaders(builder.Configuration);
+builder.Services.AddWmsCors();
+
 // E82.7: device groups call .RequireDeviceVersion(); the minimum comes from settings once E12 lands.
 builder.Services.AddWmsDeviceVersioning();
 
@@ -58,7 +64,9 @@ builder.Services.AddWmsDatabase(builder.Configuration);
 
 var app = builder.Build();
 
+app.UseWmsForwardedHeaders();   // first: everything after sees the forwarded scheme and address
 app.UseWmsProblemDetails();
+app.UseWmsCors();
 app.UseWmsCompression();
 app.UseWmsRequestLocalization();
 app.UseWmsAuth();   // E9: rate limiter, authentication, authorization, must-change-password gate

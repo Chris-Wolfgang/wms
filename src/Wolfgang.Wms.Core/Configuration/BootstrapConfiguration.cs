@@ -27,6 +27,7 @@ public static class BootstrapConfiguration
         "Wms:Database:TrustServerCertificate",
         "Wms:DataProtection:KeyRingPath",   // E8.1
         "Wms:Bootstrap:AdminUserName",      // E9.1: the bootstrap administrator's name (default admin)
+        "Wms:Hosting:BehindProxy",          // E10.6: honour X-Forwarded-* from the reverse proxy
     ];
 
 

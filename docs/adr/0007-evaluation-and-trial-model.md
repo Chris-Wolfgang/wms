@@ -1,6 +1,6 @@
 # ADR 0007: Evaluation and trial model — Free floor, trial keys, local trial first, install-per-visitor sandbox
 
-**Status:** Accepted (design discussion 2026-09-22; sandbox topology 2026-10-01) · **Date:** 2026-09-22 · **Related:** ADR 0002 (single tenant per install)
+**Status:** Accepted, not yet implemented (design discussion 2026-09-22; sandbox topology 2026-10-01; the EV stories implement it, and the licensing manual lists the rules as planned until each ships) · **Date:** 2026-09-22 · **Related:** ADR 0002 (single tenant per install)
 
 ## Context
 

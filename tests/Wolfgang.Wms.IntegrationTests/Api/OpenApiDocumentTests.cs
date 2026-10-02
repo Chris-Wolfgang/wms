@@ -54,6 +54,20 @@ public sealed class OpenApiDocumentTests : IClassFixture<WebApplicationFactory<P
 
 
     [Fact]
+    public async Task Served_document_uses_line_feeds_whatever_OS_built_it()
+    {
+        using var client = _factory.CreateClient();
+
+        var served = await client.GetStringAsync(new Uri("/openapi/v0.json", UriKind.Relative));
+
+        // SchemaStatus's description spans two lines; a Windows build of the XML-comment generator emits "\r\n".
+        Assert.Contains(@"the one this build\nexpects", served, StringComparison.Ordinal);
+        Assert.DoesNotContain(@"\r", served, StringComparison.Ordinal);
+    }
+
+
+
+    [Fact]
     public async Task Committed_document_matches_the_served_document()
     {
         using var client = _factory.CreateClient();

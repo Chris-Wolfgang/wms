@@ -152,6 +152,38 @@ public static class WmsApi
             document.Servers = null;   // host-neutral: the committed copy must not carry the test host's URL
             return Task.CompletedTask;
         });
+
+        // The XML-comment generator embeds a multi-line comment with the line ending of the OS that compiled it, so
+        // the same source served "\r\n" from a Windows build and "\n" from a Linux one. Its transformers run before
+        // these, and the document always uses "\n".
+        options.AddSchemaTransformer((schema, _, _) =>
+        {
+            schema.Description = WithLineFeeds(schema.Description);
+            return Task.CompletedTask;
+        });
+        options.AddOperationTransformer((operation, _, _) =>
+        {
+            operation.Summary = WithLineFeeds(operation.Summary);
+            operation.Description = WithLineFeeds(operation.Description);
+            foreach (var parameter in (operation.Parameters ?? []).OfType<OpenApiParameter>())
+            {
+                parameter.Description = WithLineFeeds(parameter.Description);
+            }
+
+            foreach (var response in operation.Responses?.Values.OfType<OpenApiResponse>() ?? [])
+            {
+                response.Description = WithLineFeeds(response.Description);
+            }
+
+            return Task.CompletedTask;
+        });
+    }
+
+
+
+    private static string? WithLineFeeds(string? text)
+    {
+        return text?.ReplaceLineEndings("\n");
     }
 
 

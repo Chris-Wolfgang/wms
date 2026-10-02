@@ -76,6 +76,79 @@ public sealed class EfSettingsTests
         await AssertInheritanceAndShieldingAsync(client, etag);
         await AssertValidationAndSecretsAsync(client);
         await AssertTypedAccessAndCacheAsync(app.Services);
+        await AssertCascadeModesAsync(client);
+        await AssertPopulateAsync(app.Services);
+    }
+
+
+
+    /// <summary>
+    /// E7.2: the organisation delegates per zone; a site write is refused, a zone write runs, the
+    /// organisation inherits for display; a value at the organisation switches it back; a site delegates
+    /// per zone; illegal modes are refused.
+    /// </summary>
+    private static async Task AssertCascadeModesAsync(HttpClient client)
+    {
+        var organisation = await GetAsync(client, "organization/0", "sample.lease_timeout");
+        Assert.Equal(["value", "per_site", "per_zone"], organisation.AllowedModes);
+        using var delegated = await client.SendAsync(Request(HttpMethod.Put, "organization/0", "sample.lease_timeout", null, organisation.Etag, mode: "per_zone"));
+        var delegatedValue = (await delegated.Content.ReadFromJsonAsync<SettingValue>(Json))!;
+        Assert.Equal(HttpStatusCode.OK, delegated.StatusCode);
+        Assert.Equal("per_zone", delegatedValue.CascadeMode);
+        Assert.Null(delegatedValue.ConfiguredValue);
+        Assert.Equal("00:15:00", delegatedValue.EffectiveValue);   // the organisation contributes nothing: the default shows
+
+        using var siteRefused = await PutAsync(client, "site/2", "sample.lease_timeout", "00:07:00", ifMatch: (await GetAsync(client, "site/2", "sample.lease_timeout")).Etag);
+        Assert.Equal(HttpStatusCode.Conflict, siteRefused.StatusCode);
+        Assert.Equal("settings.decided_elsewhere", await CodeAsync(siteRefused));
+        using var zoneWrite = await PutAsync(client, "zone/10", "sample.lease_timeout", "00:07:00", ifMatch: null);
+        Assert.Equal(HttpStatusCode.OK, zoneWrite.StatusCode);
+        Assert.Equal("00:07:00", (await GetAsync(client, "zone/10", "sample.lease_timeout")).EffectiveValue);
+
+        using var badMode = await client.SendAsync(Request(HttpMethod.Put, "zone/10", "sample.lease_timeout", null, (await GetAsync(client, "zone/10", "sample.lease_timeout")).Etag, mode: "per_site"));
+        Assert.Equal(HttpStatusCode.BadRequest, badMode.StatusCode);
+        Assert.Equal("settings.mode_not_allowed", await CodeAsync(badMode));
+
+        using var backToValue = await PutAsync(client, "organization/0", "sample.lease_timeout", "00:25:00", ifMatch: delegatedValue.Etag);
+        var organisationAgain = (await backToValue.Content.ReadFromJsonAsync<SettingValue>(Json))!;
+        Assert.Equal(HttpStatusCode.OK, backToValue.StatusCode);
+        Assert.Equal("value", organisationAgain.CascadeMode);
+        Assert.Equal("00:25:00", (await GetAsync(client, "site/2", "sample.lease_timeout")).EffectiveValue);
+        Assert.Equal("00:07:00", (await GetAsync(client, "zone/10", "sample.lease_timeout")).EffectiveValue);   // the zone's own value survives
+
+        var site1 = await GetAsync(client, "site/1", "sample.lease_timeout");
+        using var sitePerZone = await client.SendAsync(Request(HttpMethod.Put, "site/1", "sample.lease_timeout", null, site1.Etag, mode: "per_zone"));
+        Assert.Equal(HttpStatusCode.OK, sitePerZone.StatusCode);
+        Assert.Equal("per_zone", (await GetAsync(client, "site/1", "sample.lease_timeout")).CascadeMode);
+        using var siteModeCleared = await client.SendAsync(Request(HttpMethod.Put, "site/1", "sample.lease_timeout", null, (await GetAsync(client, "site/1", "sample.lease_timeout")).Etag, mode: "value"));
+        Assert.Equal("value", (await siteModeCleared.Content.ReadFromJsonAsync<SettingValue>(Json))!.CascadeMode);
+    }
+
+
+
+    /// <summary>
+    /// E7.3: a new site gets a row per setting allowed there with the inherited value; a second call adds
+    /// nothing; the organisation-only secret is skipped.
+    /// </summary>
+    private static async Task AssertPopulateAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<ISettings>();
+
+        var created = await settings.PopulateAsync(SettingScopeRef.Site(9), "creator", CancellationToken.None);
+        var again = await settings.PopulateAsync(SettingScopeRef.Site(9), "creator", CancellationToken.None);
+        var values = await settings.ListAsync(SettingScopeRef.Site(9), CancellationToken.None);
+
+        Assert.Equal(2, created);   // lease_timeout and level; sample.password is organisation-only
+        Assert.Equal(0, again);
+        Assert.Equal("00:25:00", values.Single(v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal)).EffectiveValue);
+        Assert.NotNull(values.Single(v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal)).RowVersion);
+        Assert.Null(values.Single(v => string.Equals(v.Name, "sample.password", StringComparison.Ordinal)).RowVersion);
+        Assert.Equal("creator", values.Single(v => string.Equals(v.Name, "sample.level", StringComparison.Ordinal)).UpdatedBy);
+        await Assert.ThrowsAsync<ArgumentException>(() => settings.PopulateAsync(SettingScopeRef.Site(9), " ", CancellationToken.None));
+        var mode = await Assert.ThrowsAsync<SettingException>(() => settings.SetModeAsync(Password, SettingScopeRef.Organization, CascadeMode.PerSite, "creator", CancellationToken.None));
+        Assert.Equal(SettingErrorCodes.ModeNotAllowed, mode.Code);
+        await Assert.ThrowsAsync<ArgumentException>(() => settings.SetModeAsync(LeaseTimeout, SettingScopeRef.Organization, CascadeMode.PerSite, " ", CancellationToken.None));
     }
 
 
@@ -244,12 +317,12 @@ public sealed class EfSettingsTests
 
 
 
-    private static HttpRequestMessage Request(HttpMethod method, string scope, string key, string? value, string? ifMatch)
+    private static HttpRequestMessage Request(HttpMethod method, string scope, string key, string? value, string? ifMatch, string? mode = null)
     {
         var request = new HttpRequestMessage(method, new Uri($"/api/v0/settings/{scope}/{key}", UriKind.Relative));
-        if (value is not null)
+        if (value is not null || mode is not null)
         {
-            request.Content = new StringContent(JsonSerializer.Serialize(new SetSettingRequest(value), Json), Encoding.UTF8, "application/json");
+            request.Content = new StringContent(JsonSerializer.Serialize(new SetSettingRequest(value, mode), Json), Encoding.UTF8, "application/json");
         }
 
         if (ifMatch is not null)

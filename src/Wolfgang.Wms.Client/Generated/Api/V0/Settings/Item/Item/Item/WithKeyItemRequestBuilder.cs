@@ -70,10 +70,10 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Settings.Item.Item.Item
             return await RequestAdapter.SendPrimitiveAsync<Stream>(requestInfo, default, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// Configures a setting at a scope (null value resets); If-Match required when a row exists.
+        /// Configures a setting at a scope: a value, or a cascade mode (per_site, per_zone, per_sku); both null resets. If-Match required when a row exists.
         /// </summary>
         /// <returns>A <see cref="global::Wolfgang.Wms.Client.Generated.Models.SettingValue"/></returns>
-        /// <param name="body">Body of `PUT /settings/{scope}/{id}/{key}` (E6.3): the value as stored text. Null resets the scopeto inherit (the same as `DELETE`).</param>
+        /// <param name="body">Body of `PUT /settings/{scope}/{id}/{key}` (E6.3, E7.2): a value as stored text, or a cascade mode(`per_site`, `per_zone`, `per_sku`) that delegates the decision downward. Both null resetsthe scope to inherit (the same as `DELETE`); mode `value` alone does the same.</param>
         /// <param name="cancellationToken">Cancellation token to use when cancelling requests</param>
         /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
@@ -127,10 +127,10 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Settings.Item.Item.Item
             return requestInfo;
         }
         /// <summary>
-        /// Configures a setting at a scope (null value resets); If-Match required when a row exists.
+        /// Configures a setting at a scope: a value, or a cascade mode (per_site, per_zone, per_sku); both null resets. If-Match required when a row exists.
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
-        /// <param name="body">Body of `PUT /settings/{scope}/{id}/{key}` (E6.3): the value as stored text. Null resets the scopeto inherit (the same as `DELETE`).</param>
+        /// <param name="body">Body of `PUT /settings/{scope}/{id}/{key}` (E6.3, E7.2): a value as stored text, or a cascade mode(`per_site`, `per_zone`, `per_sku`) that delegates the decision downward. Both null resetsthe scope to inherit (the same as `DELETE`); mode `value` alone does the same.</param>
         /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable

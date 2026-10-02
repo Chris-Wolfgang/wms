@@ -42,6 +42,25 @@ public interface ISettings
 
 
     /// <summary>
+    /// Delegates the decision at <paramref name="scope"/> to the scopes <paramref name="mode"/> names (E7.2):
+    /// the scope drops its own value and contributes nothing; <see cref="CascadeMode.Value"/> restores the
+    /// ordinary inheriting scope.
+    /// </summary>
+    /// <exception cref="SettingException">The key is not registered or the mode is not allowed at the scope.</exception>
+    Task<SettingValue> SetModeAsync(SettingKey key, SettingScopeRef scope, CascadeMode mode, string updatedBy, CancellationToken cancellationToken);
+
+
+
+    /// <summary>
+    /// Gives a newly created scope a row for every setting allowed there, carrying the inherited effective
+    /// value (E7.3), so no record is ever unresolved. Existing rows are left alone.
+    /// </summary>
+    /// <returns>The number of rows created.</returns>
+    Task<int> PopulateAsync(SettingScopeRef scope, string updatedBy, CancellationToken cancellationToken);
+
+
+
+    /// <summary>
     /// Every registered setting at <paramref name="scope"/> with its configured and effective text.
     /// </summary>
     Task<IReadOnlyList<SettingValue>> ListAsync(SettingScopeRef scope, CancellationToken cancellationToken);

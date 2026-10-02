@@ -3,45 +3,37 @@ using System.Runtime.Serialization;
 using System;
 namespace Wolfgang.Wms.Client.Generated.Models
 {
-    /// <summary>How the value is edited.</summary>
+    /// <summary>The permanent level (the `logging.level` setting).</summary>
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
-    public enum SettingKind
+    public enum LogLevel
     {
-        [EnumMember(Value = "Boolean")]
+        [EnumMember(Value = "Trace")]
         #pragma warning disable CS1591
-        Boolean,
+        Trace,
         #pragma warning restore CS1591
-        [EnumMember(Value = "Integer")]
+        [EnumMember(Value = "Debug")]
         #pragma warning disable CS1591
-        Integer,
+        Debug,
         #pragma warning restore CS1591
-        [EnumMember(Value = "Number")]
+        [EnumMember(Value = "Information")]
         #pragma warning disable CS1591
-        Number,
+        Information,
         #pragma warning restore CS1591
-        [EnumMember(Value = "Enum")]
+        [EnumMember(Value = "Warning")]
         #pragma warning disable CS1591
-        Enum,
+        Warning,
         #pragma warning restore CS1591
-        [EnumMember(Value = "String")]
+        [EnumMember(Value = "Error")]
         #pragma warning disable CS1591
-        String,
+        Error,
         #pragma warning restore CS1591
-        [EnumMember(Value = "Duration")]
+        [EnumMember(Value = "Critical")]
         #pragma warning disable CS1591
-        Duration,
+        Critical,
         #pragma warning restore CS1591
-        [EnumMember(Value = "Timestamp")]
+        [EnumMember(Value = "None")]
         #pragma warning disable CS1591
-        Timestamp,
-        #pragma warning restore CS1591
-        [EnumMember(Value = "Secret")]
-        #pragma warning disable CS1591
-        Secret,
-        #pragma warning restore CS1591
-        [EnumMember(Value = "Json")]
-        #pragma warning disable CS1591
-        Json,
+        None,
         #pragma warning restore CS1591
     }
 }

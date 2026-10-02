@@ -15,6 +15,7 @@ environment variable with `__` for `:` (`Wms__Database__Provider`). Environment 
 | `Wms:Bootstrap:AdminUserName` | E9.1, docs/AUTH.md: the bootstrap administrator's name (default `admin`); read once |
 | `Urls`, `Kestrel:*`, `AllowedHosts` | ASP.NET Core hosting |
 | `Wms:Hosting:BehindProxy` | E10.6, below |
+| `Wms:Hosting:AllowHttp` | E12.5, below: plain HTTP from any address (a lab) |
 | `Wms:Auth:ForceLocal` | E11.0, docs/AUTH.md: emergency override, local sign-in only; not the normal way to choose providers |
 | `Logging:*` | log levels; runtime control arrives with E12.4 |
 
@@ -89,3 +90,41 @@ connection string, secret settings (E8.3) and everything after. Implementations 
 
 Browser apps on other origins are allowed by the `api.cors.allowed_origins` setting (comma-separated
 origins, no path), applied on the next request; nothing is allowed until an origin is listed.
+
+## Health probes (E12.1)
+
+| Route | Answers | Use |
+|---|---|---|
+| `GET /health/live` | 200 while the process serves requests; no checks | liveness probe, load-balancer ping |
+| `GET /health/ready` | 200 when every readiness check passes, 503 otherwise | readiness probe; take the instance out of rotation |
+
+Both are on the host root (not under `/api/v<n>`), anonymous, answer JSON (`status`, `totalDuration`,
+`checks[]` with `name`, `status`, `description`, `duration`) with `Cache-Control: no-store`, and accept
+plain HTTP. Readiness fails when the database cannot be reached, is behind this build (pending migrations)
+or ahead of it; the description names the schema version or the migrations involved. A host without a
+database configured has no readiness checks and answers 200.
+
+## HTTPS (E12.5)
+
+The API refuses plain HTTP with `400 hosting.https_required` rather than redirecting, so a POST body is
+never lost to a redirect. Exempt: requests from the loopback address (a developer, a local probe), the
+health probes, and `Wms:Hosting:AllowHttp=true` (a lab; never production). Behind a reverse proxy set
+`Wms:Hosting:BehindProxy` so the forwarded scheme counts. The console redirects to HTTPS instead
+(`UseHttpsRedirection`, HSTS outside Development); when the proxy terminates TLS, redirect there and keep
+the console's redirect as a backstop.
+
+## Several instances (E12.6)
+
+The API is stateless: sessions are encrypted cookies on the shared Data Protection ring (E8), settings
+and provider selection are re-read from the database on every instance, and no request depends on the
+instance that served the last one. Run as many API instances as you like behind the proxy.
+
+Singleton worker jobs (integrity verification now; outbox, lease expiry, rollups, retention and ingest
+as they arrive) run under a database leader lock: `wms.leader_lock` holds one row per job with the holder
+and a lease; the holder renews every third of the lease, another worker takes over once the lease has
+expired without renewal, and a lease that cannot be renewed cancels the job's `Lost` token. Run as many
+workers as you like; exactly one executes each job.
+
+EF Core retries transient faults (E6.4) and transactions are kept to one save. The console in Server
+render mode keeps a circuit per browser tab: behind a load balancer it needs sticky sessions (a few dozen
+supervisors is the expected load; the API is the tier that scales).

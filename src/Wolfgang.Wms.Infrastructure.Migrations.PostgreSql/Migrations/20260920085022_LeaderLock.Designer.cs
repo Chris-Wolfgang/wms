@@ -2,25 +2,28 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Wolfgang.Wms.Infrastructure.Database;
 
 #nullable disable
 
-namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
+namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
 {
     [DbContext(typeof(WmsDbContext))]
-    partial class WmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260920085022_LeaderLock")]
+    partial class LeaderLock
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "10.0.12")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.HasSequence("row_version_seq", "wms");
 
@@ -28,18 +31,18 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("FriendlyName")
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("friendly_name");
 
                     b.Property<string>("Xml")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("xml");
 
                     b.HasKey("Id")
@@ -55,26 +58,26 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("detail_id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("DetailId"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("DetailId"));
 
                     b.Property<string>("ColumnName")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("column_name");
 
                     b.Property<Guid>("HeaderId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("header_id");
 
                     b.Property<string>("ValueText")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("value_text");
 
                     b.Property<string>("ValueType")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("value_type");
 
                     b.HasKey("DetailId")
@@ -92,51 +95,51 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
             modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditHeader", b =>
                 {
                     b.Property<Guid>("HeaderId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("header_id");
 
                     b.Property<DateTime>("AuditedAtUtc")
                         .HasPrecision(6)
-                        .HasColumnType("datetime2(6)")
+                        .HasColumnType("timestamp(6) with time zone")
                         .HasColumnName("audited_at_utc");
 
                     b.Property<string>("EntityKey")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("entity_key");
 
                     b.Property<string>("EntityTable")
                         .IsRequired()
                         .HasMaxLength(384)
-                        .HasColumnType("nvarchar(384)")
+                        .HasColumnType("character varying(384)")
                         .HasColumnName("entity_table");
 
                     b.Property<string>("EntityType")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("entity_type");
 
                     b.Property<string>("OnBehalfOfUserId")
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("on_behalf_of_user_id");
 
                     b.Property<string>("Operation")
                         .IsRequired()
                         .HasMaxLength(1)
-                        .HasColumnType("nvarchar(1)")
+                        .HasColumnType("character varying(1)")
                         .HasColumnName("operation");
 
                     b.Property<Guid>("TransactionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("transaction_id");
 
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("user_id");
 
                     b.HasKey("HeaderId")
@@ -161,28 +164,28 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<DateTime>("AcquiredAt")
+                    b.Property<DateTimeOffset>("AcquiredAt")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("acquired_at");
 
-                    b.Property<DateTime>("ExpiresAt")
+                    b.Property<DateTimeOffset>("ExpiresAt")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("expires_at");
 
                     b.Property<string>("Holder")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("holder");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("name");
 
                     b.HasKey("Id")
@@ -202,34 +205,34 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("CascadeMode")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)")
+                        .HasColumnType("character varying(16)")
                         .HasDefaultValue("value")
                         .HasColumnName("cascade_mode");
 
                     b.Property<string>("ConfiguredValue")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("configured_value");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTimeOffset?>("DeletedAt")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<string>("EffectiveValue")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("effective_value");
 
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("key");
 
                     b.Property<long>("RowVersion")
@@ -237,7 +240,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bigint")
                         .HasColumnName("row_version")
-                        .HasDefaultValueSql("NEXT VALUE FOR [wms].[row_version_seq]");
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
 
                     b.Property<long>("ScopeId")
                         .HasColumnType("bigint")
@@ -246,18 +249,18 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                     b.Property<string>("ScopeType")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)")
+                        .HasColumnType("character varying(16)")
                         .HasColumnName("scope_type");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("updated_by");
 
                     b.HasKey("Id")
@@ -274,8 +277,6 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         {
                             t.HasTrigger("trg_setting_row_version");
                         });
-
-                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.GroupRoleMapping", b =>
@@ -285,18 +286,18 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("GroupKey")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("group_key");
 
                     b.Property<string>("Provider")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
+                        .HasColumnType("character varying(32)")
                         .HasColumnName("provider");
 
                     b.Property<long>("RoleId")
@@ -308,26 +309,26 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bigint")
                         .HasColumnName("row_version")
-                        .HasDefaultValueSql("NEXT VALUE FOR [wms].[row_version_seq]");
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
 
                     b.Property<string>("Signature")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("signature");
 
                     b.Property<long?>("SiteId")
                         .HasColumnType("bigint")
                         .HasColumnName("site_id");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("updated_by");
 
                     b.HasKey("Id")
@@ -346,8 +347,6 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         {
                             t.HasTrigger("trg_group_role_mapping_row_version");
                         });
-
-                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.Role", b =>
@@ -357,29 +356,29 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("BuiltInKey")
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
+                        .HasColumnType("character varying(32)")
                         .HasColumnName("built_in_key");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)")
+                        .HasColumnType("character varying(512)")
                         .HasColumnName("description");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
                     b.Property<string>("NameNormalized")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("name_normalized");
 
                     b.Property<long>("RowVersion")
@@ -387,22 +386,22 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bigint")
                         .HasColumnName("row_version")
-                        .HasDefaultValueSql("NEXT VALUE FOR [wms].[row_version_seq]");
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
 
                     b.Property<string>("Signature")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("signature");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("updated_by");
 
                     b.HasKey("Id")
@@ -410,8 +409,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
 
                     b.HasIndex("BuiltInKey")
                         .IsUnique()
-                        .HasDatabaseName("ux_role_built_in_key")
-                        .HasFilter("[built_in_key] IS NOT NULL");
+                        .HasDatabaseName("ux_role_built_in_key");
 
                     b.HasIndex("NameNormalized")
                         .IsUnique()
@@ -424,8 +422,6 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         {
                             t.HasTrigger("trg_role_row_version");
                         });
-
-                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.RolePermission", b =>
@@ -435,12 +431,12 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("PermissionName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("permission_name");
 
                     b.Property<long>("RoleId")
@@ -464,52 +460,52 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("display_name");
 
                     b.Property<int>("FailedLoginCount")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("failed_login_count");
 
                     b.Property<bool>("IsDisabled")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_disabled");
 
                     b.Property<bool>("IsLocalAdmin")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_local_admin");
 
-                    b.Property<DateTime?>("LockedUntil")
+                    b.Property<DateTimeOffset?>("LockedUntil")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("locked_until");
 
                     b.Property<bool>("MustChangePassword")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("must_change_password");
 
                     b.Property<string>("PasswordHash")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("password_hash");
 
                     b.Property<string>("Provider")
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
+                        .HasColumnType("character varying(32)")
                         .HasColumnName("provider");
 
                     b.Property<string>("ProviderSubject")
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("provider_subject");
 
                     b.Property<long>("RowVersion")
@@ -517,33 +513,33 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bigint")
                         .HasColumnName("row_version")
-                        .HasDefaultValueSql("NEXT VALUE FOR [wms].[row_version_seq]");
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
 
-                    b.Property<DateTime?>("SessionsValidAfter")
+                    b.Property<DateTimeOffset?>("SessionsValidAfter")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("sessions_valid_after");
 
                     b.Property<string>("Signature")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("signature");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("user_name");
 
                     b.Property<string>("UserNameNormalized")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("user_name_normalized");
 
                     b.HasKey("Id")
@@ -558,15 +554,12 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
 
                     b.HasIndex("Provider", "ProviderSubject")
                         .IsUnique()
-                        .HasDatabaseName("ux_user_provider_provider_subject")
-                        .HasFilter("[provider] IS NOT NULL AND [provider_subject] IS NOT NULL");
+                        .HasDatabaseName("ux_user_provider_provider_subject");
 
                     b.ToTable("user", "core", t =>
                         {
                             t.HasTrigger("trg_user_row_version");
                         });
-
-                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.UserRole", b =>
@@ -576,11 +569,11 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<DateTime?>("ExpiresAt")
+                    b.Property<DateTimeOffset?>("ExpiresAt")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("expires_at");
 
                     b.Property<long>("RoleId")
@@ -592,26 +585,26 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bigint")
                         .HasColumnName("row_version")
-                        .HasDefaultValueSql("NEXT VALUE FOR [wms].[row_version_seq]");
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
 
                     b.Property<string>("Signature")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("signature");
 
                     b.Property<long?>("SiteId")
                         .HasColumnType("bigint")
                         .HasColumnName("site_id");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("updated_by");
 
                     b.Property<long>("UserId")
@@ -629,15 +622,12 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
 
                     b.HasIndex("UserId", "RoleId", "SiteId")
                         .IsUnique()
-                        .HasDatabaseName("ux_user_role_user_id_role_id_site_id")
-                        .HasFilter("[site_id] IS NOT NULL");
+                        .HasDatabaseName("ux_user_role_user_id_role_id_site_id");
 
                     b.ToTable("user_role", "core", t =>
                         {
                             t.HasTrigger("trg_user_role_row_version");
                         });
-
-                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Integrity.IntegrityKey", b =>
@@ -647,17 +637,17 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasPrecision(3)
-                        .HasColumnType("datetime2(3)")
+                        .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("ProtectedKey")
                         .IsRequired()
                         .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)")
+                        .HasColumnType("character varying(512)")
                         .HasColumnName("protected_key");
 
                     b.HasKey("Id")

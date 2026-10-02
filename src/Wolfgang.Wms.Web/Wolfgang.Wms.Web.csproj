@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- E15.2: IIS hosts the console in-process (web.config is generated on publish). -->
+    <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
@@ -10,6 +12,8 @@
   <ItemGroup>
     <!-- E82.4: one deployable, five workspaces in their own projects; the console is an API client only. -->
     <ProjectReference Include="..\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
+    <!-- E15.1: runs as a Windows service (scripts/Install-WindowsServices.ps1); a no-op elsewhere. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
     <!-- E12.2: the same log pipeline as the API (host plumbing, not business logic). -->
     <ProjectReference Include="..\Wolfgang.Wms.Logging\Wolfgang.Wms.Logging.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Web.Shared\Wolfgang.Wms.Web.Shared.csproj" />

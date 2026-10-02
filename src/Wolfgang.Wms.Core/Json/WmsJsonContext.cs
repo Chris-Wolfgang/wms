@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
@@ -22,6 +23,7 @@ namespace Wolfgang.Wms.Core.Json;
 [JsonSerializable(typeof(LocalLoginRequest))]
 [JsonSerializable(typeof(ChangePasswordRequest))]
 [JsonSerializable(typeof(SessionInfo))]
+[JsonSerializable(typeof(IReadOnlyList<PermissionDescriptor>))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

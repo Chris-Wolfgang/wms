@@ -26,7 +26,7 @@ public sealed class SettingsEndpointsTests : IClassFixture<WebApplicationFactory
     {
         ArgumentNullException.ThrowIfNull(factory);
 
-        _host = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        _host = factory.WithTestAuth().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
             services.AddWmsModule(ModuleDescriptor.Create("sample").WithSettings(MaxTotes))));
     }
 
@@ -37,8 +37,8 @@ public sealed class SettingsEndpointsTests : IClassFixture<WebApplicationFactory
     {
         using var client = _host.CreateClient();
 
-        using var list = await client.GetAsync(new Uri("/api/v0/settings/site/4", UriKind.Relative));
-        using var one = await client.GetAsync(new Uri("/api/v0/settings/organization/0/sample.max_totes", UriKind.Relative));
+        using var list = await client.SendAsync(TestAuth.As(HttpMethod.Get, "/api/v0/settings/site/4", "settings.read@organization"));
+        using var one = await client.SendAsync(TestAuth.As(HttpMethod.Get, "/api/v0/settings/organization/0/sample.max_totes", "settings.read@organization"));
         using var items = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
         using var value = JsonDocument.Parse(await one.Content.ReadAsStringAsync());
 
@@ -60,15 +60,20 @@ public sealed class SettingsEndpointsTests : IClassFixture<WebApplicationFactory
     {
         using var client = _host.CreateClient();
 
-        using var put = await client.PutAsync(new Uri("/api/v0/settings/organization/0/sample.max_totes", UriKind.Relative), Json("{\"value\":\"5\"}"));
-        using var delete = await client.DeleteAsync(new Uri("/api/v0/settings/organization/0/sample.max_totes", UriKind.Relative));
-        using var badScope = await client.GetAsync(new Uri("/api/v0/settings/aisle/1", UriKind.Relative));
-        using var badKey = await client.GetAsync(new Uri("/api/v0/settings/organization/0/sample.nope", UriKind.Relative));
-        using var badValue = await client.PutAsync(new Uri("/api/v0/settings/organization/0/sample.max_totes", UriKind.Relative), Json("{\"value\":\"many\"}"));
-        using var badMode = await client.PutAsync(new Uri("/api/v0/settings/organization/0/sample.max_totes", UriKind.Relative), Json("{\"mode\":\"per_aisle\"}"));
-        using var modeUnknownKey = await client.PutAsync(new Uri("/api/v0/settings/organization/0/sample.nope", UriKind.Relative), Json("{\"mode\":\"per_site\"}"));
-        using var mode = await client.PutAsync(new Uri("/api/v0/settings/organization/0/sample.max_totes", UriKind.Relative), Json("{\"mode\":\"per_site\"}"));
+        const string writer = "settings.read@organization,settings.write@organization";
+        using var anonymousWrite = await client.PutAsync(new Uri("/api/v0/settings/organization/0/sample.max_totes", UriKind.Relative), Json("{\"value\":\"5\"}"));
+        using var readerWrite = await client.SendAsync(TestAuth.As(HttpMethod.Put, "/api/v0/settings/organization/0/sample.max_totes", "settings.read@organization", Json("{\"value\":\"5\"}")));
+        using var put = await client.SendAsync(TestAuth.As(HttpMethod.Put, "/api/v0/settings/organization/0/sample.max_totes", writer, Json("{\"value\":\"5\"}")));
+        using var delete = await client.SendAsync(TestAuth.As(HttpMethod.Delete, "/api/v0/settings/organization/0/sample.max_totes", writer));
+        using var badScope = await client.SendAsync(TestAuth.As(HttpMethod.Get, "/api/v0/settings/aisle/1", writer));
+        using var badKey = await client.SendAsync(TestAuth.As(HttpMethod.Get, "/api/v0/settings/organization/0/sample.nope", writer));
+        using var badValue = await client.SendAsync(TestAuth.As(HttpMethod.Put, "/api/v0/settings/organization/0/sample.max_totes", writer, Json("{\"value\":\"many\"}")));
+        using var badMode = await client.SendAsync(TestAuth.As(HttpMethod.Put, "/api/v0/settings/organization/0/sample.max_totes", writer, Json("{\"mode\":\"per_aisle\"}")));
+        using var modeUnknownKey = await client.SendAsync(TestAuth.As(HttpMethod.Put, "/api/v0/settings/organization/0/sample.nope", writer, Json("{\"mode\":\"per_site\"}")));
+        using var mode = await client.SendAsync(TestAuth.As(HttpMethod.Put, "/api/v0/settings/organization/0/sample.max_totes", writer, Json("{\"mode\":\"per_site\"}")));
 
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousWrite.StatusCode);   // E10.1: a permission before anything else
+        Assert.Equal(HttpStatusCode.Forbidden, readerWrite.StatusCode);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, put.StatusCode);
         Assert.Equal("settings.store_unavailable", await CodeAsync(put));
         Assert.Equal(HttpStatusCode.ServiceUnavailable, delete.StatusCode);

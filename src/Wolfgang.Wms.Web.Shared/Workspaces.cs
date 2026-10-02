@@ -61,7 +61,7 @@ public static class Workspaces
             title,
             description,
             new LicenseFeature("workspace." + name, $"The {title} console workspace"),
-            new Permission("workspace." + name + ".enter", $"Enter the {title} workspace"),
+            ConsolePermissions.For(name, title),
             freeTier
         );
     }

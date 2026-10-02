@@ -56,7 +56,18 @@ public static class AuthSettings
 
 
     /// <summary>
+    /// How often the worker re-verifies every signed security row (E10.4).
+    /// </summary>
+    public static readonly SettingKey<TimeSpan> IntegrityVerifyInterval = new("auth.integrity.verify_interval", TimeSpan.FromHours(1), "How often every signed security row is re-verified.")
+    {
+        Scopes = SettingScopes.Organization,
+        Validator = v => v >= TimeSpan.FromMinutes(1) && v <= TimeSpan.FromDays(7) ? null : "must be between 1 minute and 7 days",
+    };
+
+
+
+    /// <summary>
     /// Every key, for the module descriptor.
     /// </summary>
-    public static IReadOnlyList<SettingKey> All { get; } = [LockoutThreshold, LockoutDuration, SessionLifetime, IdleTimeout, Http.WmsCors.AllowedOrigins];
+    public static IReadOnlyList<SettingKey> All { get; } = [LockoutThreshold, LockoutDuration, SessionLifetime, IdleTimeout, Http.WmsCors.AllowedOrigins, IntegrityVerifyInterval];
 }

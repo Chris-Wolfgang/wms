@@ -106,6 +106,20 @@ public sealed class ModelConventionsTests
 
 
     [Fact]
+    public void Timestamps_are_truncated_to_the_millisecond_on_both_providers()
+    {
+        var boundary = new DateTimeOffset(2026, 9, 20, 6, 30, 0, 56, TimeSpan.Zero).AddTicks(9995);   // the servers would round this up to .057
+
+        Assert.Equal(new DateTimeOffset(2026, 9, 20, 6, 30, 0, 56, TimeSpan.Zero), Timestamps.TruncateToMillisecond(boundary));
+        Assert.Equal(new DateTime(2026, 9, 20, 6, 30, 0, 56, DateTimeKind.Utc), (DateTime)new UtcDateTimeOffsetConverter().ConvertToProvider(boundary)!);
+        Assert.Equal(new DateTimeOffset(2026, 9, 20, 6, 30, 0, 56, TimeSpan.Zero), (DateTimeOffset)new MillisecondDateTimeOffsetConverter().ConvertToProvider(boundary)!);
+        Assert.Equal(boundary, (DateTimeOffset)new MillisecondDateTimeOffsetConverter().ConvertFromProvider(boundary)!);
+        Assert.Equal(TimeSpan.Zero, Timestamps.TruncateToMillisecond(new DateTimeOffset(2026, 9, 20, 8, 30, 0, TimeSpan.FromHours(2))).Offset);
+    }
+
+
+
+    [Fact]
     public void SqlServer_timestamps_round_trip_as_utc_through_the_converter()
     {
         var converter = new UtcDateTimeOffsetConverter();

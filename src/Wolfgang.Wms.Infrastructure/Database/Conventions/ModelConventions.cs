@@ -90,10 +90,13 @@ public static class ModelConventions
             foreach (var property in entity.GetProperties())
             {
                 property.SetColumnName(SnakeCase.Of(property.Name));
-                if (sqlServer && (property.ClrType == typeof(DateTimeOffset) || property.ClrType == typeof(DateTimeOffset?)))
+                if (property.ClrType == typeof(DateTimeOffset) || property.ClrType == typeof(DateTimeOffset?))
                 {
-                    property.SetValueConverter(new UtcDateTimeOffsetConverter());
-                    property.SetPrecision(TimestampPrecision);
+                    property.SetValueConverter(sqlServer ? new UtcDateTimeOffsetConverter() : new MillisecondDateTimeOffsetConverter());   // truncated to the millisecond on both providers
+                    if (sqlServer)
+                    {
+                        property.SetPrecision(TimestampPrecision);   // the converter's DateTime loses the model-wide precision
+                    }
                 }
             }
 

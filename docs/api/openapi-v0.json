@@ -56,7 +56,7 @@
             "description": "True when the database is at exactly the migration this build expects."
           }
         },
-        "description": "The database schema as the API sees it (E82.5): the migration the database is at and the one this build\r\nexpects. Read-only; applying migrations is a bootstrap step outside the API (\u0060wms migrate\u0060)."
+        "description": "The database schema as the API sees it (E82.5): the migration the database is at and the one this build\nexpects. Read-only; applying migrations is a bootstrap step outside the API (\u0060wms migrate\u0060)."
       }
     }
   },

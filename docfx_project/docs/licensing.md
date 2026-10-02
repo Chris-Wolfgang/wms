@@ -25,7 +25,7 @@ Two checks run in the unit tests, so CI fails a pull request that breaks them:
 
 - **Complete**: every tier defines every limit; every name in the table is a catalogued feature or limit; a
   higher tier never grants less than a lower one (`TierTable.Verify`).
-- **Additions only**: `docs/licensing/tier-table.txt` holds the last released table. The current table may
+- **Additions only**: `docs/licensing/tier-table.txt` (in the repository) holds the last released table. The current table may
   add tiers, features and raise limits over it, never remove or lower (`TierTable.Regressions`). The release
   cut refreshes the file from `TierTables.Current.ToLines()`.
 
@@ -37,7 +37,7 @@ while `reports.builtin` stays free); a feature never moves up a tier.
 Compiled in, never stored, changes only with a release. Limits: 1 site, 5 connected devices, unlimited users
 and pickers, 1 tote per picker. Features: every v1 capability except the paid ones — `workspace.insights`,
 `reports.custom_views`, `picking.bulk`, `messaging.picker_to_picker`, `devices.remote_logging`,
-`devices.bulk_enrollment`. The full table per release is `docs/licensing/feature-comparison.md`.
+`devices.bulk_enrollment`. The full table per release is the [feature comparison](licensing/feature-comparison.md).
 
 ## Keys (E79.3, E79.11)
 
@@ -114,8 +114,8 @@ other penalty.
 this release and its date, every feature granted, every limit with its ceiling, count, percentage, warning
 flag (`license.usage_warning_percent`, default 80) and standing, the device totals, every installed key with
 what it adds and its status, and the banners. `GET /api/v0/system/license/comparison` returns the feature-by-
-tier table of this release with the installed tier marked; the same table renders `docs/licensing/feature-
-comparison.md` (regenerate with `WMS_UPDATE_LICENSING_DOCS=1 dotnet test tests/Wolfgang.Wms.UnitTests
+tier table of this release with the installed tier marked; the same table renders the [feature
+comparison](licensing/feature-comparison.md) (regenerate with `WMS_UPDATE_LICENSING_DOCS=1 dotnet test tests/Wolfgang.Wms.UnitTests
 --filter FeatureComparisonTests`; the test fails when the page is stale). The page's "what changed" lists the
 additions over the last released table.
 

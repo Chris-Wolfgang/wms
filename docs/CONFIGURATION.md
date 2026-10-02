@@ -137,4 +137,4 @@ supervisors is the expected load; the API is the tier that scales).
 
 Nothing to configure at bootstrap: the free tier is compiled in, and a paid key is installed through the
 console (stored encrypted as the setting `license.keys`). The model, the keys, the soft limits and the expiry
-behaviour are in docs/LICENSING.md.
+behaviour are in the manual: `docfx_project/docs/licensing.md`.

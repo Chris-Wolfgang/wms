@@ -48,7 +48,11 @@ public sealed class ConsoleUsesApiOnlyTests
             .SelectMany(p => ConsoleViolationsIn(RepositoryFiles.LoadProject(p)).Select(v => $"{p}: {v}"))
             .ToList();
 
-        Assert.Equal(ConsoleProjects, consoleProjects.Select(Path.GetFileNameWithoutExtension).Order(StringComparer.Ordinal));
+        Assert.Equal
+        (
+            ConsoleProjects.Order(StringComparer.Ordinal),
+            consoleProjects.Select(Path.GetFileNameWithoutExtension).Order(StringComparer.Ordinal)
+        );
         Assert.Empty(offending);
     }
 

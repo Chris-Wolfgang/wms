@@ -94,6 +94,8 @@ public sealed class LocalAccountsTests
 
         var refreshed = Cookie(changed);
         var me = await MeAsync(client, refreshed);
+        using var oldSession = await client.SendAsync(Request(HttpMethod.Get, "/api/v0/auth/me", cookie, body: null));
+        Assert.Equal(HttpStatusCode.Unauthorized, oldSession.StatusCode);   // E10.5: the password change revoked the earlier session
         using var free = await client.SendAsync(Request(HttpMethod.Get, "/api/v0/settings/registry", refreshed, body: null));
         using var oldPassword = await LoginAsync(client, "admin", PasswordPolicy.BootstrapDefault);
         using var newPassword = await LoginAsync(client, "admin", "a-long-enough-password");

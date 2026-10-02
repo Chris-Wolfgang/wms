@@ -13,6 +13,7 @@ using Wolfgang.Wms.Domain.Keys;
 using Wolfgang.Wms.Domain.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Database.Auditing;
+using Wolfgang.Wms.Infrastructure.Secrets;
 
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
@@ -60,6 +61,7 @@ public sealed class SettingsAuditTests
         services.AddWmsModule(ModuleDescriptor.Create("sample").WithSettings(MaxTotes));
         services.AddDbContext<WmsDbContext>(builder => DatabaseServiceCollectionExtensions.Configure(builder, options));
         services.AddWmsAuditing();
+        services.AddWmsDataProtection(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<Wolfgang.Wms.Core.Caching.IRowVersionSource, MaxRowVersionSource>();
         services.AddSingleton<Wolfgang.Wms.Infrastructure.Database.Settings.SettingsCache>();

@@ -69,6 +69,26 @@ public sealed class ModelConventionsTests
 
 
 
+    [Theory]
+    [InlineData(SqlServer, "NEXT VALUE FOR [wms].[row_version_seq]")]
+    [InlineData(PostgreSql, "nextval('wms.row_version_seq')")]
+    public void Versioned_entities_get_a_sequence_backed_row_version_concurrency_token_with_an_index(string provider, string defaultSql)
+    {
+        using var context = Sample(provider);
+        var sku = context.Model.FindEntityType(typeof(Sku))!;
+        var rowVersion = sku.FindProperty(nameof(Sku.RowVersion))!;
+
+        Assert.Equal("row_version", rowVersion.GetColumnName());
+        Assert.Equal(defaultSql, rowVersion.GetDefaultValueSql());
+        Assert.True(rowVersion.IsConcurrencyToken);
+        Assert.Equal(ValueGenerated.OnAddOrUpdate, rowVersion.ValueGenerated);
+        Assert.Contains(sku.GetIndexes(), i => string.Equals(i.GetDatabaseName(), "ix_sku_row_version", StringComparison.Ordinal));
+        Assert.Contains(context.Model.GetSequences(), s => string.Equals(s.Name, "row_version_seq", StringComparison.Ordinal) && string.Equals(s.Schema, "wms", StringComparison.Ordinal));
+        Assert.Null(context.Model.FindEntityType(typeof(Container))!.FindProperty("RowVersion"));
+    }
+
+
+
     [Fact]
     public void SqlServer_timestamps_round_trip_as_utc_through_the_converter()
     {

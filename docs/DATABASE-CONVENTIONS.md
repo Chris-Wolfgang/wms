@@ -46,6 +46,18 @@ referenced location, SKU or zone fails in the database, not just in the applicat
 - Natural keys (`erp_release_id`, `barcode`, tote barcode) are unique indexes; every foreign key column is
   indexed explicitly on both providers (EF creates them; the verifier rejects a missing one).
 
+## Row versioning (E5.1)
+
+Every synced or edited table implements `IVersionedEntity` and gets `row_version`: a `bigint` drawn from the
+single sequence `wms.row_version_seq` by a column default on insert (so EF batches, `INSERT … SELECT`, `COPY`
+and `SqlBulkCopy` are covered) and overwritten by an update trigger (`trg_<table>_row_version`: set-based on
+SQL Server, per row on PostgreSQL, ignoring any supplied value) so writes outside EF are covered too. It is
+the concurrency token (a stale save is `412`, E5.2), the `ETag` (E1.12) and the sync watermark (E5.3/E5.4),
+and it is indexed. The sequence is part of the model (migration `RowVersionSequence`); the trigger is added
+by the migration that creates the table (`RowVersioning.AddUpdateTrigger` / `DropUpdateTrigger`). Bulk
+upserts stage into a temp table and `MERGE`/`UPDATE`, so the trigger fires normally. Sequence values are
+assigned before commit and the sequence is cached, so gaps happen and delta readers apply a safety margin.
+
 ## Adding an entity
 
 1. Class in the module with `long Id`, `DateTimeOffset` timestamps, `decimal` quantities, `<Principal>Id`

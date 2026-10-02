@@ -78,7 +78,7 @@ public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<P
         using var client = host.CreateClient();
         var status = await SchemaAsync(client);
 
-        Assert.EndsWith("_Initial", status.RootElement.GetProperty("expected").GetString(), StringComparison.Ordinal);
+        Assert.False(string.IsNullOrEmpty(status.RootElement.GetProperty("expected").GetString()));
         Assert.Equal(status.RootElement.GetProperty("expected").GetString(), status.RootElement.GetProperty("current").GetString());
         Assert.True(status.RootElement.GetProperty("upToDate").GetBoolean());
 

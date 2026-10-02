@@ -20,6 +20,8 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.HasSequence("row_version_seq", "wms");
 #pragma warning restore 612, 618
         }
     }

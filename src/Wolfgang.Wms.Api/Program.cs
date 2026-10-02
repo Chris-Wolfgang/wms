@@ -10,6 +10,7 @@ using Wolfgang.Wms.Core.Devices;
 using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Json;
+using Wolfgang.Wms.Core.Licensing;
 using Wolfgang.Wms.Core.Localization;
 using Wolfgang.Wms.Core.Logging;
 using Wolfgang.Wms.Logging;
@@ -64,6 +65,7 @@ builder.Services.AddWmsSettingsModule();   // E6.1: GET /settings/registry, the 
 builder.Services.AddWmsAuthModule();   // E9: local sign-in, session cookie on the shared key ring, password change
 builder.Services.AddWmsOidcProvider();   // E11.1: the oidc provider, offered when auth.providers.enabled names it
 builder.Services.AddWmsRolesModule();   // E10.2/E10.3: roles from the catalog, assignments everywhere or per site
+builder.Services.AddWmsLicenseModule();   // E79: the free tier compiled in, pasted keys verified offline, limits enforced through the gate
 
 // E6.5: appsettings holds bootstrap keys only; anything else is named in a startup warning and ignored.
 builder.Services.AddWmsBootstrapConfigurationCheck();

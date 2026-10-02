@@ -28,6 +28,7 @@ public static class BootstrapConfiguration
         "Wms:DataProtection:KeyRingPath",   // E8.1
         "Wms:Bootstrap:AdminUserName",      // E9.1: the bootstrap administrator's name (default admin)
         "Wms:Hosting:BehindProxy",          // E10.6: honour X-Forwarded-* from the reverse proxy
+        "Wms:Auth:ForceLocal",              // E11.0: emergency override, local sign-in only
     ];
 
 

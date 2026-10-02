@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using Wolfgang.Wms.Core.Api;
+using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Configuration;
 using Wolfgang.Wms.Core.Devices;
 using Wolfgang.Wms.Core.Http;
@@ -43,6 +44,7 @@ builder.Services.AddWmsModules();
 builder.Services.AddWmsSchemaModule();   // E82.5: GET /system/schema, read-only
 builder.Services.AddWmsSettingsModule();   // E6.1: GET /settings/registry, the settings every module declares
 builder.Services.AddWmsAuthModule();   // E9: local sign-in, session cookie on the shared key ring, password change
+builder.Services.AddWmsRolesModule();   // E10.2/E10.3: roles from the catalog, assignments everywhere or per site
 
 // E6.5: appsettings holds bootstrap keys only; anything else is named in a startup warning and ignored.
 builder.Services.AddWmsBootstrapConfigurationCheck();

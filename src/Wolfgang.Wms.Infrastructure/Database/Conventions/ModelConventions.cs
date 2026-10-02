@@ -331,8 +331,10 @@ public static class ModelConventions
             violations.Add($"{table}.{columns}: foreign keys never cascade (delete behaviour must be Restrict).");
         }
 
-        var indexed = entity.GetIndexes().Any(i => i.Properties.Select(p => p.Name).SequenceEqual(foreignKey.Properties.Select(p => p.Name), StringComparer.Ordinal))
-            || (entity.FindPrimaryKey()?.Properties.Select(p => p.Name).SequenceEqual(foreignKey.Properties.Select(p => p.Name), StringComparer.Ordinal) ?? false);
+        // An index whose leading columns are the foreign key's serves it (EF creates no separate one then).
+        var keyColumns = foreignKey.Properties.Select(p => p.Name).ToList();
+        var indexed = entity.GetIndexes().Any(i => i.Properties.Count >= keyColumns.Count && i.Properties.Take(keyColumns.Count).Select(p => p.Name).SequenceEqual(keyColumns, StringComparer.Ordinal))
+            || (entity.FindPrimaryKey()?.Properties.Select(p => p.Name).SequenceEqual(keyColumns, StringComparer.Ordinal) ?? false);
         if (!indexed)
         {
             violations.Add($"{table}.{columns}: every foreign key column is indexed explicitly.");

@@ -3,6 +3,7 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Wolfgang.Wms.Domain.Localization;
 
 namespace Wolfgang.Wms.Core.Localization;
 
@@ -16,21 +17,21 @@ public static class WmsLocalization
     /// <summary>
     /// The culture used when the request names none of the supported ones.
     /// </summary>
-    public const string DefaultCulture = "en";
+    public const string DefaultCulture = Cultures.Default;
 
 
 
     /// <summary>
     /// Folder, relative to each host project, that holds the <c>.resx</c> files.
     /// </summary>
-    public const string ResourcesPath = "Resources";
+    public const string ResourcesPath = Cultures.ResourcesPath;
 
 
 
     /// <summary>
     /// Every culture the product ships strings for. Order is the preference order for fallback.
     /// </summary>
-    public static IReadOnlyList<string> SupportedCultures { get; } = [DefaultCulture];
+    public static IReadOnlyList<string> SupportedCultures => Cultures.Supported;
 
 
 

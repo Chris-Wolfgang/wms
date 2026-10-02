@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="product.name" xml:space="preserve">
+    <value>Wolfgang.Wms</value>
+    <comment>Product name in titles and headers.</comment>
+  </data>
+  <data name="console.heading" xml:space="preserve">
+    <value>Wolfgang.Wms console</value>
+    <comment>Heading of the workspace chooser at /.</comment>
+  </data>
+  <data name="console.none_available" xml:space="preserve">
+    <value>None of the console workspaces are available to you.</value>
+    <comment>Chooser text when the user may enter no workspace.</comment>
+  </data>
+  <data name="workspaces.nav_label" xml:space="preserve">
+    <value>Workspaces</value>
+    <comment>Accessible label of the workspace navigation.</comment>
+  </data>
+  <data name="workspace.configure.title" xml:space="preserve">
+    <value>Configure</value>
+  </data>
+  <data name="workspace.configure.description" xml:space="preserve">
+    <value>Set up sites, zones, users and settings.</value>
+  </data>
+  <data name="workspace.supervise.title" xml:space="preserve">
+    <value>Supervise</value>
+  </data>
+  <data name="workspace.supervise.description" xml:space="preserve">
+    <value>Watch and steer live picking operations.</value>
+  </data>
+  <data name="workspace.resolve.title" xml:space="preserve">
+    <value>Resolve</value>
+  </data>
+  <data name="workspace.resolve.description" xml:space="preserve">
+    <value>Resolve totes and exceptions at the resolution lane.</value>
+  </data>
+  <data name="workspace.report.title" xml:space="preserve">
+    <value>Report</value>
+  </data>
+  <data name="workspace.report.description" xml:space="preserve">
+    <value>Rates, totes on the line, completion times and device metrics.</value>
+  </data>
+  <data name="workspace.insights.title" xml:space="preserve">
+    <value>Insights</value>
+  </data>
+  <data name="workspace.insights.description" xml:space="preserve">
+    <value>Findings and recommendations for improving the floor.</value>
+  </data>
+  <data name="layout.loading" xml:space="preserve">
+    <value>Loading…</value>
+    <comment>Shown while the workspace entry check runs.</comment>
+  </data>
+  <data name="layout.scan_unused" xml:space="preserve">
+    <value>Scan {0} is not used on this screen.</value>
+    <comment>{0} is the scanned text.</comment>
+  </data>
+  <data name="layout.not_licensed.title" xml:space="preserve">
+    <value>{0} is not licensed</value>
+    <comment>{0} is the workspace title.</comment>
+  </data>
+  <data name="layout.not_licensed.detail" xml:space="preserve">
+    <value>This installation's license does not include the {0} feature.</value>
+    <comment>{0} is the license feature name.</comment>
+  </data>
+  <data name="layout.not_permitted.title" xml:space="preserve">
+    <value>{0} is not available to you</value>
+    <comment>{0} is the workspace title.</comment>
+  </data>
+  <data name="layout.not_permitted.detail" xml:space="preserve">
+    <value>Your roles do not grant {0}.</value>
+    <comment>{0} is the permission name.</comment>
+  </data>
+  <data name="scan.label" xml:space="preserve">
+    <value>Scan</value>
+    <comment>Accessible label and placeholder of the tethered-scanner field.</comment>
+  </data>
+  <data name="error.title" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="error.heading" xml:space="preserve">
+    <value>Error.</value>
+  </data>
+  <data name="error.subheading" xml:space="preserve">
+    <value>An error occurred while processing your request.</value>
+  </data>
+  <data name="error.request_id" xml:space="preserve">
+    <value>Request ID:</value>
+  </data>
+  <data name="error.development.heading" xml:space="preserve">
+    <value>Development Mode</value>
+  </data>
+  <data name="error.development.detail" xml:space="preserve">
+    <value>Swapping to the Development environment will display more detailed information about the error that occurred.</value>
+  </data>
+  <data name="error.development.warning" xml:space="preserve">
+    <value>The Development environment shouldn't be enabled for deployed applications. It can result in displaying sensitive information from exceptions to end users. For local debugging, enable the Development environment by setting the ASPNETCORE_ENVIRONMENT environment variable to Development and restarting the app.</value>
+  </data>
+  <data name="not_found.heading" xml:space="preserve">
+    <value>Not Found</value>
+  </data>
+  <data name="not_found.detail" xml:space="preserve">
+    <value>Sorry, the content you are looking for does not exist.</value>
+  </data>
+  <data name="unhandled.message" xml:space="preserve">
+    <value>An unhandled error has occurred.</value>
+  </data>
+  <data name="unhandled.reload" xml:space="preserve">
+    <value>Reload</value>
+  </data>
+  <data name="unhandled.dismiss" xml:space="preserve">
+    <value>Dismiss</value>
+    <comment>Accessible label of the close button.</comment>
+  </data>
+  <data name="reconnect.rejoining" xml:space="preserve">
+    <value>Rejoining the server...</value>
+  </data>
+  <data name="reconnect.retrying_in" xml:space="preserve">
+    <value>Rejoin failed... trying again in</value>
+    <comment>Followed by the number of seconds.</comment>
+  </data>
+  <data name="reconnect.seconds" xml:space="preserve">
+    <value>seconds.</value>
+    <comment>Follows the number of seconds.</comment>
+  </data>
+  <data name="reconnect.failed" xml:space="preserve">
+    <value>Failed to rejoin.</value>
+  </data>
+  <data name="reconnect.retry_or_reload" xml:space="preserve">
+    <value>Please retry or reload the page.</value>
+  </data>
+  <data name="reconnect.retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="reconnect.paused" xml:space="preserve">
+    <value>The session has been paused by the server.</value>
+  </data>
+  <data name="reconnect.resume_failed" xml:space="preserve">
+    <value>Failed to resume the session.</value>
+  </data>
+  <data name="reconnect.resume" xml:space="preserve">
+    <value>Resume</value>
+  </data>
+</root>

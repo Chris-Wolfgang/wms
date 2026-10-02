@@ -1,5 +1,6 @@
 @page "/configure"
 @layout ConfigureLayout
+@inject IStringLocalizer<ConsoleText> L
 
-<h1>@Workspaces.Configure.Title</h1>
-<p>@Workspaces.Configure.Description</p>
+<h1>@L[Workspaces.Configure.TitleKey]</h1>
+<p>@L[Workspaces.Configure.DescriptionKey]</p>

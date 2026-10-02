@@ -1,9 +1,10 @@
 ﻿@inherits LayoutComponentBase
+@inject IStringLocalizer<ConsoleText> L
 
 @Body
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    @L["unhandled.message"]
+    <a href="." class="reload">@L["unhandled.reload"]</a>
+    <span class="dismiss" role="button" aria-label="@L["unhandled.dismiss"]">🗙</span>
 </div>

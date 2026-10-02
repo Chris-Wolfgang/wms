@@ -108,6 +108,25 @@ outside the coverage periods, **security patches included**; covered releases st
 console banner shows the expiry and what it blocks. Renewal is a new key with extended coverage; there is no
 other penalty.
 
+## Trials and installation binding (planned, ADR 0007)
+
+**Not in this release.** [ADR 0007](https://github.com/Chris-Wolfgang/wms/blob/main/docs/adr/0007-evaluation-and-trial-model.md)
+decides the rules below; none of them is implemented yet, and until the evaluation stories (EV) ship, the
+product behaves exactly as the sections above describe. Each rule moves into the section it changes when its
+story ships.
+
+- **Trial keys.** A trial is a `pro` or `enterprise` base key with `trial: true`, a 30–60 day coverage period,
+  an explicit `devices` limit (default 10), the prospect's name as its organization, and no installation
+  binding. Free needs no key and has no trial.
+- **Trial expiry reverts to Free and parks.** When a trial's coverage ends the installation drops to the Free
+  tier and anything above a Free limit (sites, devices) is parked by the customer's choice, never deleted;
+  everything stays active behind a banner until they choose, and a larger key un-parks at once. This is the
+  one exception to "nothing already created ever stops working" above; a lapsed **paid** key still freezes as
+  described under Expiry.
+- **Paid keys bind to an installation id.** Each installation generates a random id on first run, stored in
+  the database and shown on the license page; a paid key carries `installation_id` and is accepted only where
+  it matches. Trial keys and Free add-ons are accepted anywhere.
+
 ## The license page (E79.6, E79.10)
 
 `GET /api/v0/system/license` (permission `license.read`): tier, organization, coverage and last covered day,

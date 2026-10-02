@@ -42,12 +42,12 @@ public sealed class SettingsEndpointsTests : IClassFixture<WebApplicationFactory
         using var items = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
         using var value = JsonDocument.Parse(await one.Content.ReadAsStringAsync());
 
+        var sample = items.RootElement.EnumerateArray().Single(e => string.Equals(e.GetProperty("name").GetString(), "sample.max_totes", StringComparison.Ordinal));   // the auth module lists its own too
         Assert.Equal(HttpStatusCode.OK, list.StatusCode);
-        Assert.Equal("sample.max_totes", items.RootElement[0].GetProperty("name").GetString());
-        Assert.Equal("site:4", items.RootElement[0].GetProperty("scope").GetString());
-        Assert.Equal("3", items.RootElement[0].GetProperty("effectiveValue").GetString());
-        Assert.Equal("default", items.RootElement[0].GetProperty("inheritedFrom").GetString());
-        Assert.Equal(JsonValueKind.Null, items.RootElement[0].GetProperty("etag").ValueKind);
+        Assert.Equal("site:4", sample.GetProperty("scope").GetString());
+        Assert.Equal("3", sample.GetProperty("effectiveValue").GetString());
+        Assert.Equal("default", sample.GetProperty("inheritedFrom").GetString());
+        Assert.Equal(JsonValueKind.Null, sample.GetProperty("etag").ValueKind);
         Assert.Equal(HttpStatusCode.OK, one.StatusCode);
         Assert.Equal("Integer", value.RootElement.GetProperty("kind").GetString());
         Assert.Null(one.Headers.ETag);

@@ -12,7 +12,7 @@ environment variable with `__` for `:` (`Wms__Database__Provider`). Environment 
 |-----|-------|
 | `Wms:Database:Provider`, `ConnectionString`, `AutoMigrate`, `TrustServerCertificate` | E2, below |
 | `Wms:DataProtection:KeyRingPath` | E8.1, below |
-| `Wms:Bootstrap:AdminUserName` | E9.1 (reserved until it lands) |
+| `Wms:Bootstrap:AdminUserName` | E9.1, docs/AUTH.md: the bootstrap administrator's name (default `admin`); read once |
 | `Urls`, `Kestrel:*`, `AllowedHosts` | ASP.NET Core hosting |
 | `Logging:*` | log levels; runtime control arrives with E12.4 |
 

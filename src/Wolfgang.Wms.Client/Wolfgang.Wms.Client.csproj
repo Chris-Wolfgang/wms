@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- E82.8: the shared API client. Generated/ is produced by scripts/Update-ApiClient.ps1 (Kiota, ADR 0004)
+         from docs/api/openapi-v0.json and committed; the wire contract is versioned with the API and the
+         package is publishable to customers later. -->
+    <IsPackable>true</IsPackable>
+    <PackageId>Wolfgang.Wms.Client</PackageId>
+    <Description>Generated client for the Wolfgang.Wms API (v0, unstable through product 0.x).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Kiota runtime: abstractions, HttpClient adapter and the reflection-free JSON/text/form serializers. -->
+    <PackageReference Include="Microsoft.Kiota.Bundle" Version="2.1.2" />
+  </ItemGroup>
+
+</Project>

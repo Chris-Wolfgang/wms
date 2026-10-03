@@ -35,7 +35,13 @@ public static class DeviceVersion
             span = span[..cut];
         }
 
-        return Version.TryParse(span, out var parsed) && (version = parsed) is not null;
+        if (!Version.TryParse(span, out var parsed))
+        {
+            return false;
+        }
+
+        version = parsed;
+        return true;
     }
 
 

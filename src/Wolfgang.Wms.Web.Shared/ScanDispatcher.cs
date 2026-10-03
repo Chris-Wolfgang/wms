@@ -11,7 +11,7 @@ namespace Wolfgang.Wms.Web.Shared;
 /// </summary>
 public sealed class ScanDispatcher
 {
-    private readonly List<Func<string, Task>> _listeners = [];
+    private readonly List<Registration> _listeners = [];
 
 
 
@@ -29,8 +29,9 @@ public sealed class ScanDispatcher
     public IDisposable Listen(Func<string, Task> listener)
     {
         ArgumentNullException.ThrowIfNull(listener);
-        _listeners.Add(listener);
-        return new Registration(this, listener);
+        var registration = new Registration(this, listener);
+        _listeners.Add(registration);
+        return registration;
     }
 
 
@@ -48,17 +49,23 @@ public sealed class ScanDispatcher
             return false;
         }
 
-        await _listeners[^1](scan).ConfigureAwait(false);
+        await _listeners[^1].Listener(scan).ConfigureAwait(false);
         return true;
     }
 
 
 
+    // Each registration is its own list entry, so disposing one removes exactly that subscription even when the
+    // same callback is registered more than once.
     private sealed class Registration(ScanDispatcher owner, Func<string, Task> listener) : IDisposable
     {
+        public Func<string, Task> Listener { get; } = listener;
+
+
+
         public void Dispose()
         {
-            owner._listeners.Remove(listener);
+            owner._listeners.Remove(this);
         }
     }
 }

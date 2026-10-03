@@ -9,16 +9,12 @@ namespace Wolfgang.Wms.Web.Shared;
 /// its <see cref="Permission"/>, and entered only when the license includes its <see cref="LicenseFeature"/>.
 /// </summary>
 /// <param name="Name">Short lower-case identifier (<c>configure</c>); also the route segment.</param>
-/// <param name="Title">Display name (<c>Configure</c>).</param>
-/// <param name="Description">One sentence for the chooser and the docs.</param>
 /// <param name="LicenseFeature">The license feature checked at the workspace entry.</param>
 /// <param name="Permission">The permission a role must hold to see the workspace.</param>
 /// <param name="FreeTier">True when the v1 free tier includes the workspace.</param>
 public sealed record Workspace
 (
     string Name,
-    string Title,
-    string Description,
     LicenseFeature LicenseFeature,
     Permission Permission,
     bool FreeTier
@@ -35,4 +31,19 @@ public sealed record Workspace
     /// The absolute route of the workspace root (<c>/configure</c>).
     /// </summary>
     public string Route => "/" + Name;
+
+
+
+    /// <summary>
+    /// Key of the display name in <see cref="ConsoleText"/> (<c>workspace.configure.title</c>); the text is
+    /// localized, never stored here.
+    /// </summary>
+    public string TitleKey => "workspace." + Name + ".title";
+
+
+
+    /// <summary>
+    /// Key of the one-sentence description in <see cref="ConsoleText"/>, shown in the chooser.
+    /// </summary>
+    public string DescriptionKey => "workspace." + Name + ".description";
 }

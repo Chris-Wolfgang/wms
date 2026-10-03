@@ -4,6 +4,7 @@ using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using Wolfgang.Wms.Domain.Localization;
 using Wolfgang.Wms.Web.Shared;
 using Wolfgang.Wms.Web.Shared.Components;
 
@@ -16,6 +17,14 @@ namespace Wolfgang.Wms.UnitTests.Web;
 public sealed class ScanComponentTests : IDisposable
 {
     private readonly BunitContext _context = new();
+
+
+
+    public ScanComponentTests()
+    {
+        // The real console text (ConsoleText.resx), registered the way the host does.
+        _context.Services.AddLocalization(options => options.ResourcesPath = Cultures.ResourcesPath);
+    }
 
 
 

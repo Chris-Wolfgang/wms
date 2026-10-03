@@ -1,0 +1,54 @@
+@* Keyboard-wedge scanner input (E82.4): a tethered scanner types the barcode and sends Enter, so the field must
+   have focus for a scan to arrive. It takes focus when the page loads (autofocus) and when the component first
+   renders interactively (navigation between workspaces), and again after every completed scan; a screen that
+   moves focus to its own inputs calls FocusAsync to hand it back. It never pulls focus back on its own, which
+   would trap the keyboard away from every other field on the screen. It raises OnScan with the completed scan
+   and clears itself; the rule lives in ScanBuffer so it is unit-tested, and the caller applies the same
+   validation and feedback rules as the device (E40). *@
+<input class="scan-listener"
+       type="text"
+       autocomplete="off"
+       autofocus
+       spellcheck="false"
+       aria-label="@Label"
+       placeholder="@Label"
+       value="@_buffer.Text"
+       @ref="_field"
+       @oninput="e => _buffer.Update(e.Value?.ToString())"
+       @onkeydown="OnKeyDown" />
+
+@code {
+    private readonly ScanBuffer _buffer = new();
+    private ElementReference _field;
+
+    /// <summary>Accessible label and placeholder for the field.</summary>
+    [Parameter]
+    public string Label { get; set; } = "Scan";
+
+    /// <summary>Raised with the scanned text when the scanner sends Enter; blank scans are ignored.</summary>
+    [Parameter]
+    public EventCallback<string> OnScan { get; set; }
+
+    /// <summary>Moves keyboard focus to the scan field, e.g. after a screen's own form or dialog closes.</summary>
+    public ValueTask FocusAsync()
+    {
+        return _field.FocusAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await FocusAsync();
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (_buffer.TryComplete(e.Key, out var scanned))
+        {
+            await OnScan.InvokeAsync(scanned);
+            await FocusAsync();
+        }
+    }
+}

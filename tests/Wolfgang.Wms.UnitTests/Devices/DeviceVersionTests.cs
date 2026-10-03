@@ -44,6 +44,8 @@ public sealed class DeviceVersionTests
     [InlineData("1.3.9", "1.4.0", false)]
     [InlineData("2.0", "1.9.9", true)]
     [InlineData("1.4.0.1", "1.4.0", true)]
+    [InlineData("1.4.0.1", "1.4.0.2", true)]
+    [InlineData("1.3.9.9", "1.4.0.0", false)]
     public void Satisfies_compares_with_missing_parts_as_zero(string version, string minimum, bool expected)
     {
         Assert.Equal(expected, DeviceVersion.Satisfies(Version.Parse(version), Version.Parse(minimum)));

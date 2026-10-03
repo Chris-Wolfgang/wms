@@ -33,6 +33,9 @@ public static class ConsoleLocalization
             options.FallBackToParentCultures = true;
             options.FallBackToParentUICultures = true;
             options.ApplyCurrentCultureToResponseHeaders = true;
+
+            // The default list also reads ?culture= first; the policy is the picker cookie, then the browser.
+            options.RequestCultureProviders = [new CookieRequestCultureProvider(), new AcceptLanguageHeaderRequestCultureProvider()];
         });
         return services;
     }

@@ -105,6 +105,17 @@ public sealed class ConsoleMarkupTests : IDisposable
 
 
 
+    [Fact]
+    public void The_marking_localizer_marks_lookups_by_name_and_lists_no_strings()
+    {
+        var localizer = new MarkingLocalizerFactory().Create("ConsoleText", "Wolfgang.Wms.Web.Shared");
+
+        Assert.Equal("⟦scan.label⟧", localizer["scan.label"].Value);
+        Assert.Empty(localizer.GetAllStrings(includeParentCultures: true));
+    }
+
+
+
     public void Dispose()
     {
         _context.Dispose();

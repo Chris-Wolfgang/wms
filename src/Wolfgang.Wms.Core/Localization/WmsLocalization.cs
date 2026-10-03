@@ -56,6 +56,13 @@ public static class WmsLocalization
             options.FallBackToParentCultures = true;
             options.FallBackToParentUICultures = true;
             options.ApplyCurrentCultureToResponseHeaders = true;
+
+            // The default list also reads ?culture= first; the policy is the picker cookie, then the browser.
+            options.RequestCultureProviders =
+            [
+                new Microsoft.AspNetCore.Localization.CookieRequestCultureProvider(),
+                new Microsoft.AspNetCore.Localization.AcceptLanguageHeaderRequestCultureProvider(),
+            ];
         });
 
         return services;

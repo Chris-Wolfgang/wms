@@ -48,7 +48,7 @@ public static class DeviceVersion
 
     /// <summary>
     /// True when <paramref name="version"/> is at least <paramref name="minimum"/>, comparing major, minor
-    /// and build; a missing build or revision counts as zero on either side.
+    /// and build only; a missing build counts as zero on either side and a fourth (revision) part is ignored.
     /// </summary>
     public static bool Satisfies(Version version, Version minimum)
     {
@@ -62,6 +62,6 @@ public static class DeviceVersion
 
     private static Version Normalize(Version version)
     {
-        return new Version(version.Major, version.Minor, Math.Max(version.Build, 0), Math.Max(version.Revision, 0));
+        return new Version(version.Major, version.Minor, Math.Max(version.Build, 0));
     }
 }

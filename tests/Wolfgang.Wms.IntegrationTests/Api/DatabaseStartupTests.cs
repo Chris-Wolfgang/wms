@@ -1,7 +1,5 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
-using System.Net;
-using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Options;
@@ -52,18 +50,14 @@ public sealed class DatabaseStartupTests : IClassFixture<WebApplicationFactory<P
 
 
     [Fact]
-    public async Task With_a_configured_but_unreachable_SqlServer_the_schema_endpoint_reports_no_current_version()
+    public void With_a_configured_but_unreachable_SqlServer_the_host_refuses_to_start()
     {
         using var host = _factory.WithWebHostBuilder(builder => builder
             .UseSetting("Wms:Database:Provider", "SqlServer")
             .UseSetting("Wms:Database:ConnectionString", "Server=127.0.0.1,1;Database=wms;User Id=wms;Password=x;Encrypt=False;Connect Timeout=1;Connect Retry Count=0"));
-        using var client = host.CreateClient();
 
-        using var response = await client.GetAsync(new Uri("/api/v0/system/schema", UriKind.Relative));
-        using var status = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var exception = Assert.Throws<InvalidOperationException>(() => host.CreateClient());
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(JsonValueKind.Null, status.RootElement.GetProperty("current").ValueKind);
-        Assert.False(status.RootElement.GetProperty("upToDate").GetBoolean());
+        Assert.Contains("cannot be reached", exception.Message, StringComparison.Ordinal);
     }
 }

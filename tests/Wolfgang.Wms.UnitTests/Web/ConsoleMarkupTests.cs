@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Reflection;
 using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using Bunit;
@@ -21,7 +22,7 @@ public sealed class ConsoleMarkupTests : IDisposable
 {
     private static readonly string[] UserFacingAttributes = ["aria-label", "placeholder", "title", "alt"];
 
-    private static readonly Regex Marker = new("⟦[^⟦⟧]*⟧", RegexOptions.CultureInvariant);
+    private static readonly Regex Marker = new("⟦[^⟦⟧]*⟧", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
     private readonly BunitContext _context = new();
 
@@ -35,34 +36,87 @@ public sealed class ConsoleMarkupTests : IDisposable
 
 
 
-    public static TheoryData<string> Pages => new()
+    /// <summary>
+    /// Every component the console ships, rendered by <see cref="Console_component_text_comes_from_the_localizer"/>.
+    /// <see cref="Every_console_component_is_checked_or_excluded_with_a_reason"/> fails when one is added
+    /// without being listed here or in <see cref="Excluded"/>.
+    /// </summary>
+    public static TheoryData<Type> Components => [.. ComponentTypes];
+
+
+
+    private static Type[] ComponentTypes =>
+    [
+        typeof(global::Wolfgang.Wms.Web.Configure.Pages.ConfigureHome),
+        typeof(global::Wolfgang.Wms.Web.Supervise.Pages.SuperviseHome),
+        typeof(global::Wolfgang.Wms.Web.Resolve.Pages.ResolveHome),
+        typeof(global::Wolfgang.Wms.Web.Report.Pages.ReportHome),
+        typeof(global::Wolfgang.Wms.Web.Insights.Pages.InsightsHome),
+        typeof(global::Wolfgang.Wms.Web.Configure.ConfigureLayout),
+        typeof(global::Wolfgang.Wms.Web.Supervise.SuperviseLayout),
+        typeof(global::Wolfgang.Wms.Web.Resolve.ResolveLayout),
+        typeof(global::Wolfgang.Wms.Web.Report.ReportLayout),
+        typeof(global::Wolfgang.Wms.Web.Insights.InsightsLayout),
+        typeof(global::Wolfgang.Wms.Web.Components.Pages.Home),
+        typeof(global::Wolfgang.Wms.Web.Components.Pages.Error),
+        typeof(global::Wolfgang.Wms.Web.Components.Pages.NotFound),
+        typeof(global::Wolfgang.Wms.Web.Components.Layout.MainLayout),
+        typeof(global::Wolfgang.Wms.Web.Components.Layout.ReconnectModal),
+        typeof(global::Wolfgang.Wms.Web.Components.Routes),
+        typeof(ScanListener),
+        typeof(WorkspaceNav),
+    ];
+
+
+
+    /// <summary>
+    /// Console components the markup check does not render, each with the reason.
+    /// </summary>
+    private static Dictionary<Type, string> Excluded => new()
     {
-        "configure",
-        "supervise",
-        "resolve",
-        "report",
-        "insights",
-        "home",
-        "error",
-        "not-found",
-        "main-layout",
-        "reconnect-modal",
-        "scan-listener",
-        "workspace-nav",
+        [typeof(global::Wolfgang.Wms.Web.Components.App)] =
+            "The document shell (html, head, body, scripts) has no text of its own; it needs the host's endpoint and "
+            + "static-asset services to render, and ConsoleLocalizationTests checks its one culture-dependent "
+            + "attribute (<html lang>) against the running host.",
     };
 
 
 
     [Theory]
-    [MemberData(nameof(Pages))]
-    public void Console_component_text_comes_from_the_localizer(string page)
+    [MemberData(nameof(Components))]
+    public void Console_component_text_comes_from_the_localizer(Type component)
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.Allowed));
 
-        var nodes = Render(page);
+        var nodes = Render(component);
 
         Assert.Empty(Literals(nodes));
         Assert.Contains("⟦", string.Concat(nodes.Select(n => n.TextContent)) + string.Concat(Attributes(nodes)), StringComparison.Ordinal);
+    }
+
+
+
+    [Fact]
+    public void Every_console_component_is_checked_or_excluded_with_a_reason()
+    {
+        Assembly[] console =
+        [
+            typeof(global::Wolfgang.Wms.Web.Components.App).Assembly,
+            typeof(WorkspaceLayout).Assembly,
+            .. global::Wolfgang.Wms.Web.WorkspaceAssemblies.All,
+        ];
+        var shipped = console
+            .SelectMany(a => a.GetTypes())
+            .Where(t => typeof(IComponent).IsAssignableFrom(t) && !t.IsAbstract && !t.IsNested && !string.Equals(t.Name, "_Imports", StringComparison.Ordinal))
+            .Select(t => t.FullName!)
+            .Order(StringComparer.Ordinal);
+        var accounted = ComponentTypes
+            .Select(t => t.FullName!)
+            .Concat(Excluded.Keys.Select(t => t.FullName!))
+            .Order(StringComparer.Ordinal);
+
+        Assert.Equal(shipped, accounted);
+        Assert.All(Excluded.Values, reason => Assert.False(string.IsNullOrWhiteSpace(reason)));
     }
 
 
@@ -75,9 +129,9 @@ public sealed class ConsoleMarkupTests : IDisposable
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(access));
 
-        var layout = _context.Render<MarkupTestLayout>(p => p.Add(x => x.Body, (RenderFragment)(_ => { })));
+        var nodes = Render(typeof(global::Wolfgang.Wms.Web.Configure.ConfigureLayout));
 
-        Assert.Empty(Literals(layout.Nodes));
+        Assert.Empty(Literals(nodes));
     }
 
 
@@ -87,10 +141,10 @@ public sealed class ConsoleMarkupTests : IDisposable
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new PendingAccess());
 
-        var layout = _context.Render<MarkupTestLayout>(p => p.Add(x => x.Body, (RenderFragment)(_ => { })));
+        var nodes = Render(typeof(global::Wolfgang.Wms.Web.Configure.ConfigureLayout));
 
-        Assert.Equal("⟦layout.loading⟧", layout.Find(".workspace-loading").TextContent);
-        Assert.Empty(Literals(layout.Nodes));
+        Assert.Equal("⟦layout.loading⟧", AllNodes(nodes).OfType<IElement>().Single(e => e.ClassList.Contains("workspace-loading")).TextContent);
+        Assert.Empty(Literals(nodes));
     }
 
 
@@ -173,30 +227,19 @@ public sealed class ConsoleMarkupTests : IDisposable
 
 
 
-    private INodeList Render(string page)
+    private INodeList Render(Type component)
     {
-        return page switch
+        var isLayout = typeof(LayoutComponentBase).IsAssignableFrom(component);
+        return _context.Render(builder =>
         {
-            "configure" => _context.Render<global::Wolfgang.Wms.Web.Configure.Pages.ConfigureHome>().Nodes,
-            "supervise" => _context.Render<global::Wolfgang.Wms.Web.Supervise.Pages.SuperviseHome>().Nodes,
-            "resolve" => _context.Render<global::Wolfgang.Wms.Web.Resolve.Pages.ResolveHome>().Nodes,
-            "report" => _context.Render<global::Wolfgang.Wms.Web.Report.Pages.ReportHome>().Nodes,
-            "insights" => _context.Render<global::Wolfgang.Wms.Web.Insights.Pages.InsightsHome>().Nodes,
-            "home" => _context.Render<global::Wolfgang.Wms.Web.Components.Pages.Home>().Nodes,
-            "error" => _context.Render<global::Wolfgang.Wms.Web.Components.Pages.Error>().Nodes,
-            "not-found" => _context.Render<global::Wolfgang.Wms.Web.Components.Pages.NotFound>().Nodes,
-            "main-layout" => _context.Render<global::Wolfgang.Wms.Web.Components.Layout.MainLayout>(p => p.Add(x => x.Body, (RenderFragment)(_ => { }))).Nodes,
-            "reconnect-modal" => _context.Render<global::Wolfgang.Wms.Web.Components.Layout.ReconnectModal>().Nodes,
-            "scan-listener" => _context.Render<ScanListener>().Nodes,
-            _ => _context.Render<WorkspaceNav>().Nodes,
-        };
-    }
+            builder.OpenComponent(0, component);
+            if (isLayout)
+            {
+                builder.AddComponentParameter(1, nameof(LayoutComponentBase.Body), (RenderFragment)(_ => { }));
+            }
 
-
-
-    private sealed class MarkupTestLayout : WorkspaceLayout
-    {
-        protected override Workspace Workspace => Workspaces.Configure;
+            builder.CloseComponent();
+        }).Nodes;
     }
 
 
@@ -215,7 +258,10 @@ public sealed class ConsoleMarkupTests : IDisposable
     {
         public Task<WorkspaceAccessResult> CheckAsync(Workspace workspace, CancellationToken cancellationToken)
         {
-            return new TaskCompletionSource<WorkspaceAccessResult>().Task;
+            // Never completes during the test: the layout stays in its loading state.
+            return Task
+                .Delay(Timeout.InfiniteTimeSpan, cancellationToken)
+                .ContinueWith(_ => WorkspaceAccessResult.Allowed, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
         }
     }
 

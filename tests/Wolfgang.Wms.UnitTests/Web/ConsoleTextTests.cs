@@ -17,9 +17,14 @@ namespace Wolfgang.Wms.UnitTests.Web;
 /// </summary>
 public sealed class ConsoleTextTests
 {
-    private const string ResxPath = "src/Wolfgang.Wms.Web.Shared/Resources/ConsoleText.resx";
+    private const string ResxPath = "src/Wolfgang.Wms.Web.Shared/" + ConsoleText.ResourceFile;
 
-    private static readonly Regex KeyUse = new("""L\["([^"]+)"[\],]""", RegexOptions.CultureInvariant);
+    private static readonly Regex KeyUse = new
+    (
+        """L\["(?<key>[^"]+)"[\],]""",
+        RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1)
+    );
 
 
 
@@ -75,7 +80,7 @@ public sealed class ConsoleTextTests
             .EnumerateFiles(Path.Combine(RepositoryFiles.Root, "src"), "*.razor", SearchOption.AllDirectories)
             .Where(p => p.Replace('\\', '/').Contains("/src/Wolfgang.Wms.Web", StringComparison.Ordinal)
                         && !p.Replace('\\', '/').Contains("/obj/", StringComparison.Ordinal))
-            .SelectMany(p => KeyUse.Matches(File.ReadAllText(p)).Select(m => m.Groups[1].Value));
+            .SelectMany(p => KeyUse.Matches(File.ReadAllText(p)).Select(m => m.Groups["key"].Value));
         var workspaces = Workspaces.All.SelectMany(w => new[] { w.TitleKey, w.DescriptionKey });
 
         return inComponents.Concat(workspaces).ToHashSet(StringComparer.Ordinal);

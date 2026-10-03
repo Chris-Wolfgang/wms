@@ -4,9 +4,14 @@
 // nothing (the page body, e.g. after a click on empty space or a closed dialog), it goes back to the scan field.
 // Focus that moves to another input, button or link is left alone, so the screen's own fields still work.
 export function attach(field) {
+    let pending = 0;
+
     const onFocusOut = () => {
-        // focusout fires before the new element is focused; look once focus has settled.
-        setTimeout(() => {
+        // focusout fires before the new element is focused; look once focus has settled. Repeated focusouts
+        // coalesce into one check.
+        clearTimeout(pending);
+        pending = setTimeout(() => {
+            pending = 0;
             const active = document.activeElement;
             if (field.isConnected && (active === null || active === document.body)) {
                 field.focus();
@@ -17,6 +22,10 @@ export function attach(field) {
     document.addEventListener("focusout", onFocusOut);
 
     return {
-        detach: () => document.removeEventListener("focusout", onFocusOut),
+        // A check already queued is cancelled too, so a field being torn down is never refocused.
+        detach: () => {
+            document.removeEventListener("focusout", onFocusOut);
+            clearTimeout(pending);
+        },
     };
 }

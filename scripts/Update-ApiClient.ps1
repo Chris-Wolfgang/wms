@@ -18,6 +18,9 @@
 #>
 param
 (
+    # One client, one Generated folder, one lock and namespace: only v0 exists. A second API version needs its own
+    # output folder, lock and namespace (and WmsApiClient support) before it is accepted here.
+    [ValidateSet('v0')]
     [string]$Version = 'v0',
 
     [string]$Root = (Split-Path $PSScriptRoot -Parent)

@@ -1,7 +1,11 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using System.Net;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Wolfgang.Wms.IntegrationTests.Api;
 
@@ -34,5 +38,19 @@ public sealed class LocalizationTests : IClassFixture<WebApplicationFactory<Prog
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal([expected], response.Content.Headers.ContentLanguage);
+    }
+
+
+
+    [Fact]
+    public void The_culture_comes_from_the_picker_cookie_then_the_browser_never_the_query_string()
+    {
+        var options = _factory.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
+
+        Assert.Equal
+        (
+            [typeof(CookieRequestCultureProvider), typeof(AcceptLanguageHeaderRequestCultureProvider)],
+            options.RequestCultureProviders.Select(p => p.GetType())
+        );
     }
 }

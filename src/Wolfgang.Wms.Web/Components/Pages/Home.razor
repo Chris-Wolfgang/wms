@@ -1,21 +1,22 @@
 @page "/"
 @inject IWorkspaceAccess Access
 @inject NavigationManager Navigation
+@inject IStringLocalizer<ConsoleText> L
 
-<PageTitle>Wolfgang.Wms</PageTitle>
+<PageTitle>@L["product.name"]</PageTitle>
 
-<h1>Wolfgang.Wms console</h1>
+<h1>@L["console.heading"]</h1>
 
 @if (_enterable.Count == 0)
 {
-    <p class="workspace-denied">None of the console workspaces are available to you.</p>
+    <p class="workspace-denied">@L["console.none_available"]</p>
 }
 else
 {
     <ul class="workspace-chooser">
         @foreach (var workspace in _enterable)
         {
-            <li><a href="@workspace.Route">@workspace.Title</a> — @workspace.Description</li>
+            <li><a href="@workspace.Route">@L[workspace.TitleKey]</a> — @L[workspace.DescriptionKey]</li>
         }
     </ul>
 }

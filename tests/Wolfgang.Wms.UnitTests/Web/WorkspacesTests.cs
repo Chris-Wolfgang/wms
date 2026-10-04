@@ -24,7 +24,8 @@ public sealed class WorkspacesTests
         {
             Assert.Equal("workspace." + w.Name, w.LicenseFeature.Name);
             Assert.Equal("workspace." + w.Name + ".enter", w.Permission.Name);
-            Assert.False(string.IsNullOrWhiteSpace(w.Description));
+            Assert.Equal("workspace." + w.Name + ".title", w.TitleKey);
+            Assert.Equal("workspace." + w.Name + ".description", w.DescriptionKey);
         });
     }
 
@@ -45,7 +46,7 @@ public sealed class WorkspacesTests
         var feature = new LicenseFeature("workspace.x", "x");
         var permission = new Permission("workspace.x.enter", "x");
 
-        Assert.Throws<ArgumentException>(() => new Workspace("Not A Key", "T", "D", feature, permission, FreeTier: true));
+        Assert.Throws<ArgumentException>(() => new Workspace("Not A Key", feature, permission, FreeTier: true));
     }
 
 

@@ -5,13 +5,15 @@
    would trap the keyboard away from every other field on the screen. It raises OnScan with the completed scan
    and clears itself; the rule lives in ScanBuffer so it is unit-tested, and the caller applies the same
    validation and feedback rules as the device (E40). *@
+@inject IStringLocalizer<ConsoleText> L
+
 <input class="scan-listener"
        type="text"
        autocomplete="off"
        autofocus
        spellcheck="false"
-       aria-label="@Label"
-       placeholder="@Label"
+       aria-label="@EffectiveLabel"
+       placeholder="@EffectiveLabel"
        value="@_buffer.Text"
        @ref="_field"
        @oninput="e => _buffer.Update(e.Value?.ToString())"
@@ -21,9 +23,11 @@
     private readonly ScanBuffer _buffer = new();
     private ElementReference _field;
 
-    /// <summary>Accessible label and placeholder for the field.</summary>
+    /// <summary>Accessible label and placeholder for the field; the localized "Scan" when not set.</summary>
     [Parameter]
-    public string Label { get; set; } = "Scan";
+    public string? Label { get; set; }
+
+    private string EffectiveLabel => Label ?? L["scan.label"];
 
     /// <summary>Raised with the scanned text when the scanner sends Enter; blank scans are ignored.</summary>
     [Parameter]

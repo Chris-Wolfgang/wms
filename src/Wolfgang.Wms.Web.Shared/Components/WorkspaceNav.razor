@@ -1,9 +1,10 @@
 @inject IWorkspaceAccess Access
+@inject IStringLocalizer<ConsoleText> L
 
-<nav class="workspace-nav" aria-label="Workspaces">
+<nav class="workspace-nav" aria-label="@L["workspaces.nav_label"]">
     @foreach (var workspace in _enterable)
     {
-        <NavLink href="@workspace.Route" class="workspace-link" ActiveClass="active">@workspace.Title</NavLink>
+        <NavLink href="@workspace.Route" class="workspace-link" ActiveClass="active">@L[workspace.TitleKey]</NavLink>
     }
 </nav>
 

@@ -28,7 +28,9 @@ user who can enter exactly one workspace goes straight to it. Everyone else pick
 ## Tethered scanners
 
 A keyboard-wedge scanner (one that types the barcode and then presses Enter) works on every workspace screen.
-The scan field takes the input. If the screen you are on does not use scans, the console says so ("Scan … is
+The scan field takes the input. If focus ends up nowhere, for example after a click on an empty part of the
+page, it returns to the scan field, so the next scan is not lost; typing in another field on the screen is not
+interrupted. If the screen you are on does not use scans, the console says so ("Scan … is
 not used on this screen.") instead of silently dropping the scan.
 
 ## Language

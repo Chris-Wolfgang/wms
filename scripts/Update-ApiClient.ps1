@@ -8,7 +8,10 @@
     (OpenApiDocumentTests with WMS_UPDATE_OPENAPI=1 regenerates the spec first) and commit the result; the
     generated code carries [GeneratedCode("Kiota", ...)] and is excluded from coverage.
 
-    Requires the Kiota tool: dotnet tool install --global Microsoft.OpenApi.Kiota
+    Requires the Kiota tool at the version recorded in Generated/kiota-lock.json (kiotaVersion), so a
+    regeneration only changes the generated files when the spec changes:
+    dotnet tool install --global Microsoft.OpenApi.Kiota --version <kiotaVersion>
+    The script stops when the installed version differs from the lock.
 
 .EXAMPLE
     pwsh scripts/Update-ApiClient.ps1
@@ -27,13 +30,24 @@ $spec = Join-Path $Root "docs/api/openapi-$Version.json"
 $output = Join-Path $Root 'src/Wolfgang.Wms.Client/Generated'
 if (-not (Test-Path $spec)) { throw "OpenAPI document not found: $spec" }
 
+$lock = Join-Path $output 'kiota-lock.json'
+$pinned = (Get-Content $lock -Raw | ConvertFrom-Json).kiotaVersion
+$install = "dotnet tool install --global Microsoft.OpenApi.Kiota --version $pinned"
+
 $kiota = Get-Command kiota -ErrorAction SilentlyContinue
 if (-not $kiota)
 {
     $fallback = Join-Path $HOME '.dotnet/tools/kiota'
     if ($IsWindows) { $fallback += '.exe' }
-    if (-not (Test-Path $fallback)) { throw 'Kiota is not installed: dotnet tool install --global Microsoft.OpenApi.Kiota' }
+    if (-not (Test-Path $fallback)) { throw "Kiota is not installed: $install" }
     $kiota = Get-Command $fallback
+}
+
+# kiota --version prints e.g. "1.35.0+114aa7ee..."; compare the release part with the lock.
+$installed = ((& $kiota.Source --version) | Select-Object -First 1).Split('+')[0].Trim()
+if ($installed -ne $pinned)
+{
+    throw "Kiota $installed is installed but the client was generated with $pinned (kiota-lock.json). Install the pinned version: dotnet tool update --global Microsoft.OpenApi.Kiota --version $pinned"
 }
 
 & $kiota.Source generate `

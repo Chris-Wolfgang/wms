@@ -13,7 +13,13 @@ builder.Services.AddRazorComponents()
 // Workspace entry gate: free tier until the license (E79) and identity (E11) endpoints replace it.
 builder.Services.AddSingleton<IWorkspaceAccess, FreeTierWorkspaceAccess>();
 
+// Every user-visible string comes from ConsoleText.resx (E82.4), in the request's culture.
+builder.Services.AddConsoleLocalization();
+
 var app = builder.Build();
+
+// Resolve the request culture before anything renders text (error and not-found pages included).
+app.UseRequestLocalization();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

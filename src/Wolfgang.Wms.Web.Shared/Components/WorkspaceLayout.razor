@@ -1,24 +1,25 @@
 @inherits LayoutComponentBase
 @inject IWorkspaceAccess Access
+@inject IStringLocalizer<ConsoleText> L
 
-<PageTitle>@Workspace.Title</PageTitle>
+<PageTitle>@L[Workspace.TitleKey]</PageTitle>
 
 <header class="workspace-header">
-    <span class="product">Wolfgang.Wms</span>
+    <span class="product">@L["product.name"]</span>
     <WorkspaceNav />
 </header>
 
 <main class="workspace-body" data-workspace="@Workspace.Name">
     @if (_result is null)
     {
-        <p class="workspace-loading">Loading…</p>
+        <p class="workspace-loading">@L["layout.loading"]</p>
     }
     else if (_result == WorkspaceAccessResult.Allowed)
     {
         <ScanListener OnScan="OnScanAsync" />
         @if (_unusedScan is not null)
         {
-            <p class="scan-feedback" role="status">Scan <code>@_unusedScan</code> is not used on this screen.</p>
+            <p class="scan-feedback" role="status">@L["layout.scan_unused", _unusedScan]</p>
         }
         <CascadingValue Value="_scans" IsFixed="true">
             @Body
@@ -26,13 +27,13 @@
     }
     else if (_result == WorkspaceAccessResult.NotLicensed)
     {
-        <h1>@Workspace.Title is not licensed</h1>
-        <p class="workspace-denied">This installation's license does not include the <code>@Workspace.LicenseFeature.Name</code> feature.</p>
+        <h1>@L["layout.not_licensed.title", L[Workspace.TitleKey]]</h1>
+        <p class="workspace-denied">@L["layout.not_licensed.detail", Workspace.LicenseFeature.Name]</p>
     }
     else
     {
-        <h1>@Workspace.Title is not available to you</h1>
-        <p class="workspace-denied">Your roles do not grant <code>@Workspace.Permission.Name</code>.</p>
+        <h1>@L["layout.not_permitted.title", L[Workspace.TitleKey]]</h1>
+        <p class="workspace-denied">@L["layout.not_permitted.detail", Workspace.Permission.Name]</p>
     }
 </main>
 

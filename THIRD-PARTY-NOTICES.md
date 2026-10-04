@@ -47,6 +47,7 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Microsoft.Extensions.Hosting | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Hosting.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Hosting.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
+| Microsoft.Extensions.Localization.Abstractions | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.Extensions.Logging | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Logging | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Logging.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |

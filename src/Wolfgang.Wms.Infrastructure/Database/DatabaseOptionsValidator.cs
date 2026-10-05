@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Wolfgang.Wms.Infrastructure.Database;
 
 /// <summary>
-/// Runs <see cref="DatabaseOptions.Validate"/> at startup (<c>ValidateOnStart</c>) so a misconfigured
+/// Runs <see cref="DatabaseOptions.Validate()"/> at startup (<c>ValidateOnStart</c>) so a misconfigured
 /// installation fails before it serves a request, with the setting named in the message.
 /// </summary>
 public sealed class DatabaseOptionsValidator : IValidateOptions<DatabaseOptions>

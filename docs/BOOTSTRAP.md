@@ -9,7 +9,7 @@ This is the engineering view. The operator-facing page is `docfx_project/docs/bo
 
 | Step | Why it is outside the API | Runs as | Defined by |
 |------|---------------------------|---------|------------|
-| Provision the database and apply migrations | The API starts without a schema and reports it (`GET /api/v0/system/schema`), but its data endpoints need the schema; migrations need elevated database rights the service account never has | `wms migrate` (in-process EF, JIT executable) run by the installer or an operator | E2, E82.6 |
+| Provision the database and apply migrations | With a database configured the API refuses to start until the schema matches its build (E4.4); migrations need elevated database rights the service account never has | the `wms-migrate` executable (in-process EF, JIT) run by the installer or an operator; only bundled installs let the API apply them itself (`Wms:Database:AutoMigrate`) | E2, E4, E82.6 |
 | Configure the identity provider and the first administrator | Nobody can call the API before someone can authenticate | Installer / configuration, then Entra ID or the built-in store | E11 |
 | Install the license file | Licensing gates every workspace and feature, so the first license is loaded before the first request | Installer or the console's Configure workspace on first run | E79 |
 | TLS certificate and reverse proxy | Transport is configured around the process, not by it | Host / container configuration | E83 |
@@ -28,5 +28,5 @@ database has never been migrated:
 - `expected`: the last migration this build ships, or `null` before the data model exists.
 - `upToDate`: true when they are equal.
 
-Installers and health checks read it to decide whether to run `wms migrate`; the API never applies a
-migration itself. Until the data model (E2) exists the placeholder source reports both identifiers as `null`.
+Installers and health checks read it to decide whether to run `wms-migrate`; the API applies a migration
+itself only when `Wms:Database:AutoMigrate` is on (bundled installs, [CONFIGURATION.md](CONFIGURATION.md)). Until the data model (E2) exists the placeholder source reports both identifiers as `null`.

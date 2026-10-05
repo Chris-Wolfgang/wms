@@ -24,6 +24,9 @@ public static class MigrateProgram
     /// <summary>A downgrade needs <c>--confirm-data-loss</c>.</summary>
     public const int ExitConfirmationRequired = 3;
 
+    /// <summary>Nothing was applied: the database cannot be reached or its schema is newer than this build.</summary>
+    public const int ExitRefused = 4;
+
 
 
     /// <summary>
@@ -57,7 +60,7 @@ public static class MigrateProgram
         }
 
         var options = Options(command, configuration ?? DefaultConfiguration());
-        var problems = options.Validate();
+        var problems = options.Validate(connectionStringRequired: !command.Script);
         if (options.ParsedProvider is DatabaseProvider.None)
         {
             problems = [.. problems, $"{DatabaseOptions.SectionName}:Provider must be SqlServer or PostgreSql (use --provider)."];
@@ -73,28 +76,20 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        var builder = new DbContextOptionsBuilder<WmsDbContext>();
-        DatabaseServiceCollectionExtensions.Configure(builder, options);
-        using var context = new WmsDbContext(builder.Options);
-        var runner = new MigrationRunner(context);
+        WmsDbContext context;
         try
         {
-            if (command.Status)
-            {
-                return await StatusAsync(runner, output, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (command.Script)
-            {
-                return await ScriptAsync(runner, command, output, cancellationToken).ConfigureAwait(false);
-            }
-
-            return await ApplyAsync(runner, command, output, error, cancellationToken).ConfigureAwait(false);
+            context = CreateContext(options);
         }
         catch (ArgumentException exception)
         {
-            await error.WriteLineAsync(exception.Message).ConfigureAwait(false);
+            await error.WriteLineAsync($"{DatabaseOptions.SectionName}:ConnectionString is not valid: {exception.Message}").ConfigureAwait(false);
             return ExitUsage;
+        }
+
+        using (context)
+        {
+            return await RunModeAsync(new MigrationRunner(context), command, output, error, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -130,6 +125,40 @@ public static class MigrateProgram
 
 
 
+    private static async Task<int> RunModeAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (command.Status)
+            {
+                return await StatusAsync(runner, output, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (command.Script)
+            {
+                return await ScriptAsync(runner, command, output, error, cancellationToken).ConfigureAwait(false);
+            }
+
+            return await ApplyAsync(runner, command, output, error, cancellationToken).ConfigureAwait(false);
+        }
+        catch (ArgumentException exception)
+        {
+            await error.WriteLineAsync(exception.Message).ConfigureAwait(false);
+            return ExitUsage;
+        }
+    }
+
+
+
+    private static WmsDbContext CreateContext(DatabaseOptions options)
+    {
+        var builder = new DbContextOptionsBuilder<WmsDbContext>();
+        DatabaseServiceCollectionExtensions.Configure(builder, options);
+        return new WmsDbContext(builder.Options);
+    }
+
+
+
     private static IConfiguration DefaultConfiguration()
     {
         return new ConfigurationBuilder()
@@ -145,7 +174,7 @@ public static class MigrateProgram
     {
         var status = await runner.StatusAsync(cancellationToken).ConfigureAwait(false);
         await output.WriteLineAsync("Expected: " + (status.Expected ?? "(no migrations shipped)")).ConfigureAwait(false);
-        await output.WriteLineAsync("Reachable: " + (status.Reachable ? "yes" : "no")).ConfigureAwait(false);
+        await output.WriteLineAsync("Reachable: " + (status.Reachable ? "yes" : "no: " + status.Error)).ConfigureAwait(false);
         await WriteListAsync(output, "Applied", status.Applied).ConfigureAwait(false);
         await WriteListAsync(output, "Pending", status.Pending).ConfigureAwait(false);
         if (status.SchemaIsNewer)
@@ -159,33 +188,67 @@ public static class MigrateProgram
 
 
 
-    private static async Task<int> ScriptAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, CancellationToken cancellationToken)
+    /// <summary>
+    /// The <c>--script</c> mode over <paramref name="runner"/>: writes the script to <paramref name="output"/> or
+    /// <see cref="MigrateCommandLine.Output"/>, or, for a data-losing downgrade without
+    /// <see cref="MigrateCommandLine.ConfirmDataLoss"/>, lists the steps on <paramref name="error"/> and writes
+    /// nothing (E4.6).
+    /// </summary>
+    /// <returns><see cref="ExitOk"/> or <see cref="ExitConfirmationRequired"/>.</returns>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    /// <exception cref="ArgumentException">A target names no shipped migration, or more than one.</exception>
+    public static async Task<int> ScriptAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, TextWriter error, CancellationToken cancellationToken)
     {
-        var script = runner.Script(command.From, command.To);
+        ArgumentNullException.ThrowIfNull(runner);
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(error);
+
+        var script = runner.Script(command.From, command.To, command.ConfirmDataLoss);
+        if (script.Sql is null)
+        {
+            await WriteConfirmationRequiredAsync(error, "This downgrade script loses data", script.DestructiveSteps).ConfigureAwait(false);
+            return ExitConfirmationRequired;
+        }
+
         if (command.Output is null)
         {
-            await output.WriteAsync(script).ConfigureAwait(false);
+            await output.WriteAsync(script.Sql).ConfigureAwait(false);
             return ExitOk;
         }
 
-        await File.WriteAllTextAsync(command.Output, script, cancellationToken).ConfigureAwait(false);
+        await File.WriteAllTextAsync(command.Output, script.Sql, cancellationToken).ConfigureAwait(false);
         await output.WriteLineAsync("Wrote " + command.Output).ConfigureAwait(false);
         return ExitOk;
     }
 
 
 
-    private static async Task<int> ApplyAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    /// <summary>
+    /// The apply mode (no <c>--status</c> or <c>--script</c>) over <paramref name="runner"/>: moves the schema
+    /// to <see cref="MigrateCommandLine.To"/> and reports the direction and the migrations it ran.
+    /// </summary>
+    /// <returns><see cref="ExitOk"/>, <see cref="ExitMigrationFailed"/>, <see cref="ExitConfirmationRequired"/>
+    /// or <see cref="ExitRefused"/>.</returns>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    /// <exception cref="ArgumentException">The target names no shipped migration, or more than one.</exception>
+    public static async Task<int> ApplyAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, TextWriter error, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(runner);
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(error);
+
         var result = await runner.ApplyAsync(command.To, command.ConfirmDataLoss, cancellationToken).ConfigureAwait(false);
+        if (result.Refused)
+        {
+            await error.WriteLineAsync("Nothing was applied. " + result.Error).ConfigureAwait(false);
+            return ExitRefused;
+        }
+
         if (result.RequiresConfirmation)
         {
-            await error.WriteLineAsync("This downgrade loses data; re-run with --confirm-data-loss to proceed:").ConfigureAwait(false);
-            foreach (var step in result.DestructiveSteps)
-            {
-                await error.WriteLineAsync("  " + step).ConfigureAwait(false);
-            }
-
+            await WriteConfirmationRequiredAsync(error, "This downgrade loses data", result.DestructiveSteps).ConfigureAwait(false);
             return ExitConfirmationRequired;
         }
 
@@ -199,6 +262,17 @@ public static class MigrateProgram
 
         await output.WriteLineAsync(result.Direction == MigrationDirection.None ? "Nothing to do." : "Done.").ConfigureAwait(false);
         return ExitOk;
+    }
+
+
+
+    private static async Task WriteConfirmationRequiredAsync(TextWriter error, string what, IReadOnlyList<string> steps)
+    {
+        await error.WriteLineAsync(what + "; re-run with --confirm-data-loss to proceed:").ConfigureAwait(false);
+        foreach (var step in steps)
+        {
+            await error.WriteLineAsync("  " + step).ConfigureAwait(false);
+        }
     }
 
 

@@ -13,16 +13,18 @@ public sealed record MigrateCommandLine
     /// Text for <c>--help</c>.
     /// </summary>
     public const string Usage = """
-        wms-migrate [migrate] [options]
+        wms-migrate [options]
 
           (no mode)                  apply pending migrations up to --to or the latest
           --status                   list applied and pending migrations and the version this build expects
           --script                   write idempotent SQL from --from (or an empty schema) to --to (or latest);
-                                     needs no database connection
-          --to <migration>           target: a migration id, its name, its timestamp prefix, or 0 (empty)
+                                     needs no database connection, so no connection string
+          --to <migration>           target: a migration id, its name, its timestamp prefix, or 0 (empty);
+                                     a name or prefix matching more than one migration is rejected
           --from <migration>         start of a --script delta
-          --output <file>            write the script to a file instead of standard output
-          --confirm-data-loss        allow a downgrade that drops tables, columns, schemas or rows
+          --output <file>            with --script: write the script to a file instead of standard output
+          --confirm-data-loss        allow a downgrade (applied or scripted) that drops tables, columns,
+                                     schemas or rows, or runs raw SQL
           --provider <SqlServer|PostgreSql>   overrides Wms:Database:Provider
           --connection-string <cs>   overrides Wms:Database:ConnectionString
           --trust-server-certificate overrides Wms:Database:TrustServerCertificate (SQL Server)
@@ -30,7 +32,8 @@ public sealed record MigrateCommandLine
 
         Configuration is read from appsettings.json in the working directory and Wms__Database__* environment
         variables; flags win. Exit codes: 0 ok, 1 a migration failed (named in the output), 2 usage or
-        configuration error, 3 confirmation required.
+        configuration error, 3 confirmation required, 4 nothing applied: the database cannot be reached or
+        its schema is newer than this build.
         """;
 
 
@@ -71,7 +74,8 @@ public sealed record MigrateCommandLine
 
 
     /// <summary>
-    /// Parses the arguments; a leading <c>migrate</c> word (from <c>wms migrate …</c>) is ignored.
+    /// Parses the arguments. A leading <c>migrate</c> word is accepted and ignored, so an installer that passes
+    /// the verb works; there is no separate <c>wms migrate</c> command.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="args"/> is null.</exception>
     public static MigrateCommandLine Parse(IReadOnlyList<string> args)
@@ -119,6 +123,11 @@ public sealed record MigrateCommandLine
         if (result.From is not null && !result.Script)
         {
             return result with { Error = "--from applies to --script only." };
+        }
+
+        if (result.Output is not null && !result.Script)
+        {
+            return result with { Error = "--output applies to --script only." };
         }
 
         return result;

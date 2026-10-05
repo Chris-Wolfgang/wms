@@ -46,14 +46,10 @@ public sealed partial class SchemaStartupCheck : IHostedService
         var runner = scope.ServiceProvider.GetRequiredService<MigrationRunner>();
         var status = await runner.StatusAsync(cancellationToken).ConfigureAwait(false);
 
-        if (!status.Reachable)
+        var refusal = MigrationRunner.Refusal(status);
+        if (refusal is not null)
         {
-            throw new InvalidOperationException($"{DatabaseOptions.SectionName}: the database cannot be reached; check the connection string and that the server is up.");
-        }
-
-        if (status.SchemaIsNewer)
-        {
-            throw new InvalidOperationException($"The database schema is newer than this build (unknown migrations: {string.Join(", ", status.Unknown)}). Upgrade the application, or restore the backup taken before the upgrade.");
+            throw new InvalidOperationException(refusal);
         }
 
         if (status.Pending.Count == 0)

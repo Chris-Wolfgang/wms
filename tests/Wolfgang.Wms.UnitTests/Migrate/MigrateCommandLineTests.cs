@@ -55,6 +55,8 @@ public sealed class MigrateCommandLineTests
     [InlineData(new[] { "--up" }, "Unknown argument '--up'.")]
     [InlineData(new[] { "--status", "--script" }, "--status and --script cannot be combined.")]
     [InlineData(new[] { "--from", "0" }, "--from applies to --script only.")]
+    [InlineData(new[] { "--output", "upgrade.sql" }, "--output applies to --script only.")]
+    [InlineData(new[] { "--status", "--output", "status.txt" }, "--output applies to --script only.")]
     public void Usage_errors_are_named(string[] args, string expected)
     {
         Assert.Equal(expected, MigrateCommandLine.Parse(args).Error);

@@ -4,15 +4,16 @@ namespace Wolfgang.Wms.Infrastructure.Database;
 
 /// <summary>
 /// The outcome of <see cref="MigrationRunner.ApplyAsync"/> (E4.1, E4.6): the direction the tool took, the
-/// migrations it ran, and either the failing migration or the destructive steps that need
-/// <c>--confirm-data-loss</c>.
+/// migrations it ran, and either the failing migration, the destructive steps that need
+/// <c>--confirm-data-loss</c>, or why nothing was attempted (<see cref="Refused"/>).
 /// </summary>
 /// <param name="Direction">Up, Down, or None when the database was already at the target.</param>
 /// <param name="From">The migration the database was at before, or null for an empty database.</param>
 /// <param name="To">The migration the database is at now (or would be at), or null for empty.</param>
 /// <param name="Steps">Migrations applied or reverted, in the order they ran.</param>
 /// <param name="FailedMigration">The migration that failed, or null.</param>
-/// <param name="Error">The failure message, or null.</param>
+/// <param name="Error">The failure message; with no <paramref name="FailedMigration"/>, why nothing was attempted
+/// (see <see cref="MigrationRunner.Refusal"/>); otherwise null.</param>
 /// <param name="DestructiveSteps">Down operations that lose data, listed when a downgrade needs confirmation.</param>
 public sealed record MigrationResult
 (
@@ -33,7 +34,14 @@ public sealed record MigrationResult
 
 
     /// <summary>
+    /// True when nothing was attempted because the database is unreachable or ahead of this build.
+    /// </summary>
+    public bool Refused => FailedMigration is null && Error is not null;
+
+
+
+    /// <summary>
     /// True when every step ran.
     /// </summary>
-    public bool Succeeded => FailedMigration is null && !RequiresConfirmation;
+    public bool Succeeded => FailedMigration is null && Error is null && !RequiresConfirmation;
 }

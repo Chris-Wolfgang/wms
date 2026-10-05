@@ -20,6 +20,13 @@ public sealed record MigrationStatus(bool Reachable, IReadOnlyList<string> Appli
 
 
     /// <summary>
+    /// Why the database could not be queried, when <see cref="Reachable"/> is false; otherwise null.
+    /// </summary>
+    public string? Error { get; init; }
+
+
+
+    /// <summary>
     /// True when the database is reachable, has every shipped migration and nothing the build lacks.
     /// </summary>
     public bool UpToDate => Reachable && Pending.Count == 0 && Unknown.Count == 0;

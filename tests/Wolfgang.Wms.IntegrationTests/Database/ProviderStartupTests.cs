@@ -11,9 +11,10 @@ using Testcontainers.PostgreSql;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E2.2 / E2.3 / E4.4 against real engines in containers: on each supported provider the API refuses to start
-/// on an unmigrated database (naming the pending migration), starts with <c>AutoMigrate</c> and then reports the
-/// schema up to date. The SQL Server 2025 container runs as Express (<c>MSSQL_PID</c>), the free edition
+/// E2.2 / E2.3 / E4.4 / E4.6 against real engines in containers: on each supported provider the API refuses to
+/// start on an unmigrated database (naming the pending migration), starts with <c>AutoMigrate</c> and then
+/// reports the schema up to date, and refuses to start, even with <c>AutoMigrate</c>, once a newer build has
+/// migrated the database (naming the unknown migration). The SQL Server 2025 container runs as Express (<c>MSSQL_PID</c>), the free edition
 /// customers start on.
 /// </summary>
 public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<Program>>
@@ -85,6 +86,25 @@ public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<P
         using var migrated = Host(provider, connectionString, trustServerCertificate, autoMigrate: false);
         using var migratedClient = migrated.CreateClient();
         Assert.True((await SchemaAsync(migratedClient)).RootElement.GetProperty("upToDate").GetBoolean());
+
+        await AssertRefusesASchemaAheadOfTheBuildAsync(provider, connectionString, trustServerCertificate);
+    }
+
+
+
+    private async Task AssertRefusesASchemaAheadOfTheBuildAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        await FutureMigration.RecordAsync(provider, connectionString);
+
+        foreach (var autoMigrate in new[] { false, true })
+        {
+            using var ahead = Host(provider, connectionString, trustServerCertificate, autoMigrate);
+            var refused = Assert.Throws<InvalidOperationException>(() => ahead.CreateClient());
+
+            Assert.Contains("The database schema is newer than this build", refused.Message, StringComparison.Ordinal);
+            Assert.Contains(FutureMigration.Id, refused.Message, StringComparison.Ordinal);
+            Assert.Contains("Upgrade the application, or restore the backup taken before the upgrade.", refused.Message, StringComparison.Ordinal);
+        }
     }
 
 

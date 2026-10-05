@@ -10,9 +10,10 @@ using Wolfgang.Wms.Migrate;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E4.1 / E4.3 / E4.5 / E4.6 against real engines: <c>wms-migrate</c> installs the schema into an empty
-/// database (history table in schema <c>wms</c>), reports status, goes down to an empty schema and back up
-/// (the up → down → up run CI requires on both providers), all through the tool's own entry point.
+/// E4.1 / E4.3 / E4.5 / E4.6 against real engines: <c>wms-migrate</c> reports a never-migrated database as
+/// reachable with nothing applied, installs the schema into it (history table in schema <c>wms</c>), reports
+/// status, goes down to an empty schema and back up (the up → down → up run CI requires on both providers), and
+/// refuses to touch a schema a newer build migrated, all through the tool's own entry point.
 /// </summary>
 public sealed class MigrateToolTests
 {
@@ -48,6 +49,7 @@ public sealed class MigrateToolTests
             })
             .Build();
 
+        var empty = await RunAsync(configuration, ["--status", .. extra]);
         var up = await RunAsync(configuration, extra);
         var status = await RunAsync(configuration, ["--status", .. extra]);
         var again = await RunAsync(configuration, extra);
@@ -55,6 +57,10 @@ public sealed class MigrateToolTests
         var statusAfterDown = await RunAsync(configuration, ["--status", .. extra]);
         var backUp = await RunAsync(configuration, ["--to", "Initial", .. extra]);
 
+        Assert.Equal(MigrateProgram.ExitOk, empty.Code);
+        Assert.Contains("Reachable: yes", empty.Output, StringComparison.Ordinal);
+        Assert.Contains("Applied (0)", empty.Output, StringComparison.Ordinal);
+        Assert.Contains("Pending (1)", empty.Output, StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitOk, up.Code);
         Assert.Contains("Direction: Up", up.Output, StringComparison.Ordinal);
         Assert.Contains("_Initial", up.Output, StringComparison.Ordinal);
@@ -71,6 +77,25 @@ public sealed class MigrateToolTests
         Assert.Contains("Direction: Up", backUp.Output, StringComparison.Ordinal);
 
         await AssertHistoryTableInWmsSchemaAsync(provider, connectionString);
+        await AssertNewerSchemaIsRefusedAsync(provider, connectionString, configuration, extra);
+    }
+
+
+
+    private static async Task AssertNewerSchemaIsRefusedAsync(string provider, string connectionString, IConfiguration configuration, string[] extra)
+    {
+        await FutureMigration.RecordAsync(provider, connectionString);
+
+        var status = await RunAsync(configuration, ["--status", .. extra]);
+        var apply = await RunAsync(configuration, extra);
+        var down = await RunAsync(configuration, ["--to", "0", "--confirm-data-loss", .. extra]);
+
+        Assert.Contains("Unknown to this build (1):", status.Output, StringComparison.Ordinal);
+        Assert.Contains(FutureMigration.Id, status.Output, StringComparison.Ordinal);
+        Assert.Equal(MigrateProgram.ExitRefused, apply.Code);
+        Assert.Contains("Nothing was applied. The database schema is newer than this build (unknown migrations: " + FutureMigration.Id + ")", apply.Error, StringComparison.Ordinal);
+        Assert.Equal(MigrateProgram.ExitRefused, down.Code);
+        Assert.Contains(FutureMigration.Id, down.Error, StringComparison.Ordinal);
     }
 
 

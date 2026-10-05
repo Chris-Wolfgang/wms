@@ -78,6 +78,23 @@ public sealed class DeviceVersionTests
 
 
     [Fact]
+    public async Task AddWmsDeviceVersioning_keeps_a_policy_a_module_registered_first()
+    {
+        using var provider = new ServiceCollection()
+            .AddSingleton<IDeviceVersionPolicy, FixedMinimumPolicy>()
+            .AddWmsDeviceVersioning()
+            .BuildServiceProvider();
+
+        var policy = provider.GetRequiredService<IDeviceVersionPolicy>();
+
+        Assert.IsType<FixedMinimumPolicy>(policy);
+        Assert.Single(provider.GetServices<IDeviceVersionPolicy>());
+        Assert.Equal(new Version(2, 0), await policy.GetMinimumAsync(CancellationToken.None));
+    }
+
+
+
+    [Fact]
     public void Error_codes_carry_the_expected_statuses()
     {
         Assert.Equal(400, DeviceErrorCodes.VersionMissing.HttpStatus);
@@ -94,5 +111,15 @@ public sealed class DeviceVersionTests
         Assert.Throws<ArgumentNullException>(() => DeviceVersionConventions.AddWmsDeviceVersioning(null!));
         Assert.Throws<ArgumentNullException>(() => DeviceVersionConventions.RequireDeviceVersion<Microsoft.AspNetCore.Routing.RouteGroupBuilder>(null!));
         Assert.Throws<ArgumentNullException>(() => new DeviceVersionFilter(null!));
+    }
+
+
+
+    private sealed class FixedMinimumPolicy : IDeviceVersionPolicy
+    {
+        public Task<Version?> GetMinimumAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult<Version?>(new Version(2, 0));
+        }
     }
 }

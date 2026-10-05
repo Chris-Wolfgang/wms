@@ -26,11 +26,12 @@ builder.Services.AddWmsApiVersioning();
 builder.Services.AddWmsProblemDetails();
 builder.Services.AddWmsCompression();
 
-// E82.7: device groups call .RequireDeviceVersion(); the minimum comes from settings once E12 lands.
-builder.Services.AddWmsDeviceVersioning();
-
 // Modules register here explicitly (ADR 0001): services.AddPickingModule() etc. No assembly scanning.
 builder.Services.AddWmsModules();
+
+// E82.7: device groups call .RequireDeviceVersion(). After the modules, so the no-minimum fallback only fills
+// the gap: the settings module (E12) registers the organisation -> site policy, with Add or TryAdd.
+builder.Services.AddWmsDeviceVersioning();
 
 var app = builder.Build();
 

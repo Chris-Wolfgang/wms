@@ -13,8 +13,9 @@ namespace Wolfgang.Wms.Core.Devices;
 public static class DeviceVersionConventions
 {
     /// <summary>
-    /// Registers the minimum-version policy; the settings module (E12) replaces the default with the
-    /// organisation → site cascade.
+    /// Registers <see cref="NoMinimumDeviceVersionPolicy"/> as the fallback when no <see cref="IDeviceVersionPolicy"/>
+    /// is registered yet. Call it after the modules: the settings module (E12) registers the organisation → site
+    /// cascade, and a policy registered earlier is kept.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="services"/> is null.</exception>
     public static IServiceCollection AddWmsDeviceVersioning(this IServiceCollection services)

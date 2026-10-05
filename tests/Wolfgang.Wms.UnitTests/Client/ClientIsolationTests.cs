@@ -2,6 +2,7 @@
 
 using System.CodeDom.Compiler;
 using System.Reflection;
+using System.Xml.Linq;
 using Microsoft.Kiota.Abstractions;
 using Wolfgang.Wms.Client;
 using Wolfgang.Wms.Client.Generated;
@@ -24,14 +25,33 @@ public sealed class ClientIsolationTests
     {
         var project = RepositoryFiles.LoadProject(ClientProject);
 
-        var projectReferences = project.Descendants().Where(e => string.Equals(e.Name.LocalName, "ProjectReference", StringComparison.Ordinal)).ToList();
-        var packages = project.Descendants()
-            .Where(e => string.Equals(e.Name.LocalName, "PackageReference", StringComparison.Ordinal))
-            .Select(e => (string?)e.Attribute("Include") ?? string.Empty)
-            .ToList();
+        Assert.Empty(BoundaryViolations(project));
+        Assert.Contains(Packages(project), id => id.StartsWith("Microsoft.Kiota.", StringComparison.Ordinal));
+    }
 
-        Assert.Empty(projectReferences);
-        Assert.All(packages, id => Assert.StartsWith("Microsoft.Kiota.", id, StringComparison.Ordinal));
+
+
+    [Fact]
+    public void The_boundary_check_flags_a_project_reference_and_a_non_Kiota_package()
+    {
+        var project = XDocument.Parse
+        (
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <ItemGroup>
+                <ProjectReference Include="../Wolfgang.Wms.Domain/Wolfgang.Wms.Domain.csproj" />
+                <PackageReference Include="Microsoft.Kiota.Bundle" />
+                <PackageReference Include="Newtonsoft.Json" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        Assert.Equal
+        (
+            ["project reference: ../Wolfgang.Wms.Domain/Wolfgang.Wms.Domain.csproj", "package: Newtonsoft.Json"],
+            BoundaryViolations(project)
+        );
     }
 
 
@@ -86,5 +106,28 @@ public sealed class ClientIsolationTests
 
         Assert.Throws<ArgumentNullException>(() => WmsApiClient.Create(null!));
         Assert.Throws<ArgumentException>(() => WmsApiClient.Create(http));
+    }
+
+
+
+    // The client may reference no project and only the Kiota runtime packages (ADR 0004).
+    private static List<string> BoundaryViolations(XDocument project)
+    {
+        var projects = project.Descendants()
+            .Where(e => string.Equals(e.Name.LocalName, "ProjectReference", StringComparison.Ordinal))
+            .Select(e => "project reference: " + ((string?)e.Attribute("Include") ?? string.Empty));
+        var packages = Packages(project)
+            .Where(id => !id.StartsWith("Microsoft.Kiota.", StringComparison.Ordinal))
+            .Select(id => "package: " + id);
+        return projects.Concat(packages).ToList();
+    }
+
+
+
+    private static IEnumerable<string> Packages(XDocument project)
+    {
+        return project.Descendants()
+            .Where(e => string.Equals(e.Name.LocalName, "PackageReference", StringComparison.Ordinal))
+            .Select(e => (string?)e.Attribute("Include") ?? string.Empty);
     }
 }

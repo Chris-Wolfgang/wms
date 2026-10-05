@@ -205,8 +205,8 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
 (`scripts/Update-ApiClient.ps1`, output committed under `Generated/`) and references only the Kiota runtime,
 never Domain (`ClientIsolationTests`): client models are the wire contract and Domain records are mapped at
 the edge. Every API change regenerates the spec and the client in the same PR. Consumers start from
-`WmsApiClient.Create(HttpClient, IAuthenticationProvider?)`; the console workspaces reach the API only through
-this client.
+`WmsApiClient.Create(HttpClient, IAuthenticationProvider?)`. The console workspaces reference the client and
+will reach the API only through it; their first API calls arrive with the workspace stories.
 
 ## Records and classes (E1.7)
 

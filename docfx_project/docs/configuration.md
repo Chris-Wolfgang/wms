@@ -28,6 +28,23 @@ Examples:
 { "Wms": { "Database": { "Provider": "PostgreSql", "ConnectionString": "Host=db;Database=wms;Username=wms;Password=…" } } }
 ```
 
+## Keeping the connection string secret
+
+| Key | Values | Notes |
+|-----|--------|-------|
+| `Wms:DataProtection:KeyRingPath` | A folder | Where the server keeps its encryption key ring. It is created on first run, readable only by the account the server runs as; back it up, and give every server that shares an encrypted connection string the same folder (for containers, a mounted volume). |
+
+To keep the database password out of plain text, encrypt the connection string once:
+
+```
+wms-migrate --protect --connection-string "<plain connection string>" --key-ring <folder>
+```
+
+It prints the string as `enc:v1:…`; put that in `Wms:Database:ConnectionString` (or the
+`Wms__Database__ConnectionString` environment variable) instead of the plain text. An encrypted connection
+string needs `KeyRingPath`: if the folder is missing or does not hold the key, the server stops at startup
+and says so. A plain connection string still works, for development.
+
 Supported databases: SQL Server 2022 and later, including Express, and PostgreSQL 16 and later. Creating the
 database and applying its migrations is a separate step outside the API, with `wms-migrate` and the database
 administrator's rights; the server's own account never changes the schema. See

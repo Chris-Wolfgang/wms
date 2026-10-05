@@ -225,8 +225,9 @@ provider or a missing connection string fails startup with a message naming the 
 the shared model (E2.3). Migrations are per provider (E2.4): `Wolfgang.Wms.Infrastructure.Migrations.SqlServer`
 and `.PostgreSql`, generated together by `scripts/Check-Migrations.ps1 -Add <Name>` and never hand-edited except
 for index comments (E3.5); `scripts/Check-Migrations.ps1` (also a CI step) fails when the model changed without
-both migrations. A migration that runs against the wrong engine is impossible: each assembly is only ever
-loaded by its provider.
+both migrations. The API references both migration assemblies; EF reads migrations only from the
+`MigrationsAssembly` that `DatabaseServiceCollectionExtensions.Configure` names for the configured provider,
+so a SqlServer install never runs the PostgreSql migrations and vice versa.
 
 ## Records and classes (E1.7)
 

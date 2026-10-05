@@ -11,6 +11,7 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Azure.Core | 1.50.0 | MIT | Microsoft | https://github.com/Azure/azure-sdk-for-net/blob/Azure.Core_1.50.0/sdk/core/Azure.Core/README.md |
 | Azure.Identity | 1.17.1 | MIT | Microsoft | https://github.com/Azure/azure-sdk-for-net/blob/Azure.Identity_1.17.1/sdk/identity/Azure.Identity/README.md |
 | GoogleGson | 2.13.1.1 | MIT AND Apache-2.0 | Microsoft | https://aka.ms/android-libraries |
+| Humanizer.Core | 2.14.1 | MIT | Mehdi Khalili, Claire Novotny | https://github.com/Humanizr/Humanizer |
 | Meziantou.Analyzer | 3.0.290 | MIT | meziantou | https://github.com/meziantou/Meziantou.Analyzer |
 | Microsoft.AspNetCore.App.Internal.Assets | 10.0.11 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.Authorization | 10.0.12 | MIT | Microsoft | https://asp.net/ |
@@ -21,14 +22,22 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Microsoft.AspNetCore.Metadata | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.OpenApi | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.Bcl.AsyncInterfaces | 8.0.0 | MIT | Microsoft | https://dot.net/ |
+| Microsoft.Build.Framework | 18.0.2 | MIT | Microsoft | http://go.microsoft.com/fwlink/?LinkId=624683 |
 | Microsoft.Build.Tasks.Git | 10.0.401 | MIT | Microsoft | https://github.com/dotnet/dotnet |
+| Microsoft.CodeAnalysis.Analyzers | 3.11.0 | MIT | Microsoft | https://github.com/dotnet/roslyn-analyzers |
 | Microsoft.CodeAnalysis.BannedApiAnalyzers | 5.6.0 | MIT | Microsoft | https://github.com/dotnet/roslyn |
+| Microsoft.CodeAnalysis.Common | 5.0.0 | MIT | Microsoft | https://github.com/dotnet/roslyn |
+| Microsoft.CodeAnalysis.CSharp | 5.0.0 | MIT | Microsoft | https://github.com/dotnet/roslyn |
+| Microsoft.CodeAnalysis.CSharp.Workspaces | 5.0.0 | MIT | Microsoft | https://github.com/dotnet/roslyn |
+| Microsoft.CodeAnalysis.Workspaces.Common | 5.0.0 | MIT | Microsoft | https://github.com/dotnet/roslyn |
+| Microsoft.CodeAnalysis.Workspaces.MSBuild | 5.0.0 | MIT | Microsoft | https://github.com/dotnet/roslyn |
 | Microsoft.Data.SqlClient | 6.1.6 | MIT | Microsoft | https://aka.ms/sqlclientproject |
 | Microsoft.Data.SqlClient.SNI.runtime | 6.0.2 | LICENSE.txt | Microsoft | https://aka.ms/sqlclientproject |
 | Microsoft.DotNet.ILCompiler | 10.0.11 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.EntityFrameworkCore | 10.0.12 | MIT | Microsoft | https://docs.microsoft.com/ef/core/ |
 | Microsoft.EntityFrameworkCore.Abstractions | 10.0.12 | MIT | Microsoft | https://docs.microsoft.com/ef/core/ |
 | Microsoft.EntityFrameworkCore.Analyzers | 10.0.12 | MIT | Microsoft | https://docs.microsoft.com/ef/core/ |
+| Microsoft.EntityFrameworkCore.Design | 10.0.12 | MIT | Microsoft | https://docs.microsoft.com/ef/core/ |
 | Microsoft.EntityFrameworkCore.Relational | 10.0.12 | MIT | Microsoft | https://docs.microsoft.com/ef/core/ |
 | Microsoft.EntityFrameworkCore.SqlServer | 10.0.12 | MIT | Microsoft | https://docs.microsoft.com/ef/core/ |
 | Microsoft.Extensions.Caching.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
@@ -48,6 +57,7 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Microsoft.Extensions.DependencyInjection.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.DependencyInjection.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.DependencyInjection.Abstractions | 8.0.0 | MIT | Microsoft | https://dot.net/ |
+| Microsoft.Extensions.DependencyModel | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Diagnostics | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Diagnostics.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Diagnostics.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
@@ -107,8 +117,11 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Microsoft.SourceLink.Common | 10.0.401 | MIT | Microsoft | https://github.com/dotnet/dotnet |
 | Microsoft.SourceLink.GitHub | 10.0.401 | MIT | Microsoft | https://github.com/dotnet/dotnet |
 | Microsoft.SqlServer.Server | 1.0.0 | MIT | Microsoft | https://aka.ms/sqlclientproject |
+| Microsoft.VisualStudio.SolutionPersistence | 1.0.52 | MIT | Microsoft | https://github.com/microsoft/vs-solutionpersistence |
 | Microsoft.VisualStudio.Threading.Analyzers | 18.7.23 | MIT | Microsoft | https://microsoft.github.io/vs-threading/ |
 | MinVer | 8.0.0 | Apache-2.0 | MinVer | https://github.com/adamralph/minver |
+| Mono.TextTemplating | 3.0.0 | MIT | Mikayla Hutchinson | https://github.com/mono/t4 |
+| Newtonsoft.Json | 13.0.4 | MIT | James Newton-King | https://www.newtonsoft.com/json |
 | Npgsql | 10.0.3 | PostgreSQL | Shay Rojansky,Nikita Kazmin,Brar Piening,Nino Floris,Yoh Deadfall,Austin Drenski,Emil Lenngren,Francisco Figueiredo Jr.,Kenji Uno | https://github.com/npgsql/npgsql |
 | Npgsql.EntityFrameworkCore.PostgreSQL | 10.0.3 | PostgreSQL | Shay Rojansky,Austin Drenski,Yoh Deadfall | https://github.com/npgsql/efcore.pg |
 | Roslynator.Analyzers | 5.0.0 | Apache-2.0 | Josef Pihrt | https://github.com/dotnet/roslynator |
@@ -116,6 +129,13 @@ Do not edit by hand; re-run the script after changing a package reference.
 | SonarAnalyzer.CSharp | 10.34.0.3385 | licenses\LICENSE.txt | SonarSource | https://redirect.sonarsource.com/doc/sonar-visualstudio.html |
 | Std.UriTemplate | 2.0.12 | Apache-2.0 | Std.UriTemplate | https://www.nuget.org/packages/Std.UriTemplate/2.0.12 |
 | System.ClientModel | 1.8.0 | MIT | Microsoft | https://github.com/Azure/azure-sdk-for-net/blob/System.ClientModel_1.8.0/sdk/core/System.ClientModel/README.md |
+| System.CodeDom | 6.0.0 | MIT | Microsoft | https://dot.net/ |
+| System.Composition | 9.0.0 | MIT | Microsoft | https://dot.net/ |
+| System.Composition.AttributedModel | 9.0.0 | MIT | Microsoft | https://dot.net/ |
+| System.Composition.Convention | 9.0.0 | MIT | Microsoft | https://dot.net/ |
+| System.Composition.Hosting | 9.0.0 | MIT | Microsoft | https://dot.net/ |
+| System.Composition.Runtime | 9.0.0 | MIT | Microsoft | https://dot.net/ |
+| System.Composition.TypedParts | 9.0.0 | MIT | Microsoft | https://dot.net/ |
 | System.Configuration.ConfigurationManager | 9.0.11 | MIT | Microsoft | https://dot.net/ |
 | System.Diagnostics.EventLog | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | System.Diagnostics.EventLog | 9.0.11 | MIT | Microsoft | https://dot.net/ |

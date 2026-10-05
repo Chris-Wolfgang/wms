@@ -73,6 +73,26 @@ public sealed class ScanDispatcherTests
 
 
     [Fact]
+    public async Task Disposing_a_registration_removes_that_registration_when_a_callback_is_registered_twice()
+    {
+        var scans = new ScanDispatcher();
+        var screen = new List<string>();
+        var dialog = new List<string>();
+        Func<string, Task> toScreen = scan => Record(screen, scan);
+        using var first = scans.Listen(toScreen);
+        using var dialogRegistration = scans.Listen(scan => Record(dialog, scan));
+        var second = scans.Listen(toScreen);
+
+        second.Dispose();
+        await scans.DispatchAsync("TOTE-0017");
+
+        Assert.Equal(["TOTE-0017"], dialog);
+        Assert.Empty(screen);
+    }
+
+
+
+    [Fact]
     public async Task Listen_and_DispatchAsync_reject_null()
     {
         var scans = new ScanDispatcher();

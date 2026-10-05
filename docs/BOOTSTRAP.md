@@ -4,6 +4,9 @@ Everything a customer does with the product goes through the one web API (E82.1)
 exceptions. Each exists because the API cannot do its normal work until it has happened, or because it must
 work when the API cannot. Nothing else is allowed outside the API; a new exception is an ADR.
 
+This is the engineering view. The operator-facing page is `docfx_project/docs/bootstrap.md` (published as
+"Before the API can serve"); keep the two in step.
+
 | Step | Why it is outside the API | Runs as | Defined by |
 |------|---------------------------|---------|------------|
 | Provision the database and apply migrations | The API starts without a schema and reports it (`GET /api/v0/system/schema`), but its data endpoints need the schema; migrations need elevated database rights the service account never has | `wms migrate` (in-process EF, JIT executable) run by the installer or an operator | E2, E82.6 |

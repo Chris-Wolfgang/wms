@@ -30,6 +30,9 @@ public sealed class DatabaseOptionsTests
     [InlineData("Oracle")]
     [InlineData("")]
     [InlineData("7")]
+    [InlineData("1")]
+    [InlineData("2")]
+    [InlineData("0")]
     public void An_unknown_provider_fails_validation_naming_the_setting_and_the_accepted_values(string text)
     {
         var errors = new DatabaseOptions { Provider = text }.Validate();
@@ -62,7 +65,7 @@ public sealed class DatabaseOptionsTests
     [Fact]
     public void TrustServerCertificate_is_applied_to_the_SqlServer_connection_string_only()
     {
-        var sqlServer = new DatabaseOptions { Provider = "SqlServer", ConnectionString = "Server=db;Database=wms", TrustServerCertificate = true };
+        var sqlServer = new DatabaseOptions { Provider = "SqlServer", ConnectionString = "Server=db;Database=wms;Encrypt=True", TrustServerCertificate = true };
         var postgres = new DatabaseOptions { Provider = "PostgreSql", ConnectionString = "Host=db;Database=wms" };
 
         Assert.True(new SqlConnectionStringBuilder(sqlServer.EffectiveConnectionString()).TrustServerCertificate);
@@ -109,7 +112,7 @@ public sealed class DatabaseOptionsTests
 
 
     [Theory]
-    [InlineData("SqlServer", "Server=localhost;Database=wms", "Microsoft.EntityFrameworkCore.SqlServer")]
+    [InlineData("SqlServer", "Server=localhost;Database=wms;Encrypt=True", "Microsoft.EntityFrameworkCore.SqlServer")]
     [InlineData("PostgreSql", "Host=localhost;Database=wms", "Npgsql.EntityFrameworkCore.PostgreSQL")]
     public void AddWmsDatabase_registers_the_context_on_the_configured_provider_and_the_migrations_schema_source(string provider, string connectionString, string providerName)
     {

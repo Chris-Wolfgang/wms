@@ -42,10 +42,14 @@ public sealed class DatabaseOptions
 
 
     /// <summary>
-    /// The parsed provider, or null when <see cref="Provider"/> is not one of the accepted names.
+    /// The parsed provider, or null when <see cref="Provider"/> is not one of the accepted names. Names only:
+    /// a numeric value such as <c>1</c> is rejected, though <see cref="Enum.TryParse{TEnum}(string?, bool, out TEnum)"/>
+    /// would accept it.
     /// </summary>
     public DatabaseProvider? ParsedProvider =>
-        Enum.TryParse<DatabaseProvider>(Provider, ignoreCase: true, out var provider) && Enum.IsDefined(provider) ? provider : null;
+        Enum.GetValues<DatabaseProvider>()
+            .Cast<DatabaseProvider?>()
+            .FirstOrDefault(p => string.Equals(p.ToString(), Provider, StringComparison.OrdinalIgnoreCase));
 
 
 
@@ -61,10 +65,9 @@ public sealed class DatabaseOptions
         if (ParsedProvider == DatabaseProvider.SqlServer && TrustServerCertificate)
         {
             var builder = new SqlConnectionStringBuilder(connectionString) { TrustServerCertificate = true };
-            if (builder.Encrypt != SqlConnectionEncryptOption.Strict)
-            {
-                builder.Encrypt = SqlConnectionEncryptOption.Mandatory;
-            }
+            builder.Encrypt = builder.Encrypt.Equals(SqlConnectionEncryptOption.Strict)
+                ? SqlConnectionEncryptOption.Strict
+                : SqlConnectionEncryptOption.Mandatory;
 
             return builder.ConnectionString;
         }

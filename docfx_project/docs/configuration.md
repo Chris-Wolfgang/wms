@@ -5,6 +5,11 @@ the console's Configure workspace. Each key can be set in `appsettings.json`, in
 `appsettings.<Environment>.json`, or as an environment variable with `__` in place of `:`
 (`Wms__Database__Provider`). Environment variables win.
 
+Only the keys that let the server start belong in these files: the ones on this page, plus the standard ASP.NET
+Core hosting keys (`Urls`, `Kestrel`, `AllowedHosts`) and `Logging`. Any other key in an `appsettings` file is
+ignored, and the server logs one warning at startup naming each such key and its file, so a value typed into
+the wrong place is noticed. Those values are settings: change them in the Configure workspace instead.
+
 ## Database
 
 | Key | Values | Notes |

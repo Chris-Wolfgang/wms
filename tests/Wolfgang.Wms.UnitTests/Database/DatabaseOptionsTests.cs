@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Infrastructure.Database;
@@ -66,10 +67,12 @@ public sealed class DatabaseOptionsTests
     public void TrustServerCertificate_is_applied_to_the_SqlServer_connection_string_only()
     {
         var sqlServer = new DatabaseOptions { Provider = "SqlServer", ConnectionString = "Server=db;Database=wms;Encrypt=True", TrustServerCertificate = true };
-        var postgres = new DatabaseOptions { Provider = "PostgreSql", ConnectionString = "Host=db;Database=wms" };
+        // Built with the provider's builder (as the encryption test below does) rather than written as a literal.
+        var postgresString = new NpgsqlConnectionStringBuilder { Host = "db", Database = "wms" }.ConnectionString;
+        var postgres = new DatabaseOptions { Provider = "PostgreSql", ConnectionString = postgresString };
 
         Assert.True(new SqlConnectionStringBuilder(sqlServer.EffectiveConnectionString()).TrustServerCertificate);
-        Assert.Equal("Host=db;Database=wms", postgres.EffectiveConnectionString());
+        Assert.Equal(postgresString, postgres.EffectiveConnectionString());
         Assert.Equal(string.Empty, new DatabaseOptions().EffectiveConnectionString());
     }
 

@@ -4,7 +4,9 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Wolfgang.Wms.Infrastructure.Database;
 
 namespace Wolfgang.Wms.IntegrationTests.Api;
 
@@ -62,6 +64,8 @@ public sealed class DatabaseStartupTests : IClassFixture<WebApplicationFactory<P
         using var response = await client.GetAsync(new Uri("/api/v0/system/schema", UriKind.Relative));
         using var status = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
+        // The override reached the application's configuration: a None provider would also report no current version.
+        Assert.Equal(DatabaseProvider.SqlServer, host.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value.ParsedProvider);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(JsonValueKind.Null, status.RootElement.GetProperty("current").ValueKind);
         Assert.False(status.RootElement.GetProperty("upToDate").GetBoolean());

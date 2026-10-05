@@ -55,6 +55,63 @@ public sealed class ModelConventionsTests
 
 
     [Theory]
+    [InlineData(SqlServer)]
+    [InlineData(PostgreSql)]
+    public void Owned_types_get_the_conventions_in_their_own_table_and_in_their_owners_table(string provider)
+    {
+        using var context = Sample(provider);
+        var container = context.Model.FindEntityType(typeof(Container))!;
+        var shipTo = container.FindNavigation(nameof(Container.ShipTo))!.TargetEntityType;
+        var line = container.FindNavigation(nameof(Container.Lines))!.TargetEntityType;
+        var containerTable = StoreObjectIdentifier.Create(shipTo, StoreObjectType.Table)!.Value;
+        var lineTable = StoreObjectIdentifier.Create(line, StoreObjectType.Table)!.Value;
+
+        // Table split: the owner's table is not renamed, the key stays the owner's id, other columns keep the prefix.
+        Assert.Equal(("container", "picking"), (containerTable.Name, containerTable.Schema));
+        Assert.Equal
+        (
+            ["id", "ship_to_street", "ship_to_verified_at"],
+            shipTo.GetProperties().Select(p => p.GetColumnName(containerTable)).Order(StringComparer.Ordinal)
+        );
+        Assert.Equal("pk_container", shipTo.FindPrimaryKey()!.GetName(containerTable));
+
+        // Own table: snake_case table, columns, key and foreign key, no database cascade.
+        Assert.Equal(("container_line", "picking"), (lineTable.Name, lineTable.Schema));
+        Assert.Equal
+        (
+            ["container_id", "id", "qty"],
+            line.GetProperties().Select(p => p.GetColumnName(lineTable)).Order(StringComparer.Ordinal)
+        );
+        Assert.Equal("pk_container_line", line.FindPrimaryKey()!.GetName(lineTable));
+        Assert.Equal("fk_container_line_container_id", line.FindOwnership()!.GetMappedConstraints().Single().Name);
+        Assert.Equal(DeleteBehavior.ClientCascade, line.FindOwnership()!.DeleteBehavior);
+    }
+
+
+
+    [Theory]
+    [InlineData(SqlServer)]
+    [InlineData(PostgreSql)]
+    public void Owned_rows_are_deleted_by_EF_with_their_owner_and_the_database_never_cascades(string provider)
+    {
+        using var context = Sample(provider);
+        var container = new Container
+        {
+            Id = 1,
+            Lines = { new ContainerLine { Id = 2 } },
+        };
+        context.Attach(container);
+
+        context.Remove(container);
+
+        Assert.All(context.ChangeTracker.Entries(), entry => Assert.Equal(EntityState.Deleted, entry.State));
+        Assert.Equal(3, context.ChangeTracker.Entries().Count());
+        Assert.DoesNotContain("CASCADE", context.Database.GenerateCreateScript(), StringComparison.OrdinalIgnoreCase);
+    }
+
+
+
+    [Theory]
     [InlineData(SqlServer, "decimal(9,3)", "datetime2(3)")]
     [InlineData(PostgreSql, "numeric(9,3)", "timestamp(3) with time zone")]
     public void Quantities_are_decimal_9_3_and_timestamps_are_utc_at_millisecond_precision(string provider, string quantityType, string timestampType)
@@ -110,12 +167,25 @@ public sealed class ModelConventionsTests
         Assert.Equal
         (
             [
+                "BadFactoryGenerated.id: ids are assigned by the database, never by a client-side value generator.",
+                "BadFactoryGenerated: table name is not snake_case.",
+                "bad_child.Ref: column name is not snake_case.",
                 "bad_child.amount: decimal columns are decimal(9,3).",
                 "bad_child.owner: GUID columns are not allowed; identifiers are server-assigned long.",
                 "bad_child.owner: every foreign key column is indexed explicitly.",
                 "bad_child.owner: foreign key column must be named 'bad_parent_id'.",
                 "bad_child.owner: foreign keys never cascade (delete behaviour must be Restrict).",
+                "bad_child.stamp_at: use DateTimeOffset (UTC), not DateTime.",
                 "bad_child.when: timestamps have precision 3.",
+                "bad_child: alternate key name 'uk_bad_child_code' must start with 'ak_' and be snake_case.",
+                "bad_child: foreign key name 'FK_bad_child_owner' must start with 'fk_' and be snake_case.",
+                "bad_child: index name 'ux_bad_child_amount' must start with 'ix_' and be snake_case.",
+                "bad_child: primary key name 'pk_BadChild' must start with 'pk_' and be snake_case.",
+                "bad_child: unique index name 'ix_bad_child_ref' must start with 'ux_' and be snake_case.",
+                "bad_generated.id: ids are assigned by the database, never by a client-side value generator.",
+                "bad_line.bad_child_id: owned rows are deleted by EF, never by a database cascade (delete behaviour must be ClientCascade).",
+                "bad_line: an owned type's key columns are long (the owner's id, plus a server-assigned id in a collection).",
+                "bad_line: no module schema (tables never land in dbo/public).",
                 "bad_parent.created: use DateTimeOffset (UTC), not DateTime.",
                 "bad_parent.id: GUID columns are not allowed; identifiers are server-assigned long.",
                 "bad_parent: no module schema (tables never land in dbo/public).",

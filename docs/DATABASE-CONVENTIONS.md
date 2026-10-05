@@ -4,6 +4,9 @@ What a DBA sees in the schema, on either engine, and how it is enforced. `ModelC
 (`Wolfgang.Wms.Infrastructure.Database.Conventions`) applies the naming and typing rules to every entity when the
 model is built; `ModelConventions.Verify` lists everything a module's configuration can still break, and the
 model test (`ModelConventionsTests`) asserts the product model has no violations for both providers.
+`SchemaCatalogTests` (Docker) creates a convention-built model on SQL Server and PostgreSQL and reads the
+catalogs (`INFORMATION_SCHEMA`, `sys.indexes`, `pg_indexes`) back: schemas, table/column/constraint/index
+names, identity columns, delete rules and column types are what the DBA actually gets.
 
 ## Schemas (E3.1)
 
@@ -27,14 +30,26 @@ hand-written SQL needs no quoting tricks:
 | foreign key | `fk_<table>_<columns>` | `fk_container_zone_group_id` |
 | index | `ix_<table>_<columns>`, unique `ux_…` | `ix_container_zone_group_id`, `ux_container_barcode` |
 
+The verifier checks key, foreign-key constraint and index names as the database sees them: the right prefix
+and snake_case.
+
+Owned types follow the same rules. An owned collection (or an owned value given its own table) gets a
+snake_case table (`container_line`) keyed by `(<owner table>_id, id)`; an owned value sharing its owner's table
+leaves that table and its `id` alone and keeps EF's navigation prefix on its columns (`ship_to_street`).
+
 ## Referential integrity (E3.3)
 
 Every relationship is a real foreign key, across schemas, with `Restrict` delete behaviour: deleting a
-referenced location, SKU or zone fails in the database, not just in the application. No cascades.
+referenced location, SKU or zone fails in the database, not just in the application. No cascades. The one
+exception in EF terms is ownership: an owned row is part of its owner, so the ownership foreign key is
+`ClientCascade` (EF deletes the owned rows with the owner; the database constraint is still `NO ACTION`). A
+`Restrict` ownership would make every owner delete fail in the change tracker.
 
 ## Keys, types and indexes (E3.4)
 
-- Primary keys are server-assigned `long` identity columns; clients never generate ids; no GUID columns anywhere.
+- Primary keys are server-assigned `long` identity columns; clients never generate ids (the verifier rejects a
+  key with a client-side value generator, `HasValueGenerator` / `HasValueGeneratorFactory`); no GUID columns
+  anywhere.
 - Timestamps are `DateTimeOffset` in UTC, stored as `datetime2(3)` on SQL Server (through
   `UtcDateTimeOffsetConverter`) and `timestamptz(3)` on PostgreSQL. They are for display and reporting only:
   change detection uses `row_version` (E5), journal ordering uses `device_seq`, and time-ordered pagination

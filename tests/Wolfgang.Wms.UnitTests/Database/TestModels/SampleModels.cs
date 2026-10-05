@@ -1,13 +1,17 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Microsoft.EntityFrameworkCore.ValueGeneration;
 using Wolfgang.Wms.Infrastructure.Database.Conventions;
 
 namespace Wolfgang.Wms.UnitTests.Database.TestModels;
 
 /// <summary>
-/// A compliant sample model: two entities in module schemas, a foreign key, a quantity and a timestamp.
+/// A compliant sample model: two entities in module schemas, a foreign key, a quantity and a timestamp, an
+/// owned value sharing its owner's table and an owned collection in a table of its own.
 /// </summary>
 internal sealed class SampleModelDbContext : DbContext
 {
@@ -30,6 +34,8 @@ internal sealed class SampleModelDbContext : DbContext
         modelBuilder.Entity<ZoneGroup>().ToTable("ZoneGroup", "layout");
         modelBuilder.Entity<Container>().ToTable("Container", "picking");
         modelBuilder.Entity<Container>().HasIndex(c => c.Barcode).IsUnique();
+        modelBuilder.Entity<Container>().OwnsOne(c => c.ShipTo);
+        modelBuilder.Entity<Container>().OwnsMany(c => c.Lines, line => line.ToTable("ContainerLine", "picking"));
         ModelConventions.Apply(modelBuilder, Database.ProviderName);
     }
 }
@@ -62,6 +68,28 @@ public sealed class Container
     public long ZoneGroupId { get; set; }
 
     public ZoneGroup? ZoneGroup { get; set; }
+
+    public Address ShipTo { get; set; } = new();
+
+    public List<ContainerLine> Lines { get; } = [];
+}
+
+
+
+public sealed class Address
+{
+    public string Street { get; set; } = string.Empty;
+
+    public DateTimeOffset VerifiedAt { get; set; }
+}
+
+
+
+public sealed class ContainerLine
+{
+    public long Id { get; set; }
+
+    public decimal Qty { get; set; }
 }
 
 
@@ -80,6 +108,10 @@ internal sealed class BadModelDbContext : DbContext
 
     public DbSet<BadChild> Children => Set<BadChild>();
 
+    public DbSet<BadGenerated> Generated => Set<BadGenerated>();
+
+    public DbSet<BadFactoryGenerated> FactoryGenerated => Set<BadFactoryGenerated>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         ModelConventions.Configure(configurationBuilder);
@@ -94,8 +126,29 @@ internal sealed class BadModelDbContext : DbContext
         modelBuilder.Entity<BadChild>().Property(c => c.Amount).HasPrecision(18, 2);
         modelBuilder.Entity<BadChild>().Property(c => c.When).HasPrecision(7);
         modelBuilder.Entity<BadChild>().HasOne(c => c.Parent).WithMany().HasForeignKey(c => c.Owner).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<BadChild>().HasAlternateKey(c => c.Code);
+        modelBuilder.Entity<BadChild>().HasIndex(c => c.Ref).IsUnique();
+        modelBuilder.Entity<BadChild>().HasIndex(c => c.Amount);
+        modelBuilder.Entity<BadChild>().OwnsOne(c => c.Stamp);
+        modelBuilder.Entity<BadChild>().OwnsMany(c => c.Lines, line => line.ToTable("BadLine", "dbo"));
+        modelBuilder.Entity<BadGenerated>().ToTable("BadGenerated", "picking");
+        modelBuilder.Entity<BadGenerated>().Property(g => g.Id).HasValueGenerator<ClientIdGenerator>();
+        modelBuilder.Entity<BadFactoryGenerated>().ToTable("BadFactoryGenerated", "picking");
+        modelBuilder.Entity<BadFactoryGenerated>().Property(g => g.Id).HasValueGeneratorFactory<ClientIdGeneratorFactory>();
         ModelConventions.Apply(modelBuilder, Database.ProviderName);
-        modelBuilder.Entity<BadChild>().Metadata.GetForeignKeys().Single().DeleteBehavior = DeleteBehavior.Cascade;
+
+        // Names a module could still override after the conventions ran: wrong prefix, or not snake_case.
+        modelBuilder.Entity<BadFactoryGenerated>().Metadata.SetTableName("BadFactoryGenerated");
+        var child = modelBuilder.Entity<BadChild>().Metadata;
+        child.FindPrimaryKey()!.SetName("pk_BadChild");
+        child.FindNavigation(nameof(BadChild.Stamp))!.TargetEntityType.FindPrimaryKey()!.SetName("pk_BadChild");   // shares the table
+        child.GetKeys().Single(k => !k.IsPrimaryKey()).SetName("uk_bad_child_code");
+        child.GetForeignKeys().Single(fk => !fk.IsOwnership).SetConstraintName("FK_bad_child_owner");
+        child.GetIndexes().Single(i => i.IsUnique).SetDatabaseName("ix_bad_child_ref");
+        child.GetIndexes().Single(i => !i.IsUnique).SetDatabaseName("ux_bad_child_amount");
+        child.FindProperty(nameof(BadChild.Ref))!.SetColumnName("Ref");
+        child.GetForeignKeys().Single(fk => !fk.IsOwnership).DeleteBehavior = DeleteBehavior.Cascade;
+        child.FindNavigation(nameof(BadChild.Lines))!.TargetEntityType.FindOwnership()!.DeleteBehavior = DeleteBehavior.Cascade;
     }
 }
 
@@ -121,4 +174,68 @@ public sealed class BadChild
     public Guid Owner { get; set; }
 
     public BadParent? Parent { get; set; }
+
+    public string Code { get; set; } = string.Empty;
+
+    public string Ref { get; set; } = string.Empty;
+
+    public BadStamp Stamp { get; set; } = new();
+
+    public List<BadLine> Lines { get; } = [];
+}
+
+
+
+public sealed class BadStamp
+{
+    public DateTime At { get; set; }
+}
+
+
+
+public sealed class BadLine
+{
+    public int Id { get; set; }
+}
+
+
+
+public sealed class BadGenerated
+{
+    public long Id { get; set; }
+}
+
+
+
+public sealed class BadFactoryGenerated
+{
+    public long Id { get; set; }
+}
+
+
+
+/// <summary>
+/// A client-side id generator: the kind of key configuration the verifier rejects. Never run.
+/// </summary>
+internal sealed class ClientIdGenerator : ValueGenerator<long>
+{
+    public override bool GeneratesTemporaryValues => false;
+
+    public override long Next(EntityEntry entry)
+    {
+        return 1;
+    }
+}
+
+
+
+/// <summary>
+/// A factory for <see cref="ClientIdGenerator"/>, the other way a module could configure client-side ids.
+/// </summary>
+internal sealed class ClientIdGeneratorFactory : ValueGeneratorFactory
+{
+    public override ValueGenerator Create(IProperty property, ITypeBase typeBase)
+    {
+        return new ClientIdGenerator();
+    }
 }

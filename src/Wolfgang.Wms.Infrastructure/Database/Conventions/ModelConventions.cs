@@ -9,8 +9,9 @@ namespace Wolfgang.Wms.Infrastructure.Database.Conventions;
 /// The schema conventions of E3.1–E3.4, applied to every entity once (<see cref="Apply"/>) and checked by the
 /// model test (<see cref="Verify"/>): snake_case names, a module schema per table, <c>id</c> as the
 /// server-assigned <c>long</c> key, <c>&lt;table&gt;_id</c> foreign keys with explicit indexes and no
-/// cascades, <c>decimal(9,3)</c> quantities, UTC <c>DateTimeOffset</c> timestamps at millisecond precision,
-/// and no GUID columns.
+/// database cascades, <c>decimal(9,3)</c> quantities, UTC <c>DateTimeOffset</c> timestamps at millisecond
+/// precision, and no GUID columns. Owned entity types follow the same rules, whether they have a table of their
+/// own or share their owner's.
 /// </summary>
 public static class ModelConventions
 {
@@ -58,9 +59,13 @@ public static class ModelConventions
 
     /// <summary>
     /// Names every table, column, key, foreign key and index in snake_case, makes every foreign key
-    /// <see cref="DeleteBehavior.Restrict"/>, and on SQL Server stores timestamps as UTC <c>datetime2(3)</c>.
-    /// Schemas are not assigned here: each module configures its own (<c>ToTable(name, schema)</c>), and
-    /// <see cref="Verify"/> rejects an entity without one.
+    /// <see cref="DeleteBehavior.Restrict"/> (an ownership <see cref="DeleteBehavior.ClientCascade"/>: EF deletes
+    /// the owned rows with their owner, the database never cascades), and on SQL Server stores timestamps as UTC
+    /// <c>datetime2(3)</c>. An owned type with a table of its own gets a snake_case table name; one that shares
+    /// its owner's table leaves that table and the owner's key column alone, and its other columns keep EF's
+    /// navigation prefix (<c>ShipTo.Street</c> → <c>ship_to_street</c>). Schemas are not assigned here: each
+    /// module configures its own (<c>ToTable(name, schema)</c>), and <see cref="Verify"/> rejects a table
+    /// without one.
     /// </summary>
     /// <param name="modelBuilder">The model being built.</param>
     /// <param name="providerName">The EF provider name (<c>Database.ProviderName</c>).</param>
@@ -70,36 +75,28 @@ public static class ModelConventions
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
         var sqlServer = string.Equals(providerName, "Microsoft.EntityFrameworkCore.SqlServer", StringComparison.Ordinal);
-        foreach (var entity in modelBuilder.Model.GetEntityTypes().Where(e => !e.IsOwned()))
-        {
-            var table = SnakeCase.Of(entity.ClrType.Name);
-            entity.SetTableName(table);
 
+        // Owners first, so an owned type compares itself with its owner's final table name.
+        foreach (var entity in modelBuilder.Model.GetEntityTypes().OrderBy(OwnershipDepth).ToList())
+        {
+            var ownership = entity.FindOwnership();
+            var sharesOwnerTable = ownership is not null && SharesTable(entity, ownership.PrincipalEntityType);
+            if (ownership is null)
+            {
+                entity.SetTableName(SnakeCase.Of(entity.ClrType.Name));
+            }
+            else if (!sharesOwnerTable)
+            {
+                entity.SetTableName(SnakeCase.Of(entity.GetTableName()!));
+            }
+
+            var storeObject = StoreObjectIdentifier.Create(entity, StoreObjectType.Table)!.Value;
             foreach (var property in entity.GetProperties())
             {
-                property.SetColumnName(SnakeCase.Of(property.Name));
-                if (sqlServer && (property.ClrType == typeof(DateTimeOffset) || property.ClrType == typeof(DateTimeOffset?)))
-                {
-                    property.SetValueConverter(new UtcDateTimeOffsetConverter());
-                    property.SetPrecision(TimestampPrecision);
-                }
+                ApplyProperty(property, storeObject, sharesOwnerTable, sqlServer);
             }
 
-            foreach (var key in entity.GetKeys())
-            {
-                key.SetName(key.IsPrimaryKey() ? "pk_" + table : "ak_" + table + "_" + Columns(key.Properties));
-            }
-
-            foreach (var foreignKey in entity.GetForeignKeys())
-            {
-                foreignKey.SetConstraintName("fk_" + table + "_" + Columns(foreignKey.Properties));
-                foreignKey.DeleteBehavior = DeleteBehavior.Restrict;
-            }
-
-            foreach (var index in entity.GetIndexes())
-            {
-                index.SetDatabaseName((index.IsUnique ? "ux_" : "ix_") + table + "_" + Columns(index.Properties));
-            }
+            ApplyNames(entity, storeObject);
         }
     }
 
@@ -107,7 +104,8 @@ public static class ModelConventions
 
     /// <summary>
     /// Every convention a module's configuration can still break, as one message per violation; empty when
-    /// the model complies. The model test asserts it is empty.
+    /// the model complies. The model test asserts it is empty. Names are checked as the database sees them
+    /// (the table each entity type, owned or not, is mapped to).
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="model"/> is null.</exception>
     public static IReadOnlyList<string> Verify(IModel model)
@@ -115,11 +113,11 @@ public static class ModelConventions
         ArgumentNullException.ThrowIfNull(model);
 
         var violations = new List<string>();
-        foreach (var entity in model.GetEntityTypes().Where(e => !e.IsOwned()))
+        foreach (var entity in model.GetEntityTypes())
         {
-            var table = entity.GetTableName() ?? entity.ClrType.Name;
-            var schema = entity.GetSchema();
-            if (string.IsNullOrEmpty(schema) || DefaultSchemas.Contains(schema, StringComparer.OrdinalIgnoreCase))
+            var storeObject = StoreObjectIdentifier.Create(entity, StoreObjectType.Table) ?? StoreObjectIdentifier.Table(entity.ShortName());
+            var table = storeObject.Name;
+            if (string.IsNullOrEmpty(storeObject.Schema) || DefaultSchemas.Contains(storeObject.Schema, StringComparer.OrdinalIgnoreCase))
             {
                 violations.Add($"{table}: no module schema (tables never land in {string.Join('/', DefaultSchemas)}).");
             }
@@ -129,39 +127,141 @@ public static class ModelConventions
                 violations.Add($"{table}: table name is not snake_case.");
             }
 
-            VerifyKey(entity, table, violations);
+            VerifyKeys(entity, storeObject, violations);
             foreach (var property in entity.GetProperties())
             {
-                VerifyProperty(property, table, violations);
+                VerifyProperty(property, storeObject, violations);
             }
 
-            foreach (var foreignKey in entity.GetForeignKeys())
+            // A foreign key between types sharing one table (an owned type's link to its owner) has no constraint.
+            foreach (var foreignKey in entity.GetForeignKeys().Where(fk => fk.GetMappedConstraints().Any()))
             {
-                VerifyForeignKey(entity, foreignKey, table, violations);
+                VerifyForeignKey(entity, foreignKey, storeObject, violations);
+            }
+
+            foreach (var index in entity.GetIndexes())
+            {
+                VerifyName
+                (
+                    table,
+                    index.IsUnique ? "unique index" : "index",
+                    index.GetDatabaseName(storeObject),
+                    index.IsUnique ? "ux_" : "ix_",
+                    violations
+                );
             }
         }
 
-        return violations;
+        return violations.Distinct(StringComparer.Ordinal).ToList();
     }
 
 
 
-    private static void VerifyKey(IEntityType entity, string table, List<string> violations)
+    private static int OwnershipDepth(IReadOnlyEntityType entity)
     {
+        var ownership = entity.FindOwnership();
+        return ownership is null ? 0 : 1 + OwnershipDepth(ownership.PrincipalEntityType);
+    }
+
+
+
+    private static bool SharesTable(IReadOnlyEntityType entity, IReadOnlyEntityType other)
+    {
+        return string.Equals(entity.GetTableName(), other.GetTableName(), StringComparison.Ordinal)
+            && string.Equals(entity.GetSchema(), other.GetSchema(), StringComparison.Ordinal);
+    }
+
+
+
+    private static void ApplyProperty(IMutableProperty property, StoreObjectIdentifier storeObject, bool sharesOwnerTable, bool sqlServer)
+    {
+        if (!sharesOwnerTable)
+        {
+            property.SetColumnName(SnakeCase.Of(property.Name));
+        }
+        else if (!property.IsPrimaryKey())
+        {
+            // Shared table: EF's navigation prefix keeps two owned values of one type apart; the key column is
+            // left alone so it stays mapped to the owner's id column.
+            property.SetColumnName(SnakeCase.Of(property.GetDefaultColumnName(storeObject)!));
+        }
+
+        if (sqlServer && (property.ClrType == typeof(DateTimeOffset) || property.ClrType == typeof(DateTimeOffset?)))
+        {
+            property.SetValueConverter(new UtcDateTimeOffsetConverter());
+            property.SetPrecision(TimestampPrecision);
+        }
+    }
+
+
+
+    private static void ApplyNames(IMutableEntityType entity, StoreObjectIdentifier storeObject)
+    {
+        var table = storeObject.Name;
+        foreach (var key in entity.GetKeys())
+        {
+            key.SetName(key.IsPrimaryKey() ? "pk_" + table : "ak_" + table + "_" + Columns(key.Properties, storeObject));
+        }
+
+        foreach (var foreignKey in entity.GetForeignKeys())
+        {
+            foreignKey.SetConstraintName("fk_" + table + "_" + Columns(foreignKey.Properties, storeObject));
+            foreignKey.DeleteBehavior = foreignKey.IsOwnership ? DeleteBehavior.ClientCascade : DeleteBehavior.Restrict;
+        }
+
+        foreach (var index in entity.GetIndexes())
+        {
+            index.SetDatabaseName((index.IsUnique ? "ux_" : "ix_") + table + "_" + Columns(index.Properties, storeObject));
+        }
+    }
+
+
+
+    private static void VerifyKeys(IEntityType entity, StoreObjectIdentifier storeObject, List<string> violations)
+    {
+        var table = storeObject.Name;
         var key = entity.FindPrimaryKey();
-        if (key is null || key.Properties.Count != 1 || key.Properties[0].ClrType != typeof(long)
-            || !string.Equals(key.Properties[0].GetColumnName(), "id", StringComparison.Ordinal)
+        if (entity.IsOwned())
+        {
+            // An owned type's key is its owner's id (plus its own server-assigned id in a collection).
+            if (key is null || key.Properties.Any(p => p.ClrType != typeof(long)))
+            {
+                violations.Add($"{table}: an owned type's key columns are long (the owner's id, plus a server-assigned id in a collection).");
+            }
+        }
+        else if (key is null || key.Properties.Count != 1 || key.Properties[0].ClrType != typeof(long)
+            || !string.Equals(key.Properties[0].GetColumnName(storeObject), "id", StringComparison.Ordinal)
             || key.Properties[0].ValueGenerated != ValueGenerated.OnAdd)
         {
             violations.Add($"{table}: primary key must be a single server-assigned long column named 'id'.");
         }
+
+        // ValueGenerated.OnAdd alone does not prove the database assigns the value: a configured generator runs in
+        // the client (HasValueGenerator / HasValueGeneratorFactory).
+        foreach (var property in entity.GetProperties().Where(p => p.IsPrimaryKey() && p.GetValueGeneratorFactory() is not null))
+        {
+            violations.Add($"{table}.{property.GetColumnName(storeObject)}: ids are assigned by the database, never by a client-side value generator.");
+        }
+
+        foreach (var candidate in entity.GetKeys())
+        {
+            VerifyName
+            (
+                table,
+                candidate.IsPrimaryKey() ? "primary key" : "alternate key",
+                candidate.GetName(storeObject),
+                candidate.IsPrimaryKey() ? "pk_" : "ak_",
+                violations
+            );
+        }
     }
 
 
 
-    private static void VerifyProperty(IProperty property, string table, List<string> violations)
+    private static void VerifyProperty(IProperty property, StoreObjectIdentifier storeObject, List<string> violations)
     {
-        var column = property.GetColumnName();
+        var table = storeObject.Name;
+        var column = property.GetColumnName(storeObject);
         var type = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
         if (!SnakeCase.Is(column))
         {
@@ -191,35 +291,58 @@ public static class ModelConventions
 
 
 
-    private static void VerifyForeignKey(IEntityType entity, IForeignKey foreignKey, string table, List<string> violations)
+    private static void VerifyForeignKey(IEntityType entity, IForeignKey foreignKey, StoreObjectIdentifier storeObject, List<string> violations)
     {
-        var columns = Columns(foreignKey.Properties);
+        var table = storeObject.Name;
+        var columns = Columns(foreignKey.Properties, storeObject);
         if (foreignKey.Properties.Count == 1)
         {
-            var expected = (foreignKey.PrincipalEntityType.GetTableName() ?? foreignKey.PrincipalEntityType.ClrType.Name) + "_id";
+            var expected = foreignKey.PrincipalEntityType.GetTableName() + "_id";
             if (!string.Equals(columns, expected, StringComparison.Ordinal))
             {
                 violations.Add($"{table}.{columns}: foreign key column must be named '{expected}'.");
             }
         }
 
-        if (foreignKey.DeleteBehavior != DeleteBehavior.Restrict)
+        if (foreignKey.IsOwnership && foreignKey.DeleteBehavior != DeleteBehavior.ClientCascade)
+        {
+            violations.Add($"{table}.{columns}: owned rows are deleted by EF, never by a database cascade (delete behaviour must be ClientCascade).");
+        }
+
+        if (!foreignKey.IsOwnership && foreignKey.DeleteBehavior != DeleteBehavior.Restrict)
         {
             violations.Add($"{table}.{columns}: foreign keys never cascade (delete behaviour must be Restrict).");
         }
 
-        var indexed = entity.GetIndexes().Any(i => i.Properties.Select(p => p.Name).SequenceEqual(foreignKey.Properties.Select(p => p.Name), StringComparer.Ordinal))
-            || (entity.FindPrimaryKey()?.Properties.Select(p => p.Name).SequenceEqual(foreignKey.Properties.Select(p => p.Name), StringComparer.Ordinal) ?? false);
+        // Any key or index that leads with the foreign key's columns serves it (e.g. an owned collection's
+        // (owner_id, id) primary key).
+        var foreignKeyProperties = foreignKey.Properties.Select(p => p.Name).ToList();
+        var indexed = entity.GetIndexes()
+            .Select(i => i.Properties)
+            .Concat(entity.GetKeys().Select(k => k.Properties))
+            .Any(properties => properties.Select(p => p.Name).Take(foreignKeyProperties.Count).SequenceEqual(foreignKeyProperties, StringComparer.Ordinal));
         if (!indexed)
         {
             violations.Add($"{table}.{columns}: every foreign key column is indexed explicitly.");
+        }
+
+        VerifyName(table, "foreign key", foreignKey.GetMappedConstraints().First().Name, "fk_", violations);
+    }
+
+
+
+    private static void VerifyName(string table, string kind, string? name, string prefix, List<string> violations)
+    {
+        if (name is null || !name.StartsWith(prefix, StringComparison.Ordinal) || !SnakeCase.Is(name))
+        {
+            violations.Add($"{table}: {kind} name '{name}' must start with '{prefix}' and be snake_case.");
         }
     }
 
 
 
-    private static string Columns(IReadOnlyList<IReadOnlyProperty> properties)
+    private static string Columns(IReadOnlyList<IReadOnlyProperty> properties, StoreObjectIdentifier storeObject)
     {
-        return string.Join('_', properties.Select(p => p.GetColumnName() ?? SnakeCase.Of(p.Name)));
+        return string.Join('_', properties.Select(p => p.GetColumnName(storeObject)));
     }
 }

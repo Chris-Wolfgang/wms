@@ -6,5 +6,7 @@
   href: getting-started.md
 - name: The console
   href: console.md
+- name: Device app version
+  href: device-app-version.md
 - name: Project website
   href: 'https://github.com/Chris-Wolfgang/wms'

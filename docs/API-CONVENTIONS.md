@@ -81,7 +81,8 @@ is `400 device.version_missing`, an unparseable one `400 device.version_invalid`
 site's minimum gets `426 Upgrade Required` (`device.version_too_old`) with the minimum in the
 `minimumVersion` extension so the device can offer the update (E37.5). The minimum is a setting cascading
 organisation → site (`IDeviceVersionPolicy`, E12), so rollouts can be phased one warehouse at a time while the
-server runs one version for all; until then no minimum is configured.
+server runs one version for all; until then no minimum is configured. The customer-facing description is
+`docfx_project/docs/device-app-version.md`; keep the two in step.
 
 ## Natural keys and time
 

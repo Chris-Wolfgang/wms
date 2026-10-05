@@ -88,7 +88,7 @@ public sealed record Gs1ApplicationIdentifier(string Code, string Description, i
         }
 
         Variable(table, "420", "Ship-to postal code", 20);
-        Variable(table, "421", "Ship-to postal code with country", 12);
+        Variable(table, "421", "Ship-to postal code with country", 12, rule: Gs1ValueRule.CountryAndPostalCode);
         Variable(table, "90", "Trading partner agreed information", 30);
         for (var i = 91; i <= 99; i++)
         {
@@ -108,7 +108,7 @@ public sealed record Gs1ApplicationIdentifier(string Code, string Description, i
         Fixed(table, "17", "Expiry date", 6, Gs1ValueRule.Date);
         Variable(table, "30", "Variable count", 8, numeric: true);
         Variable(table, "37", "Count of trade items", 8, numeric: true);
-        Fixed(table, "7003", "Expiry date and time", 10);
+        Fixed(table, "7003", "Expiry date and time", 10, Gs1ValueRule.DateTime);
         Fixed(table, "7006", "First freeze date", 6, Gs1ValueRule.Date);
     }
 
@@ -124,8 +124,10 @@ public sealed record Gs1ApplicationIdentifier(string Code, string Description, i
             }
         }
 
-        Variable(table, "7001", "NATO stock number", 13, numeric: true);
+        Fixed(table, "7001", "NATO stock number", 13);
         Variable(table, "7002", "Meat cut", 30);
+        // 7001 is N13 (fixed); 7004 is N..4 (variable) in the GS1 Barcode Syntax Dictionary. Neither is in the
+        // predefined-length table, so a scanned string may carry FNC1 after either; the parser skips it.
         Variable(table, "7004", "Active potency", 4, numeric: true);
         Variable(table, "7005", "Catch area", 12);
         Variable(table, "8003", "GRAI", 30);
@@ -147,8 +149,8 @@ public sealed record Gs1ApplicationIdentifier(string Code, string Description, i
 
 
 
-    private static void Variable(Dictionary<string, Gs1ApplicationIdentifier> table, string code, string description, int max, bool numeric = false)
+    private static void Variable(Dictionary<string, Gs1ApplicationIdentifier> table, string code, string description, int max, bool numeric = false, Gs1ValueRule rule = Gs1ValueRule.None)
     {
-        table[code] = new Gs1ApplicationIdentifier(Code: code, Description: description, FixedLength: null, MaxLength: max, Numeric: numeric);
+        table[code] = new Gs1ApplicationIdentifier(Code: code, Description: description, FixedLength: null, MaxLength: max, Numeric: numeric, Rule: rule);
     }
 }

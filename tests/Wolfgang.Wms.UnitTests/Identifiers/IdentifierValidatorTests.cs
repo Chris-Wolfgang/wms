@@ -136,4 +136,81 @@ public sealed class IdentifierValidatorTests
         Assert.Throws<ArgumentNullException>(() => IdentifierValidator.Validate(null!, "x"));
         Assert.Throws<ArgumentNullException>(() => IdentifierValidator.Normalize(null!, "x"));
     }
+
+
+
+    [Fact]
+    public void Profile_when_a_length_is_negative_or_zero_max_throws_even_through_with()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Default with { MaxLength = -1 });
+        Assert.Throws<ArgumentOutOfRangeException>(() => Default with { MaxLength = 0 });
+        Assert.Throws<ArgumentOutOfRangeException>(() => Default with { MinLength = -1 });
+        Assert.Null((Default with { MaxLength = null }).MaxLength);
+    }
+
+
+
+    [Fact]
+    public void Validate_when_MinLength_is_above_the_effective_maximum_refuses_the_profile()
+    {
+        var contradictory = Default with { MinLength = 10, MaxLength = 5 };
+        var aboveTheCap = Default with { MinLength = 41 };
+
+        var exception = Assert.Throws<ArgumentException>(() => IdentifierValidator.Validate(contradictory, "ABCDEFG"));
+
+        Assert.Equal("tote_barcode: the minimum length 10 is above the maximum length 5.", contradictory.ConfigurationError);
+        Assert.Equal("tote_barcode: the minimum length 41 is above the maximum length 40.", aboveTheCap.ConfigurationError);
+        Assert.Null((Default with { MinLength = 5, MaxLength = 5 }).ConfigurationError);
+        Assert.Equal("profile", exception.ParamName);
+        Assert.StartsWith(contradictory.ConfigurationError!, exception.Message, StringComparison.Ordinal);
+    }
+
+
+
+    [Theory]
+    [InlineData("(01)09501101530004", "(01) GTIN: check digit is wrong.")]
+    [InlineData("(01)0950110153000(10)ABC", "(01) GTIN: digits only.")]
+    [InlineData("(7003)9913999999", "(7003) Expiry date and time: not a YYMMDDhhmm date and time.")]
+    [InlineData("TOTE-17", "Unknown application identifier at 'TOTE'.")]
+    public void Validate_when_the_field_holds_GS1_element_strings_surfaces_the_structural_error(string raw, string expected)
+    {
+        var profile = Default with { Gs1ElementString = true };
+
+        var result = IdentifierValidator.Validate(profile, raw);
+
+        Assert.Equal(("gs1", expected), (result.FailedRule, result.Expected));
+        Assert.Equal("tote_barcode: " + expected, result.Message);
+    }
+
+
+
+    [Fact]
+    public void Validate_when_the_field_holds_GS1_element_strings_accepts_both_forms_and_still_applies_length()
+    {
+        var profile = Default with { Gs1ElementString = true, MaxLength = 32 };
+        var scanned = "]C1" + "0109501101530003" + "10ABC" + Gs1.GroupSeparator + "21SN-7";
+
+        var bracketed = IdentifierValidator.Validate(profile, "(01)09501101530003(10)ABC");
+        var separated = IdentifierValidator.Validate(profile, scanned);
+        var tooLong = IdentifierValidator.Validate(profile, "(01)09501101530003(10)ABCDEFGHIJKL");
+
+        Assert.True(bracketed.IsValid, bracketed.Message);
+        Assert.True(separated.IsValid, separated.Message);
+        Assert.Equal(scanned, separated.Value);
+        Assert.Equal("max_length", tooLong.FailedRule);
+    }
+
+
+
+    [Fact]
+    public void Validate_when_a_value_carries_a_GS1_symbology_identifier_parses_it_in_any_field()
+    {
+        var broken = IdentifierValidator.Validate(Default, "]C1" + "0109501101530004");
+        var good = IdentifierValidator.Validate(Default, "]C1" + "0109501101530003" + "10ABC" + Gs1.GroupSeparator + "21SN-7");
+        var plain = IdentifierValidator.Validate(Default, "(01)09501101530004");
+
+        Assert.Equal(("gs1", "(01) GTIN: check digit is wrong."), (broken.FailedRule, broken.Expected));
+        Assert.True(good.IsValid, good.Message);
+        Assert.True(plain.IsValid, "a field not declared GS1 stores bracketed text as received");
+    }
 }

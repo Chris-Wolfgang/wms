@@ -8,9 +8,11 @@ namespace Wolfgang.Wms.Domain.Identifiers;
 
 /// <summary>
 /// Compiles the mask syntax of E3.8 to an anchored .NET regular expression: <c>A</c> → letter, <c>9</c> →
-/// digit, <c>X</c> → letter or digit, <c>?</c> → any character, <c>(n)</c> → repeat the preceding token n
-/// times, any other character → itself (escaped). Runs of the same token collapse to a count, so
-/// <c>AAA-999</c> → <c>^[A-Za-z]{3}-[0-9]{3}$</c>, the form the settings page shows.
+/// digit, <c>X</c> → letter or digit, <c>?</c> → any one character whatsoever (<c>[\s\S]</c>; .NET's
+/// <c>.</c> would skip a line feed), <c>(n)</c> → repeat the preceding token n times, any other character → itself
+/// (escaped). Runs of the same token collapse to a count, so <c>AAA-999</c> →
+/// <c>\A[A-Za-z]{3}-[0-9]{3}\z</c>, the form the settings page shows. <c>\A</c>/<c>\z</c> anchor the true start
+/// and end of the value (<c>$</c> would also match before a trailing line feed).
 /// </summary>
 public static class MaskCompiler
 {
@@ -23,7 +25,7 @@ public static class MaskCompiler
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mask);
 
-        var pattern = new StringBuilder("^");
+        var pattern = new StringBuilder(@"\A");
         string? run = null;
         var runLength = 0;
         for (var i = 0; i < mask.Length; i++)
@@ -50,7 +52,7 @@ public static class MaskCompiler
                 'A' => "[A-Za-z]",
                 '9' => "[0-9]",
                 'X' => "[A-Za-z0-9]",
-                '?' => ".",
+                '?' => @"[\s\S]",
                 _ => Regex.Escape(c.ToString()),
             };
 
@@ -66,7 +68,7 @@ public static class MaskCompiler
         }
 
         Flush(pattern, run, runLength);
-        return pattern.Append('$').ToString();
+        return pattern.Append(@"\z").ToString();
     }
 
 

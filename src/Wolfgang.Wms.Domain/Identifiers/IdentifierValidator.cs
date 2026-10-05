@@ -6,8 +6,9 @@ namespace Wolfgang.Wms.Domain.Identifiers;
 
 /// <summary>
 /// Applies a <see cref="ValidationProfile"/> to a customer-supplied value (E3.6, E3.7), identically at intake,
-/// scan, console, CSV import and API: normalise (trim, case), then reject control characters, then check
-/// required, length and format. Pure and shared with the device (E1.4).
+/// scan, console, CSV import and API: normalise (trim, case), then check required, then GS1 structure for a GS1
+/// value (<see cref="ValidationProfile.Gs1ElementString"/> or a GS1 symbology identifier), otherwise reject
+/// control characters, then check length and format. Pure and shared with the device (E1.4).
 /// </summary>
 public static class IdentifierValidator
 {
@@ -15,9 +16,15 @@ public static class IdentifierValidator
     /// Validates <paramref name="raw"/> against <paramref name="profile"/>.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="profile"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="profile"/> has a
+    /// <see cref="ValidationProfile.ConfigurationError"/>.</exception>
     public static IdentifierValidation Validate(ValidationProfile profile, string? raw)
     {
         ArgumentNullException.ThrowIfNull(profile);
+        if (profile.ConfigurationError is { } configurationError)
+        {
+            throw new ArgumentException(configurationError, nameof(profile));
+        }
 
         var value = Normalize(profile, raw);
         if (value.Length == 0)
@@ -27,7 +34,15 @@ public static class IdentifierValidator
                 : IdentifierValidation.Success(profile.Field, value);
         }
 
-        if (value.Any(char.IsControl))
+        if (profile.Gs1ElementString || Gs1.HasGs1SymbologyIdentifier(value))
+        {
+            // The parser rejects control characters inside values; FNC1 group separators between them are structure.
+            if (!Gs1.TryParse(value, out _, out var gs1Error))
+            {
+                return IdentifierValidation.Failure(profile.Field, "gs1", gs1Error!);
+            }
+        }
+        else if (value.Any(char.IsControl))
         {
             return IdentifierValidation.Failure(profile.Field, "control_characters", "no control characters");
         }

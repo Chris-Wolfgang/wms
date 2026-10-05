@@ -7,7 +7,8 @@ namespace Wolfgang.Wms.Domain.Identifiers;
 /// <summary>
 /// A compiled identifier format (E3.8): a mask or a .NET regular expression, evaluated with
 /// <see cref="RegexOptions.NonBacktracking"/> where the pattern allows it and a match timeout otherwise, so
-/// a bad pattern can never stall intake or a scan. Anchored to the whole value.
+/// a bad pattern can never stall intake or a scan. Anchored to the whole value with <c>\A</c> and <c>\z</c>
+/// (not <c>^</c>/<c>$</c>: .NET lets <c>$</c> match before a final line feed).
 /// </summary>
 public sealed class IdentifierFormat
 {
@@ -132,7 +133,8 @@ public sealed class IdentifierFormat
 
 
     /// <summary>
-    /// <c>^(?:body)$</c>: the administrator's regex always matches the whole value, whether or not they anchored it.
+    /// <c>\A(?:body)\z</c>: the administrator's regex always matches the whole value, whether or not they anchored
+    /// it. <c>\z</c> is the true end of input; <c>$</c> would also match before a trailing line feed.
     /// </summary>
     private static string Anchor(string regex)
     {
@@ -147,7 +149,7 @@ public sealed class IdentifierFormat
             body = body[..^1];
         }
 
-        return "^(?:" + body.ToString() + ")$";
+        return @"\A(?:" + body.ToString() + @")\z";
     }
 
 

@@ -8,11 +8,11 @@ namespace Wolfgang.Wms.UnitTests.Identifiers;
 public sealed class IdentifierFormatTests
 {
     [Theory]
-    [InlineData("AAA-999", "^[A-Za-z]{3}-[0-9]{3}$")]
-    [InlineData("9(8)", "^[0-9]{8}$")]
-    [InlineData("T-X(6)", "^T-[A-Za-z0-9]{6}$")]
-    [InlineData("?(3).A", "^.{3}\\.[A-Za-z]$")]
-    [InlineData("LOT 9", "^LOT\\ [0-9]$")]
+    [InlineData("AAA-999", "\\A[A-Za-z]{3}-[0-9]{3}\\z")]
+    [InlineData("9(8)", "\\A[0-9]{8}\\z")]
+    [InlineData("T-X(6)", "\\AT-[A-Za-z0-9]{6}\\z")]
+    [InlineData("?(3).A", "\\A[\\s\\S]{3}\\.[A-Za-z]\\z")]
+    [InlineData("LOT 9", "\\ALOT\\ [0-9]\\z")]
     public void Masks_compile_to_anchored_regular_expressions(string mask, string expected)
     {
         Assert.Equal(expected, MaskCompiler.ToRegex(mask));
@@ -30,6 +30,11 @@ public sealed class IdentifierFormatTests
     [InlineData("9(8)", "123456789", false)]
     [InlineData("T-X(6)", "T-A1B2C3", true)]
     [InlineData("T-X(6)", "T-A1B2C", false)]
+    [InlineData("A", "A\n", false)]
+    [InlineData("9(3)", "123\n", false)]
+    [InlineData("?", "\u2028", true)]
+    [InlineData("?", "\n", true)]
+    [InlineData("A?A", "A\u2029A", true)]
     public void Mask_formats_match_whole_values_only(string mask, string value, bool expected)
     {
         var format = IdentifierFormat.Create(FormatKind.Mask, mask);
@@ -65,8 +70,22 @@ public sealed class IdentifierFormatTests
         var format = IdentifierFormat.Create(FormatKind.Regex, regex);
 
         Assert.Equal(expected, format.IsMatch(value));
-        Assert.StartsWith("^(?:", format.Pattern, StringComparison.Ordinal);
-        Assert.EndsWith(")$", format.Pattern, StringComparison.Ordinal);
+        Assert.StartsWith("\\A(?:", format.Pattern, StringComparison.Ordinal);
+        Assert.EndsWith(")\\z", format.Pattern, StringComparison.Ordinal);
+    }
+
+
+
+    [Theory]
+    [InlineData("AB", "AB")]
+    [InlineData("^AB$", "AB")]
+    [InlineData("(a)\\1", "aa")]
+    public void IsMatch_when_the_value_has_a_trailing_line_feed_returns_false(string regex, string whole)
+    {
+        var format = IdentifierFormat.Create(FormatKind.Regex, regex);
+
+        Assert.True(format.IsMatch(whole));
+        Assert.False(format.IsMatch(whole + "\n"));
     }
 
 

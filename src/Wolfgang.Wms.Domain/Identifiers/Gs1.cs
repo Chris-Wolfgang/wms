@@ -16,6 +16,22 @@ public static class Gs1
     /// </summary>
     public const char GroupSeparator = '';
 
+    /// <summary>
+    /// The ISO 3166-1 numeric ("num-3") country codes, as listed by the GS1 Barcode Syntax Dictionary's
+    /// <c>iso3166</c> linter; AI 421 must start with one.
+    /// </summary>
+    private static readonly HashSet<string> Iso3166Numeric = new
+    (
+        "004 008 010 012 016 020 024 028 031 032 036 040 044 048 050 051 052 056 060 064 068 070 072 074 076 084 086 090 092 096 100 104 108 112 116 120 124 132 136 140 144 148 152 156 158 162 166 170 174 175 178 180 184 188 191 192 196 203 204 208 212 214 218 222 226 231 232 233 234 238 239 242 246 248 250 254 258 260 262 266 268 270 275 276 288 292 296 300 304 308 312 316 320 324 328 332 334 336 340 344 348 352 356 360 364 368 372 376 380 384 388 392 398 400 404 408 410 414 417 418 422 426 428 430 434 438 440 442 446 450 454 458 462 466 470 474 478 480 484 492 496 498 499 500 504 508 512 516 520 524 528 531 533 534 535 540 548 554 558 562 566 570 574 578 580 581 583 584 585 586 591 598 600 604 608 612 616 620 624 626 630 634 638 642 643 646 652 654 659 660 662 663 666 670 674 678 682 686 688 690 694 702 703 704 705 706 710 716 724 728 729 732 740 744 748 752 756 760 762 764 768 772 776 780 784 788 792 795 796 798 800 804 807 818 826 831 832 833 834 840 850 854 858 860 862 876 882 887 894".Split(' '),
+        StringComparer.Ordinal
+    );
+
+    /// <summary>
+    /// The AIM symbology identifiers that announce GS1 data: GS1-128, GS1 DataBar, GS1 DataMatrix, GS1 QR Code,
+    /// GS1 DotCode.
+    /// </summary>
+    private static readonly string[] Gs1SymbologyIdentifiers = ["]C1", "]e0", "]d2", "]Q3", "]J1"];
+
 
 
     /// <summary>
@@ -102,6 +118,36 @@ public static class Gs1
 
 
     /// <summary>
+    /// True for a <c>YYMMDDhhmm</c> GS1 date and time (AI 7003): a real calendar date (day <c>00</c> is not
+    /// allowed here), hour <c>00</c>–<c>23</c> and minute <c>00</c>–<c>59</c>.
+    /// </summary>
+    public static bool IsValidDateTime(string? value)
+    {
+        if (value is not { Length: 10 } || !value.All(char.IsAsciiDigit) || !IsValidDate(value[..6]) || string.Equals(value[4..6], "00", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var hour = int.Parse(value.AsSpan(6, 2), CultureInfo.InvariantCulture);
+        var minute = int.Parse(value.AsSpan(8, 2), CultureInfo.InvariantCulture);
+        return hour <= 23 && minute <= 59;
+    }
+
+
+
+    /// <summary>
+    /// True when <paramref name="value"/> starts with an AIM symbology identifier that announces GS1 data
+    /// (<c>]C1</c> GS1-128, <c>]e0</c> GS1 DataBar, <c>]d2</c> GS1 DataMatrix, <c>]Q3</c> GS1 QR Code, <c>]J1</c>
+    /// GS1 DotCode): the scanner says the value is a GS1 element string.
+    /// </summary>
+    public static bool HasGs1SymbologyIdentifier(string? value)
+    {
+        return value is { Length: >= 3 } && Gs1SymbologyIdentifiers.Contains(value[..3], StringComparer.Ordinal);
+    }
+
+
+
+    /// <summary>
     /// Parses and validates an element string, in the human-readable form <c>(01)09501101530003(17)261231(10)ABC</c>
     /// or the scanned form where fixed-length values run together and variable-length ones end with
     /// <see cref="GroupSeparator"/> (a leading symbology identifier such as <c>]C1</c> or <c>]d2</c> is ignored).
@@ -119,7 +165,8 @@ public static class Gs1
             return false;
         }
 
-        var span = text.AsSpan().Trim();
+        // Not trimmed: a value is kept exactly as encoded, and a stray tab or line break is a control character.
+        var span = text.AsSpan();
         if (span.Length > 3 && span[0] == ']')
         {
             span = span[3..];
@@ -220,6 +267,8 @@ public static class Gs1
             { Numeric: true } when !value.All(char.IsAsciiDigit) => $"({ai.Code}) {ai.Description}: digits only.",
             { Rule: Gs1ValueRule.CheckDigit } when !HasValidCheckDigit(value) => $"({ai.Code}) {ai.Description}: check digit is wrong.",
             { Rule: Gs1ValueRule.Date } when !IsValidDate(value) => $"({ai.Code}) {ai.Description}: not a YYMMDD date.",
+            { Rule: Gs1ValueRule.DateTime } when !IsValidDateTime(value) => $"({ai.Code}) {ai.Description}: not a YYMMDDhhmm date and time.",
+            { Rule: Gs1ValueRule.CountryAndPostalCode } when !IsCountryAndPostalCode(value) => $"({ai.Code}) {ai.Description}: expected a 3-digit ISO 3166 country code and 1 to 9 more characters.",
             _ when value.Any(char.IsControl) => $"({ai.Code}) {ai.Description}: control characters are not allowed.",
             _ => null,
         };
@@ -231,6 +280,13 @@ public static class Gs1
 
         list.Add(new Gs1Element(ai, value));
         return true;
+    }
+
+
+
+    private static bool IsCountryAndPostalCode(string value)
+    {
+        return value.Length >= 4 && Iso3166Numeric.Contains(value[..3]);
     }
 
 

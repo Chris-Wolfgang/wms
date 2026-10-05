@@ -132,4 +132,143 @@ public sealed class Gs1Tests
         Assert.Contains(Gs1ApplicationIdentifier.Known, ai => string.Equals(ai.Code, "00", StringComparison.Ordinal) && ai.IsFixedLength && ai.Rule == Gs1ValueRule.CheckDigit);
         Assert.Contains(Gs1ApplicationIdentifier.Known, ai => string.Equals(ai.Code, "95", StringComparison.Ordinal) && !ai.IsFixedLength && ai.MaxLength == 90);
     }
+
+
+
+    [Theory]
+    [InlineData("(10)ABC\t")]
+    [InlineData("(10)ABC\n")]
+    [InlineData("(10)ABC\r\n")]
+    [InlineData("10ABC\r")]
+    [InlineData("\t(10)ABC")]
+    public void TryParse_when_the_string_has_a_surrounding_tab_or_line_break_rejects_it(string text)
+    {
+        var ok = Gs1.TryParse(text, out var elements, out var error);
+
+        Assert.False(ok, "a control character was trimmed away and the string accepted");
+        Assert.Empty(elements);
+        Assert.NotNull(error);
+    }
+
+
+
+    [Theory]
+    [InlineData("(21)SN-7 ", "SN-7 ")]
+    [InlineData("21SN-7 ", "SN-7 ")]
+    [InlineData("(10) ABC", " ABC")]
+    [InlineData("(01)09501101530003(10)ABC ", "ABC ")]
+    public void TryParse_when_a_value_has_leading_or_trailing_spaces_keeps_them(string text, string expectedLastValue)
+    {
+        var ok = Gs1.TryParse(text, out var elements, out var error);
+
+        Assert.True(ok, error);
+        Assert.Equal
+        (
+            expectedLastValue,
+            elements[^1].Value
+        );
+    }
+
+
+
+    [Theory]
+    [InlineData("(421)84019103", true)]
+    [InlineData("(421)276D-80331", true)]
+    [InlineData("(421)8401", true)]
+    [InlineData("(421)ABC", false)]
+    [InlineData("(421)ABC12345", false)]
+    [InlineData("(421)99912345", false)]
+    [InlineData("(421)840", false)]
+    public void TryParse_when_ai_is_421_requires_an_iso_3166_country_code_and_a_postal_code(string text, bool expected)
+    {
+        var ok = Gs1.TryParse(text, out _, out var error);
+
+        Assert.Equal(expected, ok);
+        if (!expected)
+        {
+            Assert.Equal
+            (
+                "(421) Ship-to postal code with country: expected a 3-digit ISO 3166 country code and 1 to 9 more characters.",
+                error
+            );
+        }
+    }
+
+
+
+    [Theory]
+    [InlineData("(7003)2612312359", null)]
+    [InlineData("(7003)2612310000", null)]
+    [InlineData("(7003)2802291200", null)]
+    [InlineData("(7003)9913999999", "(7003) Expiry date and time: not a YYMMDDhhmm date and time.")]
+    [InlineData("(7003)2612002359", "(7003) Expiry date and time: not a YYMMDDhhmm date and time.")]
+    [InlineData("(7003)2612312400", "(7003) Expiry date and time: not a YYMMDDhhmm date and time.")]
+    [InlineData("(7003)2612312360", "(7003) Expiry date and time: not a YYMMDDhhmm date and time.")]
+    [InlineData("(7003)2602291200", "(7003) Expiry date and time: not a YYMMDDhhmm date and time.")]
+    [InlineData("(7003)261231235", "(7003) Expiry date and time: expected 10 characters, got 9.")]
+    public void TryParse_when_ai_is_7003_requires_a_real_YYMMDDhhmm(string text, string? expectedError)
+    {
+        var ok = Gs1.TryParse(text, out _, out var error);
+
+        Assert.Equal(expectedError is null, ok);
+        Assert.Equal(expectedError, error);
+    }
+
+
+
+    [Theory]
+    [InlineData("2612312359", true)]
+    [InlineData("261231235x", false)]
+    [InlineData("261231", false)]
+    [InlineData(null, false)]
+    public void IsValidDateTime_when_given_a_value_checks_length_digits_date_and_time(string? value, bool expected)
+    {
+        Assert.Equal(expected, Gs1.IsValidDateTime(value));
+    }
+
+
+
+    [Fact]
+    public void TryParse_when_ai_is_7001_requires_exactly_13_digits()
+    {
+        Assert.True(Gs1.TryParse("(7001)1234567890123(10)ABC", out var bracketed, out var bracketedError), bracketedError);
+        Assert.True(Gs1.TryParse("7001123456789012310ABC", out var runTogether, out var runTogetherError), runTogetherError);
+        Assert.True(Gs1.TryParse("70011234567890123" + Gs1.GroupSeparator + "10ABC", out var separated, out var separatedError), separatedError);
+        Assert.False(Gs1.TryParse("(7001)123456789012", out _, out var shortError));
+
+        Assert.Equal(["1234567890123", "ABC"], bracketed.Select(e => e.Value));
+        Assert.Equal(["1234567890123", "ABC"], runTogether.Select(e => e.Value));
+        Assert.Equal(["1234567890123", "ABC"], separated.Select(e => e.Value));
+        Assert.Equal("(7001) NATO stock number: expected 13 characters, got 12.", shortError);
+    }
+
+
+
+    [Fact]
+    public void TryParse_when_ai_is_7004_accepts_1_to_4_digits_as_GS1_defines_it_N__4()
+    {
+        Assert.True(Gs1.TryParse("(7004)12", out var elements, out var error), error);
+        Assert.False(Gs1.TryParse("(7004)12345", out _, out var longError));
+
+        Assert.Equal("12", elements[0].Value);
+        Assert.Equal("(7004) Active potency: expected 1 to 4 characters, got 5.", longError);
+    }
+
+
+
+    [Theory]
+    [InlineData("]C1010950110153000", true)]
+    [InlineData("]e00109501101530003", true)]
+    [InlineData("]d20109501101530003", true)]
+    [InlineData("]Q30109501101530003", true)]
+    [InlineData("]J10109501101530003", true)]
+    [InlineData("]C0ABC", false)]
+    [InlineData("]Q1ABC", false)]
+    [InlineData("]C", false)]
+    [InlineData("(01)09501101530003", false)]
+    [InlineData(null, false)]
+    public void HasGs1SymbologyIdentifier_when_given_a_value_recognises_only_GS1_symbologies(string? value, bool expected)
+    {
+        Assert.Equal(expected, Gs1.HasGs1SymbologyIdentifier(value));
+    }
 }

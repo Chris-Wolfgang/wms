@@ -1,5 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Globalization;
+
 namespace Wolfgang.Wms.Domain.Identifiers;
 
 /// <summary>
@@ -13,6 +15,11 @@ namespace Wolfgang.Wms.Domain.Identifiers;
 /// <param name="SystemMaxLength">The hard cap of the field's column; <see cref="MaxLength"/> can only lower it.</param>
 public sealed record ValidationProfile(string Field, int SystemMaxLength)
 {
+    private readonly int _minLength;
+    private readonly int? _maxLength;
+
+
+
     /// <summary>
     /// The field name, required.
     /// </summary>
@@ -37,16 +44,30 @@ public sealed record ValidationProfile(string Field, int SystemMaxLength)
 
 
     /// <summary>
-    /// Minimum length after normalisation; default 0.
+    /// Minimum length after normalisation; default 0, never negative.
     /// </summary>
-    public int MinLength { get; init; }
+    /// <exception cref="ArgumentOutOfRangeException">The value is negative.</exception>
+    public int MinLength
+    {
+        get => _minLength;
+        init => _minLength = value >= 0
+            ? value
+            : throw new ArgumentOutOfRangeException(nameof(MinLength), value, "The minimum length cannot be negative.");
+    }
 
 
 
     /// <summary>
-    /// Maximum length after normalisation; null means the system cap. Never above the system cap.
+    /// Maximum length after normalisation; null means the system cap. Never above the system cap; at least 1.
     /// </summary>
-    public int? MaxLength { get; init; }
+    /// <exception cref="ArgumentOutOfRangeException">The value is zero or negative.</exception>
+    public int? MaxLength
+    {
+        get => _maxLength;
+        init => _maxLength = value is null or > 0
+            ? value
+            : throw new ArgumentOutOfRangeException(nameof(MaxLength), value, "The maximum length must be positive.");
+    }
 
 
 
@@ -79,7 +100,29 @@ public sealed record ValidationProfile(string Field, int SystemMaxLength)
 
 
     /// <summary>
+    /// The field holds GS1 element strings (pallet SSCC labels, GS1-128 case labels): every non-blank value is
+    /// parsed by <see cref="Gs1.TryParse"/> and fails with rule <c>gs1</c> when its structure is wrong (E3.6).
+    /// A value that starts with a GS1 symbology identifier (<see cref="Gs1.HasGs1SymbologyIdentifier"/>) is
+    /// parsed in every field, whatever this says. Length and <see cref="Format"/> still apply on top.
+    /// </summary>
+    public bool Gs1ElementString { get; init; }
+
+
+
+    /// <summary>
     /// The maximum length in force: the lower of <see cref="MaxLength"/> and <see cref="SystemMaxLength"/>.
     /// </summary>
     public int EffectiveMaxLength => Math.Min(MaxLength ?? SystemMaxLength, SystemMaxLength);
+
+
+
+    /// <summary>
+    /// Why the settings contradict each other (a <see cref="MinLength"/> above <see cref="EffectiveMaxLength"/>,
+    /// so no non-blank value could pass), or null when they are consistent. Checked across properties here rather
+    /// than in the <c>init</c> accessors because a <c>with</c> expression sets them one at a time;
+    /// <see cref="IdentifierValidator.Validate"/> refuses a profile that has one.
+    /// </summary>
+    public string? ConfigurationError => MinLength > EffectiveMaxLength
+        ? string.Create(CultureInfo.InvariantCulture, $"{Field}: the minimum length {MinLength} is above the maximum length {EffectiveMaxLength}.")
+        : null;
 }

@@ -9,7 +9,7 @@ namespace Wolfgang.Wms.Domain.Identifiers;
 /// </summary>
 /// <param name="Field">The field that was validated.</param>
 /// <param name="Value">The normalised value; null on failure.</param>
-/// <param name="FailedRule">The rule that failed (<c>required</c>, <c>control_characters</c>, <c>min_length</c>, <c>max_length</c>, <c>format</c>); null on success.</param>
+/// <param name="FailedRule">The rule that failed (<c>required</c>, <c>gs1</c>, <c>control_characters</c>, <c>min_length</c>, <c>max_length</c>, <c>format</c>); null on success.</param>
 /// <param name="Expected">What the rule expected, in words a user can act on; null on success.</param>
 public sealed record IdentifierValidation(string Field, string? Value, string? FailedRule, string? Expected)
 {

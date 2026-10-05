@@ -8,6 +8,8 @@
   href: console.md
 - name: Before the API can serve
   href: bootstrap.md
+- name: Configuration
+  href: configuration.md
 - name: Device app version
   href: device-app-version.md
 - name: Project website

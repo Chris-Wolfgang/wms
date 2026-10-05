@@ -4,6 +4,9 @@ Settings the installer or operator sets outside the product (everything else is 
 workspace, E6/E7). Each key can be set in `appsettings.json`, `appsettings.<Environment>.json`, or as an
 environment variable with `__` for `:` (`Wms__Database__Provider`). Environment variables win.
 
+The operator-facing page is `docfx_project/docs/configuration.md` (published as "Configuration"); keep the
+two in step.
+
 ## Database (E2)
 
 | Key | Values | Notes |

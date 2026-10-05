@@ -948,6 +948,33 @@ jobs:
           echo ""
           echo "✅ All compatible projects built successfully"
 
+      - name: Migrations cover the model on both providers (E2.4)
+        # Fails when the EF model changed without a new migration for SqlServer AND PostgreSql.
+        # The checker is main's copy (the main-branch ref fetched above), never the PR's: under
+        # pull_request_target a PR could otherwise replace it with a no-op. Until it is on main the
+        # step passes with a note; once it is, a PR that deletes or edits its own copy still runs
+        # main's. It runs against the PR's projects (-Root), as the build and tests already do.
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
+        shell: bash
+        run: |
+          checker=scripts/Check-Migrations.ps1
+          if ! git cat-file -e "main-branch:$checker" 2>/dev/null; then
+            echo "$checker is not on main yet; the migrations check starts once it lands there."
+            exit 0
+          fi
+          git show "main-branch:$checker" > "$RUNNER_TEMP/Check-Migrations.ps1"
+          # The EF CLI matches the EF Core packages the project pins (PR-supplied data: x.y.z only).
+          ef_version=$(grep -ohE 'Include="Microsoft\.EntityFrameworkCore\.SqlServer" Version="[0-9]+\.[0-9]+\.[0-9]+"' src/Wolfgang.Wms.Infrastructure/*.csproj | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)
+          if [ -z "$ef_version" ]; then
+            echo "::error::No Microsoft.EntityFrameworkCore.SqlServer version found in src/Wolfgang.Wms.Infrastructure; cannot pin dotnet-ef."
+            exit 1
+          fi
+          echo "dotnet-ef $ef_version (matches Microsoft.EntityFrameworkCore.SqlServer)"
+          dotnet tool install --global dotnet-ef --version "$ef_version"
+          # Global dotnet tools install under ~/.dotnet/tools; make sure `dotnet-ef` resolves.
+          export PATH="$HOME/.dotnet/tools:$PATH"
+          pwsh -NoProfile -File "$RUNNER_TEMP/Check-Migrations.ps1" -Root "$GITHUB_WORKSPACE"
+
       - name: Run tests with coverage (.NET Core 5.0 - 10.0)
         # Explicit bash: GitHub's implicit default is `bash -e` WITHOUT
         # pipefail; the explicit form is `bash -eo pipefail`, which the

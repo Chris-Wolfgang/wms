@@ -141,9 +141,10 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
 - Localization exists from day one: `AddWmsLocalization()` / `UseWmsRequestLocalization()`
   (`Wolfgang.Wms.Core.Localization`) register resource-file localizers under each host's `Resources/` folder
   and resolve the request culture from the user's picker cookie, then `Accept-Language`, with parent-culture
-  fallback and `Content-Language` on the response. `WmsLocalization.SupportedCultures` is the one list;
-  English is the only shipped language in v1. UI text comes from `IStringLocalizer`, never a literal in a
-  component; the Blazor stories (E82) add the markup check.
+  fallback and `Content-Language` on the response. `Cultures` (`Wolfgang.Wms.Domain.Localization`) is the one
+  list, shared by the API and the console; English is the only shipped language in v1. UI text comes from
+  `IStringLocalizer`, never a literal in a component: `ConsoleMarkupTests` renders every console component with a
+  marking localizer and fails on any letters outside a localized string.
 
 ## API versioning and the one API (E82.1, E82.2)
 
@@ -190,8 +191,13 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
 - Tethered-scanner input goes through the one `ScanListener` (keyboard wedge: text then Enter) that
   `WorkspaceLayout` renders for every workspace. A screen takes scans by calling `Listen` on the cascading
   `ScanDispatcher` and disposing the registration when it goes away (the most recent listener wins); a scan no
-  screen takes shows "not used on this screen". The listener applies the device's validation and feedback rules
-  (E40) once they exist.
+  screen takes shows "not used on this screen". When focus lands on nothing (the page body), the listener's script
+  returns it to the scan field; focus on another input, button or link is left alone. The listener applies the
+  device's validation and feedback rules (E40) once they exist.
+- Console text lives in `Web.Shared/Resources/ConsoleText.resx` and is read through
+  `IStringLocalizer<ConsoleText>`; the host registers it with `AddConsoleLocalization()` (the console may not
+  reference Core). A workspace's title and description are keys (`Workspace.TitleKey`, `DescriptionKey`).
+  `ConsoleTextTests` keeps the resx and the keys the components use identical in both directions.
 
 ## Records and classes (E1.7)
 

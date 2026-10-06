@@ -4,6 +4,8 @@ using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
+using Wolfgang.Wms.Domain.Localization;
 using Wolfgang.Wms.Web.Shared;
 using Wolfgang.Wms.Web.Shared.Components;
 
@@ -15,7 +17,20 @@ namespace Wolfgang.Wms.UnitTests.Web;
 /// </summary>
 public sealed class ScanComponentTests : IDisposable
 {
+    private const string RefocusModule = "./_content/Wolfgang.Wms.Web.Shared/Components/ScanListener.razor.js";
+
     private readonly BunitContext _context = new();
+
+
+
+    public ScanComponentTests()
+    {
+        // The real console text (ConsoleText.resx), registered the way the host does.
+        _context.Services.AddLocalization(options => options.ResourcesPath = Cultures.ResourcesPath);
+
+        // The refocus script is asserted by the tests that set it up; the others only need it to load.
+        _context.JSInterop.Mode = JSRuntimeMode.Loose;
+    }
 
 
 
@@ -64,6 +79,41 @@ public sealed class ScanComponentTests : IDisposable
 
         Assert.Equal("Scan a tote", listener.Find("input.scan-listener").GetAttribute("aria-label"));
         _context.JSInterop.VerifyFocusAsyncInvoke(2);
+    }
+
+
+
+    [Fact]
+    public async Task ScanListener_attaches_the_refocus_script_to_the_field_and_detaches_it_when_disposed()
+    {
+        var module = _context.JSInterop.SetupModule(RefocusModule);
+        var refocus = module.SetupModule(invocation => string.Equals(invocation.Identifier, "attach", StringComparison.Ordinal));
+        refocus.SetupVoid("detach").SetVoidResult();
+        var field = _context.Render<ScanListener>().Find("input.scan-listener").GetAttribute("blazor:elementReference");
+
+        await _context.DisposeComponentsAsync();
+
+        Assert.Equal
+        (
+            field,
+            ((ElementReference)module.VerifyInvoke("attach").Arguments[0]!).Id
+        );
+        refocus.VerifyInvoke("detach");
+    }
+
+
+
+    [Fact]
+    public async Task ScanListener_dispose_tolerates_a_closed_circuit()
+    {
+        var module = _context.JSInterop.SetupModule(RefocusModule);
+        var refocus = module.SetupModule(invocation => string.Equals(invocation.Identifier, "attach", StringComparison.Ordinal));
+        refocus.SetupVoid("detach").SetException(new JSDisconnectedException("The circuit is closed."));
+        _context.Render<ScanListener>();
+
+        await _context.DisposeComponentsAsync();
+
+        refocus.VerifyInvoke("detach");
     }
 
 

@@ -94,6 +94,7 @@
   <Folder Name="/src/">
     <Project Path="src/Wolfgang.Wms.Android/Wolfgang.Wms.Android.csproj" />
     <Project Path="src/Wolfgang.Wms.Api/Wolfgang.Wms.Api.csproj" />
+    <Project Path="src/Wolfgang.Wms.Client/Wolfgang.Wms.Client.csproj" />
     <Project Path="src/Wolfgang.Wms.Core/Wolfgang.Wms.Core.csproj" />
     <Project Path="src/Wolfgang.Wms.Domain/Wolfgang.Wms.Domain.csproj" />
     <Project Path="src/Wolfgang.Wms.Infrastructure/Wolfgang.Wms.Infrastructure.csproj" />

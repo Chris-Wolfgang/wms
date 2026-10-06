@@ -40,6 +40,14 @@ if (-not $tool)
     throw 'nuget-license is not installed: dotnet tool install --global nuget-license'
 }
 
+# nuget-license omits a field the package does not declare (e.g. no project URL); strict mode would throw on it.
+function Get-Field([object]$Entry, [string]$Name)
+{
+    $property = $Entry.PSObject.Properties[$Name]
+    if ($property) { return $property.Value }
+    return $null
+}
+
 $projects = Get-ChildItem (Join-Path $Root 'src') -Recurse -Filter *.csproj | Sort-Object FullName
 $packages = @{}
 $skipped = @()
@@ -61,9 +69,9 @@ foreach ($project in $projects)
             $packages[$key] = [pscustomobject]@{
                 Id      = $entry.PackageId
                 Version = $entry.PackageVersion
-                License = $(if ($entry.License) { $entry.License } elseif ($entry.LicenseUrl) { $entry.LicenseUrl } else { 'see package' })
-                Url     = $(if ($entry.PackageProjectUrl) { $entry.PackageProjectUrl } else { "https://www.nuget.org/packages/$($entry.PackageId)/$($entry.PackageVersion)" })
-                Authors = $entry.Authors
+                License = $(if (Get-Field $entry 'License') { Get-Field $entry 'License' } elseif (Get-Field $entry 'LicenseUrl') { Get-Field $entry 'LicenseUrl' } else { 'see package' })
+                Url     = $(if (Get-Field $entry 'PackageProjectUrl') { Get-Field $entry 'PackageProjectUrl' } else { "https://www.nuget.org/packages/$($entry.PackageId)/$($entry.PackageVersion)" })
+                Authors = Get-Field $entry 'Authors'
             }
         }
     }

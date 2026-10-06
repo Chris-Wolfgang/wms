@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="bunit" Version="2.11.3" />
     <PackageReference Include="coverlet.collector" Version="10.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -26,6 +27,13 @@
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Api\Wolfgang.Wms.Api.csproj" />
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Infrastructure\Wolfgang.Wms.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Core\Wolfgang.Wms.Core.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Web.Shared\Wolfgang.Wms.Web.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Web.Configure\Wolfgang.Wms.Web.Configure.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Web.Supervise\Wolfgang.Wms.Web.Supervise.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Web.Resolve\Wolfgang.Wms.Web.Resolve.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Web.Report\Wolfgang.Wms.Web.Report.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Web.Insights\Wolfgang.Wms.Web.Insights.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Web\Wolfgang.Wms.Web.csproj" />
   </ItemGroup>
 
 </Project>

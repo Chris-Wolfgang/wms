@@ -1,0 +1,90 @@
+@* Keyboard-wedge scanner input (E82.4): a tethered scanner types the barcode and sends Enter, so the field must
+   have focus for a scan to arrive. It takes focus when the page loads (autofocus) and when the component first
+   renders interactively (navigation between workspaces), and again after every completed scan; a screen that
+   moves focus to its own inputs calls FocusAsync to hand it back. When focus lands on nothing (a click on empty
+   space, a closed dialog), ScanListener.razor.js returns it to the field; focus on another input, button or link
+   is left alone, so the field never traps the keyboard. It raises OnScan with the completed scan
+   and clears itself; the rule lives in ScanBuffer so it is unit-tested, and the caller applies the same
+   validation and feedback rules as the device (E40). *@
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IStringLocalizer<ConsoleText> L
+@inject IJSRuntime JS
+
+<input class="scan-listener"
+       type="text"
+       autocomplete="off"
+       autofocus
+       spellcheck="false"
+       aria-label="@EffectiveLabel"
+       placeholder="@EffectiveLabel"
+       value="@_buffer.Text"
+       @ref="_field"
+       @oninput="e => _buffer.Update(e.Value?.ToString())"
+       @onkeydown="OnKeyDown" />
+
+@code {
+    private const string ModulePath = "./_content/Wolfgang.Wms.Web.Shared/Components/ScanListener.razor.js";
+
+    private readonly ScanBuffer _buffer = new();
+    private ElementReference _field;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _refocus;
+
+    /// <summary>Accessible label and placeholder for the field; the localized "Scan" when not set.</summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    private string EffectiveLabel => Label ?? L["scan.label"];
+
+    /// <summary>Raised with the scanned text when the scanner sends Enter; blank scans are ignored.</summary>
+    [Parameter]
+    public EventCallback<string> OnScan { get; set; }
+
+    /// <summary>Moves keyboard focus to the scan field, e.g. after a screen's own form or dialog closes.</summary>
+    public ValueTask FocusAsync()
+    {
+        return _field.FocusAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await FocusAsync();
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            _refocus = await _module.InvokeAsync<IJSObjectReference>("attach", _field);
+        }
+    }
+
+    /// <summary>Stops returning focus to the field and releases the script module.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_refocus is not null)
+            {
+                await _refocus.InvokeVoidAsync("detach");
+                await _refocus.DisposeAsync();
+            }
+
+            if (_module is not null)
+            {
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is gone, and the page with it; there is nothing left to detach.
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (_buffer.TryComplete(e.Key, out var scanned))
+        {
+            await OnScan.InvokeAsync(scanned);
+            await FocusAsync();
+        }
+    }
+}

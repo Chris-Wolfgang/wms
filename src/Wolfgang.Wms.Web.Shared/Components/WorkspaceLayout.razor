@@ -1,0 +1,56 @@
+@inherits LayoutComponentBase
+@inject IWorkspaceAccess Access
+@inject IStringLocalizer<ConsoleText> L
+
+<PageTitle>@L[Workspace.TitleKey]</PageTitle>
+
+<header class="workspace-header">
+    <span class="product">@L["product.name"]</span>
+    <WorkspaceNav />
+</header>
+
+<main class="workspace-body" data-workspace="@Workspace.Name">
+    @if (_result is null)
+    {
+        <p class="workspace-loading">@L["layout.loading"]</p>
+    }
+    else if (_result == WorkspaceAccessResult.Allowed)
+    {
+        <ScanListener OnScan="OnScanAsync" />
+        @if (_unusedScan is not null)
+        {
+            <p class="scan-feedback" role="status">@L["layout.scan_unused", _unusedScan]</p>
+        }
+        <CascadingValue Value="_scans" IsFixed="true">
+            @Body
+        </CascadingValue>
+    }
+    else if (_result == WorkspaceAccessResult.NotLicensed)
+    {
+        <h1>@L["layout.not_licensed.title", L[Workspace.TitleKey]]</h1>
+        <p class="workspace-denied">@L["layout.not_licensed.detail", Workspace.LicenseFeature.Name]</p>
+    }
+    else
+    {
+        <h1>@L["layout.not_permitted.title", L[Workspace.TitleKey]]</h1>
+        <p class="workspace-denied">@L["layout.not_permitted.detail", Workspace.Permission.Name]</p>
+    }
+</main>
+
+@code {
+    private readonly ScanDispatcher _scans = new();
+    private WorkspaceAccessResult? _result;
+    private string? _unusedScan;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _result = await Access.CheckAsync(Workspace, CancellationToken.None);
+    }
+
+    // Every workspace takes tethered-scanner input here; the screen that registered with the cascading
+    // ScanDispatcher handles it, and a scan no screen takes is reported instead of silently dropped (E82.4).
+    private async Task OnScanAsync(string scan)
+    {
+        _unusedScan = await _scans.DispatchAsync(scan) ? null : scan;
+    }
+}

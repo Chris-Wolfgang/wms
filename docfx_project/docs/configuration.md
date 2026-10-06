@@ -24,6 +24,7 @@ Examples:
 { "Wms": { "Database": { "Provider": "PostgreSql", "ConnectionString": "Host=db;Database=wms;Username=wms;Password=…" } } }
 ```
 
-Supported databases: SQL Server 2022 and later, including Express, and PostgreSQL 16 and later. Creating the
-database and applying its migrations happens outside the API, with `wms-migrate`; see
+Supported databases: SQL Server 2022 and later, including Express, and PostgreSQL 16 and later. By default,
+creating the database and applying its migrations is a separate step outside the API, with `wms-migrate`; a
+bundled install with `AutoMigrate` set to `true` lets the API apply pending migrations at startup instead. See
 [Database migrations](migrate.md) and [Before the API can serve](bootstrap.md).

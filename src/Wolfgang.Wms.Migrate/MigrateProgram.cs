@@ -59,7 +59,12 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        var options = Options(command, configuration ?? DefaultConfiguration());
+        var options = await LoadOptionsAsync(command, configuration, error).ConfigureAwait(false);
+        if (options is null)
+        {
+            return ExitUsage;
+        }
+
         var problems = options.Validate(connectionStringRequired: !command.Script);
         if (options.ParsedProvider is DatabaseProvider.None)
         {
@@ -155,6 +160,23 @@ public static class MigrateProgram
         var builder = new DbContextOptionsBuilder<WmsDbContext>();
         DatabaseServiceCollectionExtensions.Configure(builder, options);
         return new WmsDbContext(builder.Options);
+    }
+
+
+
+    private static async Task<DatabaseOptions?> LoadOptionsAsync(MigrateCommandLine command, IConfiguration? configuration, TextWriter error)
+    {
+        try
+        {
+            return Options(command, configuration ?? DefaultConfiguration());
+        }
+        catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException)
+        {
+            // A malformed appsettings.json (InvalidDataException) or a value that does not bind is a configuration
+            // error, not a crash.
+            await error.WriteLineAsync("Configuration is not valid: " + exception.Message).ConfigureAwait(false);
+            return null;
+        }
     }
 
 

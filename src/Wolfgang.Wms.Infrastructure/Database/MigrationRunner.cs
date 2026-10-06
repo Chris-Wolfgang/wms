@@ -272,8 +272,9 @@ public sealed class MigrationRunner
                 await migrator.MigrateAsync(targets[i], cancellationToken).ConfigureAwait(false);
                 done.Add(steps[i]);
             }
-            catch (Exception exception) when (exception is DbException or InvalidOperationException)
+            catch (Exception exception) when (exception is not OperationCanceledException)
             {
+                // Any failure inside a migration's Up/Down (custom migration code included) names that step.
                 return new MigrationResult(Direction: direction, From: from, To: to, Steps: done, FailedMigration: steps[i], Error: exception.Message, DestructiveSteps: destructive);
             }
         }

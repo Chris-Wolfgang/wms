@@ -8,7 +8,7 @@ using System;
 namespace Wolfgang.Wms.Client.Generated.Models
 {
     /// <summary>
-    /// The database schema as the API sees it (E82.5): the migration the database is at and the one this build expects. Read-only; applying migrations is a bootstrap step outside the API (`wms migrate`).
+    /// The database schema as the API sees it (E82.5): the migration the database is at and the one this build expects. Read-only; applying migrations is a bootstrap step outside the API (`wms-migrate`).
     /// </summary>
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class SchemaStatus : IAdditionalDataHolder, IParsable

@@ -10,7 +10,7 @@ namespace Wolfgang.Wms.Core.Schema;
 
 /// <summary>
 /// The <c>system</c> module's schema endpoint (E82.5): <c>GET /system/schema</c> under the versioned root,
-/// read-only, so an installer or a health check can tell whether <c>wms migrate</c> has run before the API
+/// read-only, so an installer or a health check can tell whether <c>wms-migrate</c> has run before the API
 /// is used. It is the one thing the API says about bootstrap; the steps themselves live outside it
 /// (docs/BOOTSTRAP.md).
 /// </summary>

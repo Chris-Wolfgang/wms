@@ -332,6 +332,26 @@ public sealed class MigrationRunnerTests
 
 
     [Fact]
+    public async Task Configuration_that_does_not_load_or_bind_is_a_configuration_error_not_an_unhandled_exception()
+    {
+        var error = new StringWriter();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["Wms:Database:Provider"] = "SqlServer",
+                ["Wms:Database:TrustServerCertificate"] = "maybe",
+            })
+            .Build();
+
+        var code = await MigrateProgram.RunAsync(["--status"], TextWriter.Null, error, configuration, CancellationToken.None);
+
+        Assert.Equal(MigrateProgram.ExitUsage, code);
+        Assert.StartsWith("Configuration is not valid: ", error.ToString(), StringComparison.Ordinal);
+    }
+
+
+
+    [Fact]
     public async Task An_unreachable_database_is_never_reported_as_already_at_the_target()
     {
         var output = new StringWriter();

@@ -1,8 +1,10 @@
 # Database migrations
 
 The database schema is created, upgraded, scripted and rolled back by `wms-migrate`, a separate executable
-installed next to the server. Run it as a separate step with an account that may change the schema (the DBA's
-rights); the server's own service account never needs those rights.
+installed next to the server. By default it runs as a separate step with an account that may change the schema
+(the DBA's rights), and the server's own service account never needs those rights. The exception is a bundled
+install that sets `Wms:Database:AutoMigrate` to `true`: the server then applies pending migrations itself at
+startup, so its account needs schema rights.
 
 The server checks the schema every time it starts. When a database is configured it refuses to start, and
 says why, while the schema is behind its build (it names the pending migrations), ahead of its build (it names
@@ -40,7 +42,7 @@ You name the version you want; the tool works out whether that is an upgrade or 
 |---------|------|
 | `wms-migrate` | Applies every pending migration, one at a time. |
 | `wms-migrate --status` | Lists applied and pending migrations, the version this build expects, whether the database can be reached, and any migrations this build does not know. |
-| `wms-migrate --to <migration>` | Moves the schema up or down to a migration: its full id (`20260920025830_Initial`), its name (`Initial`), the start of its id, or `0` for an empty schema. A name or partial id that matches more than one migration is refused; give the full id. |
+| `wms-migrate --to <migration>` | Moves the schema up or down to a migration: its full id (`20260920025830_Initial` on SQL Server; ids differ per database), its name (`Initial`), the start of its id, or `0` for an empty schema. A name or partial id that matches more than one migration is refused; give the full id. |
 | `wms-migrate --script` | Writes SQL for a DBA to review and run, instead of changing the database. Needs only `--provider`: no connection and no connection string. Add `--from` and `--to` for the change between two versions, and `--output <file>` to write a file instead of the screen. The script can be run more than once safely. |
 
 ### Downgrades that lose data

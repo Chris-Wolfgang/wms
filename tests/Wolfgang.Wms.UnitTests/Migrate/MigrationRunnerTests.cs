@@ -310,7 +310,7 @@ public sealed class MigrationRunnerTests
         Assert.Equal(MigrateProgram.ExitUsage, noProvider);
         Assert.Equal(MigrateProgram.ExitUsage, certificateOnPostgreSql);
         Assert.Equal(MigrateProgram.ExitUsage, applyWithoutConnection);
-        Assert.Contains("Provider must be one of SqlServer, PostgreSql or None; got 'Oracle'.", error.ToString(), StringComparison.Ordinal);
+        Assert.Contains("Provider must be one of None, SqlServer or PostgreSql; got 'Oracle'.", error.ToString(), StringComparison.Ordinal);
         Assert.Contains("must be SqlServer or PostgreSql", error.ToString(), StringComparison.Ordinal);
         Assert.Contains("TrustServerCertificate applies to SqlServer only", error.ToString(), StringComparison.Ordinal);
         Assert.Contains("ConnectionString is required when Wms:Database:Provider is PostgreSql", error.ToString(), StringComparison.Ordinal);

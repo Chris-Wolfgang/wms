@@ -141,9 +141,10 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
 - Localization exists from day one: `AddWmsLocalization()` / `UseWmsRequestLocalization()`
   (`Wolfgang.Wms.Core.Localization`) register resource-file localizers under each host's `Resources/` folder
   and resolve the request culture from the user's picker cookie, then `Accept-Language`, with parent-culture
-  fallback and `Content-Language` on the response. `WmsLocalization.SupportedCultures` is the one list;
-  English is the only shipped language in v1. UI text comes from `IStringLocalizer`, never a literal in a
-  component; the Blazor stories (E82) add the markup check.
+  fallback and `Content-Language` on the response. `Cultures` (`Wolfgang.Wms.Domain.Localization`) is the one
+  list, shared by the API and the console; English is the only shipped language in v1. UI text comes from
+  `IStringLocalizer`, never a literal in a component: `ConsoleMarkupTests` renders every console component with a
+  marking localizer and fails on any letters outside a localized string.
 
 ## API versioning and the one API (E82.1, E82.2)
 
@@ -157,6 +158,46 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
   [docs/API-VERSIONING.md](API-VERSIONING.md).
 - One OpenAPI document per served version at `/openapi/v{n}.json`; the committed copy under `docs/api/` must
   match the served document (`OpenApiDocumentTests`; regenerate with `WMS_UPDATE_OPENAPI=1`).
+
+## API conventions (E82.3)
+
+[docs/API-CONVENTIONS.md](API-CONVENTIONS.md) is the contract; in code (`Wolfgang.Wms.Core.Http`):
+
+- Errors are `ApiProblems.Problem(code, …)` from a typed `ErrorCode`; never `Results.BadRequest("text")`.
+- Status codes: 200 read/update/replay, 201 + `Location` + body create (never 3xx), 202 outbox work, 204
+  delete/body-less; 409 for an `If-Match` miss, 422 for an `Idempotency-Key` reused with a different body.
+- `POST`/`PATCH` handlers honour `Idempotency-Key` (`IdempotencyKey`, `IIdempotencyStore`, `IdempotencyRules.Decide`)
+  inside their transaction; the console generates the key when a form opens.
+- Lists take `[AsParameters] PageRequest`, resolve it against the endpoint's `PageSorting` (the fields it sorts
+  on, each backed by an index ending with the id) and return `Page<T>` (keyset, bidirectional `Cursor` bound to
+  its sort, exact `total_count`, `min_id`/`max_id`); unbounded tables require a time-range filter.
+- Compression is on for JSON/XML/text (`WmsCompression`); authentication endpoints call
+  `.DisableResponseCompression()`.
+
+## Console (E82.4)
+
+- One deployable (`Wolfgang.Wms.Web`, Blazor Web App in Server render mode for v1) hosting five workspaces,
+  each its own project: `Wolfgang.Wms.Web.Configure`, `.Supervise`, `.Resolve`, `.Report`, `.Insights`
+  (`/configure` … `/insights`), plus `Wolfgang.Wms.Web.Shared` (workspace definitions, layout chrome,
+  `WorkspaceNav`, `ScanListener`, `ScanDispatcher`). A workspace project references Domain and `Web.Shared`;
+  the API client (`Wolfgang.Wms.Client`, E82.8) is the only other project it may reference, added when the
+  workspace first calls the API (`ConsoleUsesApiOnlyTests` holds the console to an explicit project list).
+- Every workspace is a license feature (`workspace.<name>`) and a permission (`workspace.<name>.enter`)
+  defined once in `Workspaces`; the entry gate is `IWorkspaceAccess` consulted by `WorkspaceLayout`; the
+  free tier is Configure, Supervise, Resolve and Report; Insights is paid. A single-role user lands in their
+  workspace; others pick on `/`.
+- Components are render-mode-agnostic: API client only, no server services, no `DbContext`
+  (`ConsoleUsesApiOnlyTests`). Switching to WebAssembly/Auto later changes the host, not the components.
+- Tethered-scanner input goes through the one `ScanListener` (keyboard wedge: text then Enter) that
+  `WorkspaceLayout` renders for every workspace. A screen takes scans by calling `Listen` on the cascading
+  `ScanDispatcher` and disposing the registration when it goes away (the most recent listener wins); a scan no
+  screen takes shows "not used on this screen". When focus lands on nothing (the page body), the listener's script
+  returns it to the scan field; focus on another input, button or link is left alone. The listener applies the
+  device's validation and feedback rules (E40) once they exist.
+- Console text lives in `Web.Shared/Resources/ConsoleText.resx` and is read through
+  `IStringLocalizer<ConsoleText>`; the host registers it with `AddConsoleLocalization()` (the console may not
+  reference Core). A workspace's title and description are keys (`Workspace.TitleKey`, `DescriptionKey`).
+  `ConsoleTextTests` keeps the resx and the keys the components use identical in both directions.
 
 ## Records and classes (E1.7)
 

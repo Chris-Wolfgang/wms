@@ -131,25 +131,7 @@ public static class ModelConventions
         {
             var storeObject = StoreObjectIdentifier.Create(entity, StoreObjectType.Table) ?? StoreObjectIdentifier.Table(entity.ShortName());
             var table = storeObject.Name;
-            if (string.IsNullOrEmpty(storeObject.Schema) || DefaultSchemas.Contains(storeObject.Schema, StringComparer.OrdinalIgnoreCase))
-            {
-                violations.Add($"{table}: no module schema (tables never land in {string.Join('/', DefaultSchemas)}).");
-            }
-
-            if (!SnakeCase.Is(table))
-            {
-                violations.Add($"{table}: table name is not snake_case.");
-            }
-
-            foreach (var property in entity.GetProperties())
-            {
-                var column = property.GetColumnName(storeObject) ?? property.GetColumnName();
-                if (!SnakeCase.Is(column))
-                {
-                    violations.Add($"{table}.{column}: column name is not snake_case.");
-                }
-            }
-
+            VerifyTableNames(entity, storeObject, violations);
             if (IsLibraryOwned(entity.ClrType))
             {
                 continue;   // a library's tables keep the library's shape; only schema and naming are ours
@@ -271,6 +253,31 @@ public static class ModelConventions
         if (property is not null && entity.FindIndex(property) is null)
         {
             violations.Add($"{table}.row_version: versioned tables index row_version (sync watermark).");
+        }
+    }
+
+
+
+    private static void VerifyTableNames(IEntityType entity, StoreObjectIdentifier storeObject, List<string> violations)
+    {
+        var table = storeObject.Name;
+        if (string.IsNullOrEmpty(storeObject.Schema) || DefaultSchemas.Contains(storeObject.Schema, StringComparer.OrdinalIgnoreCase))
+        {
+            violations.Add($"{table}: no module schema (tables never land in {string.Join('/', DefaultSchemas)}).");
+        }
+
+        if (!SnakeCase.Is(table))
+        {
+            violations.Add($"{table}: table name is not snake_case.");
+        }
+
+        foreach (var property in entity.GetProperties())
+        {
+            var column = property.GetColumnName(storeObject) ?? property.GetColumnName();
+            if (!SnakeCase.Is(column))
+            {
+                violations.Add($"{table}.{column}: column name is not snake_case.");
+            }
         }
     }
 

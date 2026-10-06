@@ -8,6 +8,9 @@ model test (`ModelConventionsTests`) asserts the product model has no violations
 catalogs (`INFORMATION_SCHEMA`, `sys.indexes`, `pg_indexes`) back: schemas, table/column/constraint/index
 names, identity columns, delete rules and column types are what the DBA actually gets.
 
+The DBA-facing page is `docfx_project/docs/database-conventions.md` (published as "Database conventions");
+keep the two in step.
+
 ## Schemas (E3.1)
 
 Every table lives in a module schema (`picking`, `layout`, `settings`, …) named in the module's entity
@@ -43,13 +46,15 @@ Every relationship is a real foreign key, across schemas, with `Restrict` delete
 referenced location, SKU or zone fails in the database, not just in the application. No cascades. The one
 exception in EF terms is ownership: an owned row is part of its owner, so the ownership foreign key is
 `ClientCascade` (EF deletes the owned rows with the owner; the database constraint is still `NO ACTION`). A
-`Restrict` ownership would make every owner delete fail in the change tracker.
+`Restrict` ownership would make every owner delete fail in the change tracker. The verifier checks this for every ownership,
+including an owned value that shares its owner's table and so has no database constraint.
 
 ## Keys, types and indexes (E3.4)
 
 - Primary keys are server-assigned `long` identity columns; clients never generate ids (the verifier rejects a
-  key with a client-side value generator, `HasValueGenerator` / `HasValueGeneratorFactory`); no GUID columns
-  anywhere.
+  key with a client-side value generator, `HasValueGenerator` / `HasValueGeneratorFactory`, and an id with a
+  column default or computed value, `HasDefaultValue(Sql)` / `HasComputedColumnSql`; an owned collection's own
+  `id` must be generated on add too); no GUID columns anywhere.
 - Timestamps are `DateTimeOffset` in UTC, stored as `datetime2(3)` on SQL Server (through
   `UtcDateTimeOffsetConverter`) and `timestamptz(3)` on PostgreSQL. They are for display and reporting only:
   change detection uses `row_version` (E5), journal ordering uses `device_seq`, and time-ordered pagination

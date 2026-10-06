@@ -112,6 +112,8 @@ internal sealed class BadModelDbContext : DbContext
 
     public DbSet<BadFactoryGenerated> FactoryGenerated => Set<BadFactoryGenerated>();
 
+    public DbSet<BadDefaulted> Defaulted => Set<BadDefaulted>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         ModelConventions.Configure(configurationBuilder);
@@ -135,6 +137,18 @@ internal sealed class BadModelDbContext : DbContext
         modelBuilder.Entity<BadGenerated>().Property(g => g.Id).HasValueGenerator<ClientIdGenerator>();
         modelBuilder.Entity<BadFactoryGenerated>().ToTable("BadFactoryGenerated", "picking");
         modelBuilder.Entity<BadFactoryGenerated>().Property(g => g.Id).HasValueGeneratorFactory<ClientIdGeneratorFactory>();
+        modelBuilder.Entity<BadDefaulted>().ToTable("BadDefaulted", "picking");
+        modelBuilder.Entity<BadDefaulted>().Property(d => d.Id).HasDefaultValueSql("1");   // a default, not an identity
+        modelBuilder.Entity<BadDefaulted>().OwnsOne(d => d.Note);
+        modelBuilder.Entity<BadDefaulted>().OwnsMany
+        (
+            d => d.Items,
+            item =>
+            {
+                item.ToTable("BadDefaultedItem", "picking");
+                item.Property(i => i.Id).ValueGeneratedNever();   // the collection's own id assigned by the client
+            }
+        );
         ModelConventions.Apply(modelBuilder, Database.ProviderName);
 
         // Names a module could still override after the conventions ran: wrong prefix, or not snake_case.
@@ -149,6 +163,9 @@ internal sealed class BadModelDbContext : DbContext
         child.FindProperty(nameof(BadChild.Ref))!.SetColumnName("Ref");
         child.GetForeignKeys().Single(fk => !fk.IsOwnership).DeleteBehavior = DeleteBehavior.Cascade;
         child.FindNavigation(nameof(BadChild.Lines))!.TargetEntityType.FindOwnership()!.DeleteBehavior = DeleteBehavior.Cascade;
+
+        // A table-split owned value has no constraint, but its ownership still needs ClientCascade.
+        modelBuilder.Entity<BadDefaulted>().Metadata.FindNavigation(nameof(BadDefaulted.Note))!.TargetEntityType.FindOwnership()!.DeleteBehavior = DeleteBehavior.Restrict;
     }
 }
 
@@ -208,6 +225,31 @@ public sealed class BadGenerated
 
 
 public sealed class BadFactoryGenerated
+{
+    public long Id { get; set; }
+}
+
+
+
+public sealed class BadDefaulted
+{
+    public long Id { get; set; }
+
+    public BadNote Note { get; set; } = new();
+
+    public List<BadItem> Items { get; } = [];
+}
+
+
+
+public sealed class BadNote
+{
+    public string Text { get; set; } = string.Empty;
+}
+
+
+
+public sealed class BadItem
 {
     public long Id { get; set; }
 }

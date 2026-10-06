@@ -133,8 +133,9 @@ public static class ModelConventions
                 VerifyProperty(property, storeObject, violations);
             }
 
-            // A foreign key between types sharing one table (an owned type's link to its owner) has no constraint.
-            foreach (var foreignKey in entity.GetForeignKeys().Where(fk => fk.GetMappedConstraints().Any()))
+            // A foreign key between types sharing one table (an owned type's link to its owner) has no constraint, so
+            // only its delete behaviour is checked.
+            foreach (var foreignKey in entity.GetForeignKeys())
             {
                 VerifyForeignKey(entity, foreignKey, storeObject, violations);
             }
@@ -243,6 +244,18 @@ public static class ModelConventions
             violations.Add($"{table}.{property.GetColumnName(storeObject)}: ids are assigned by the database, never by a client-side value generator.");
         }
 
+        // The table's own id (every key column except an owned type's link to its owner) is an identity column: generated
+        // on add, and never a column default or computed value, which would not keep ids unique.
+        var ownerLink = entity.FindOwnership()?.Properties ?? [];
+        foreach (var property in key?.Properties.Where(p => !ownerLink.Contains(p)) ?? [])
+        {
+            if (property.ValueGenerated != ValueGenerated.OnAdd || property.GetDefaultValueSql(storeObject) is not null
+                || property.TryGetDefaultValue(storeObject, out _) || property.GetComputedColumnSql(storeObject) is not null)
+            {
+                violations.Add($"{table}.{property.GetColumnName(storeObject)}: ids are identity columns (generated on add; no default or computed value).");
+            }
+        }
+
         foreach (var candidate in entity.GetKeys())
         {
             VerifyName
@@ -295,6 +308,17 @@ public static class ModelConventions
     {
         var table = storeObject.Name;
         var columns = Columns(foreignKey.Properties, storeObject);
+        if (foreignKey.IsOwnership && foreignKey.DeleteBehavior != DeleteBehavior.ClientCascade)
+        {
+            violations.Add($"{table}.{columns}: owned rows are deleted by EF, never by a database cascade (delete behaviour must be ClientCascade).");
+        }
+
+        var constraint = foreignKey.GetMappedConstraints().FirstOrDefault();
+        if (constraint is null)
+        {
+            return;
+        }
+
         if (foreignKey.Properties.Count == 1)
         {
             var expected = foreignKey.PrincipalEntityType.GetTableName() + "_id";
@@ -302,11 +326,6 @@ public static class ModelConventions
             {
                 violations.Add($"{table}.{columns}: foreign key column must be named '{expected}'.");
             }
-        }
-
-        if (foreignKey.IsOwnership && foreignKey.DeleteBehavior != DeleteBehavior.ClientCascade)
-        {
-            violations.Add($"{table}.{columns}: owned rows are deleted by EF, never by a database cascade (delete behaviour must be ClientCascade).");
         }
 
         if (!foreignKey.IsOwnership && foreignKey.DeleteBehavior != DeleteBehavior.Restrict)
@@ -326,7 +345,7 @@ public static class ModelConventions
             violations.Add($"{table}.{columns}: every foreign key column is indexed explicitly.");
         }
 
-        VerifyName(table, "foreign key", foreignKey.GetMappedConstraints().First().Name, "fk_", violations);
+        VerifyName(table, "foreign key", constraint.Name, "fk_", violations);
     }
 
 

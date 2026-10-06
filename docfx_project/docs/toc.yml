@@ -10,6 +10,8 @@
   href: bootstrap.md
 - name: Configuration
   href: configuration.md
+- name: Database conventions
+  href: database-conventions.md
 - name: Device app version
   href: device-app-version.md
 - name: Project website

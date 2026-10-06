@@ -954,10 +954,16 @@ jobs:
         # pull_request_target a PR could otherwise replace it with a no-op. Until it is on main the
         # step passes with a note; once it is, a PR that deletes or edits its own copy still runs
         # main's. It runs against the PR's projects (-Root), as the build and tests already do.
-        if: github.event.pull_request.user.login != 'dependabot[bot]'
+        # It also runs for Dependabot (an EF Core bump can change the model), which skips the
+        # trusted-config step, so the main-branch ref is fetched here when it is missing.
         shell: bash
+        env:
+          TRUSTED_MAIN_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}
         run: |
           checker=scripts/Check-Migrations.ps1
+          if ! git cat-file -e main-branch 2>/dev/null; then
+            git fetch "$TRUSTED_MAIN_URL" main:main-branch
+          fi
           if ! git cat-file -e "main-branch:$checker" 2>/dev/null; then
             echo "$checker is not on main yet; the migrations check starts once it lands there."
             exit 0

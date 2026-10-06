@@ -44,7 +44,8 @@
 
     <!-- E1.9: AOT and trim analyzers on every non-UI product project so reflection use fails the build.
          Excluded: the Blazor Server console (.Web), the MAUI handheld (.Android), tests and benchmarks.
-         Infrastructure (EF Core) keeps the analyzers but is rooted (not trimmed) at publish time. -->
+         Infrastructure (EF Core) opts out in its csproj: EF's migrations APIs carry RequiresDynamicCode
+         (IL3050, unfixable on our side); it is rooted (not trimmed) at publish time. -->
     <_WmsAnalyzeAot Condition="$(_RelativeProjectDir.StartsWith('src/')) and !$(MSBuildProjectName.EndsWith('.Web')) and !$(MSBuildProjectName.EndsWith('.Android'))">true</_WmsAnalyzeAot>
     <IsAotCompatible Condition="'$(IsAotCompatible)' == '' and '$(_WmsAnalyzeAot)' == 'true'">true</IsAotCompatible>
     <IsTrimmable Condition="'$(IsTrimmable)' == '' and '$(_WmsAnalyzeAot)' == 'true'">true</IsTrimmable>

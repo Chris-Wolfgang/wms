@@ -203,6 +203,19 @@ public sealed class IdentifierValidatorTests
 
 
     [Fact]
+    public void Validate_when_the_field_holds_GS1_element_strings_keeps_the_value_exactly_as_encoded()
+    {
+        var profile = Default with { Gs1ElementString = true, Case = CaseHandling.MakeUpper };
+
+        var result = IdentifierValidator.Validate(profile, "(01)09501101530003(10)abc ");
+
+        Assert.True(result.IsValid, result.Message);
+        Assert.Equal("(01)09501101530003(10)abc ", result.Value);
+    }
+
+
+
+    [Fact]
     public void Validate_when_a_value_carries_a_GS1_symbology_identifier_parses_it_in_any_field()
     {
         var broken = IdentifierValidator.Validate(Default, "]C1" + "0109501101530004");

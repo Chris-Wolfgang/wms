@@ -167,7 +167,8 @@ public static class Gs1
 
         // Not trimmed: a value is kept exactly as encoded, and a stray tab or line break is a control character.
         var span = text.AsSpan();
-        if (span.Length > 3 && span[0] == ']')
+        // Only the GS1 symbology identifiers are scanner metadata; any other ']..' prefix is parsed (and rejected).
+        if (span.Length > 3 && HasGs1SymbologyIdentifier(text))
         {
             span = span[3..];
         }

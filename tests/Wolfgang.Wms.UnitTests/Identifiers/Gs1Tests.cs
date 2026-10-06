@@ -73,6 +73,18 @@ public sealed class Gs1Tests
 
 
     [Fact]
+    public void TryParse_when_the_prefix_is_not_a_GS1_symbology_identifier_does_not_strip_it()
+    {
+        var ok = Gs1.TryParse("]X0" + "0109501101530003", out var elements, out var error);
+
+        Assert.False(ok);
+        Assert.Empty(elements);
+        Assert.Equal("Unknown application identifier at ']X00'.", error);
+    }
+
+
+
+    [Fact]
     public void TryParse_reads_the_scanned_form_with_group_separators_and_a_symbology_identifier()
     {
         var scanned = "]C1" + "0109501101530003" + "17261231" + "10ABC123" + Gs1.GroupSeparator + "21SN-7" + Gs1.GroupSeparator + "3103001250";

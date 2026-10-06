@@ -26,7 +26,9 @@ public static class IdentifierValidator
             throw new ArgumentException(configurationError, nameof(profile));
         }
 
-        var value = Normalize(profile, raw);
+        // A GS1 element string is kept exactly as encoded: trimming or case handling would change its values.
+        var gs1 = profile.Gs1ElementString || Gs1.HasGs1SymbologyIdentifier(raw);
+        var value = gs1 ? raw ?? string.Empty : Normalize(profile, raw);
         if (value.Length == 0)
         {
             return profile.Required
@@ -34,7 +36,7 @@ public static class IdentifierValidator
                 : IdentifierValidation.Success(profile.Field, value);
         }
 
-        if (profile.Gs1ElementString || Gs1.HasGs1SymbologyIdentifier(value))
+        if (gs1)
         {
             // The parser rejects control characters inside values; FNC1 group separators between them are structure.
             if (!Gs1.TryParse(value, out _, out var gs1Error))

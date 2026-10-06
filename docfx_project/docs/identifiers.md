@@ -76,6 +76,9 @@ every site unless a site overrides them; lot and serial settings can also be set
 Trimming and case changes happen first, then the checks. So a field set to upper case with the format
 `AAA-999` accepts `abc-123` and stores `ABC-123`.
 
+A GS1 element string is the exception: it is checked and stored exactly as encoded, with no trimming or
+case change, because spaces and letter case are part of its values.
+
 The minimum length cannot be negative, the maximum length must be at least 1, and the minimum cannot be
 larger than the maximum: a field set up that way could never accept a value, so the WMS refuses the setup
 instead.

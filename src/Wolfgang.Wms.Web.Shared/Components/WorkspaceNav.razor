@@ -1,0 +1,18 @@
+@inject IWorkspaceAccess Access
+@inject IStringLocalizer<ConsoleText> L
+
+<nav class="workspace-nav" aria-label="@L["workspaces.nav_label"]">
+    @foreach (var workspace in _enterable)
+    {
+        <NavLink href="@workspace.Route" class="workspace-link" ActiveClass="active">@L[workspace.TitleKey]</NavLink>
+    }
+</nav>
+
+@code {
+    private IReadOnlyList<Workspace> _enterable = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _enterable = await Access.EnterableAsync(Workspaces.All, CancellationToken.None);
+    }
+}

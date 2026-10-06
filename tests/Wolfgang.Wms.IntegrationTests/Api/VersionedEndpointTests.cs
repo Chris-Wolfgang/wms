@@ -10,9 +10,10 @@ using Wolfgang.Wms.Core.Api;
 namespace Wolfgang.Wms.IntegrationTests.Api;
 
 /// <summary>
-/// E82.2 on a throwaway host with one endpoint mapped under the versioned root: the version is a path
-/// segment, an unsupported or missing version is refused, and the OpenAPI document lists the endpoint under
-/// its concrete path without a <c>version</c> parameter.
+/// E82.2 on a throwaway host with endpoints mapped under the versioned root: the version is a path segment, an
+/// unsupported or missing version is refused, and the OpenAPI document lists each endpoint under its concrete
+/// path without a <c>version</c> parameter, including an endpoint that binds the route's version value (the
+/// one case where ASP.NET emits that parameter, which the document transformer must remove).
 /// </summary>
 public sealed class VersionedEndpointTests : IAsyncLifetime
 {
@@ -30,6 +31,7 @@ public sealed class VersionedEndpointTests : IAsyncLifetime
 
         var api = _app.MapWmsApi();
         api.MapGet("/ping/{name}", (string name) => $"pong {name}");
+        api.MapGet("/version-echo", (string version) => $"version {version}");
 
         await _app.StartAsync();
         _client = _app.GetTestClient();
@@ -82,8 +84,24 @@ public sealed class VersionedEndpointTests : IAsyncLifetime
         var operation = paths.GetProperty("/api/v0/ping/{name}").GetProperty("get");
         var parameters = operation.GetProperty("parameters").EnumerateArray().Select(p => p.GetProperty("name").GetString()).ToList();
 
-        Assert.Single(paths.EnumerateObject());
+        Assert.Equal(["/api/v0/ping/{name}", "/api/v0/version-echo"], paths.EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
         Assert.Equal(["name"], parameters);
         Assert.False(document.RootElement.TryGetProperty("servers", out _));
+    }
+
+
+
+    [Fact]
+    public async Task An_endpoint_that_binds_the_version_still_publishes_no_version_parameter()
+    {
+        var json = await _client!.GetStringAsync(new Uri("/openapi/v0.json", UriKind.Relative));
+        using var document = JsonDocument.Parse(json);
+        var answer = await _client!.GetStringAsync(new Uri("/api/v0/version-echo", UriKind.Relative));
+
+        var operation = document.RootElement.GetProperty("paths").GetProperty("/api/v0/version-echo").GetProperty("get");
+        // The route's version value was the endpoint's only parameter: once it is removed nothing is left, and the
+        // serializer omits the empty list entirely.
+        Assert.False(operation.TryGetProperty("parameters", out _));
+        Assert.Equal("version 0", answer);
     }
 }

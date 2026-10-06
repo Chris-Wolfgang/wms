@@ -595,9 +595,21 @@ jobs:
               echo "::error file=$lock::The base branch has a generated API client but this PR removes its kiota-lock.json; the drift check cannot run."
               exit 1
             fi
+            # No lock is only fine when there is no generated client either: generated code needs a pinned generator.
+            if [ -d "pr/$GENERATED" ] && [ -n "$(find "pr/$GENERATED" -type f -print -quit)" ]; then
+              echo "::error file=$lock::$GENERATED has generated files but no kiota-lock.json; run 'pwsh scripts/Update-ApiClient.ps1' and commit the lock."
+              exit 1
+            fi
             echo "No generated API client on this branch yet; nothing to check."
             echo "present=false" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+          # The lock is PR-supplied: Kiota reads the document from descriptionLocation, so it must be the committed
+          # spec (no other file, no URL).
+          location=$(jq -r '.descriptionLocation // empty' "$lock")
+          if [ "$location" != "../../../docs/api/openapi-v0.json" ]; then
+            echo "::error file=$lock::descriptionLocation '$location' is not ../../../docs/api/openapi-v0.json."
+            exit 1
           fi
           version=$(jq -r '.kiotaVersion // empty' "$lock")
           # The version is PR-supplied data; accept a plain release number only.
@@ -628,7 +640,8 @@ jobs:
           kiota update --output "$GENERATED" --clean-output --log-level Warning
           rm -f "$GENERATED/.kiota.log"
           # Staging catches added and deleted files as well as edits; .gitattributes normalizes line endings.
-          git add --all -- "$GENERATED"
+          # --force: a PR's .gitignore must not hide a regenerated file from the comparison.
+          git add --all --force -- "$GENERATED"
           # Doc-comment lines are not compared: when two properties reference one schema with different
           # descriptions, Kiota 1.35 picks either for the type's summary, differently from run to run. A
           # description-only spec change still fails here, through the lock's descriptionHash.

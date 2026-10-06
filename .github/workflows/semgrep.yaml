@@ -50,9 +50,10 @@ jobs:
         # listed, so the transitive tree is pinned too. Regenerate with the uv
         # command recorded in the header of the requirements file; the resolution
         # is universal, so it covers every runner platform and Python version.
-        # --no-deps: the file already lists the complete tree, and the tree
-        # deliberately overrides one of semgrep's own pins (see
-        # semgrep-overrides.txt), which pip's resolver would otherwise re-apply.
+        # --no-deps: the file already lists the complete tree, so the resolver
+        # has nothing to add. It also lets the tree override one of semgrep's
+        # own pins when a security fix needs it, which the resolver would
+        # otherwise refuse.
         run: pip install --no-deps --require-hashes -r .github/requirements/semgrep.txt
 
       - name: Run Semgrep

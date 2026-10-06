@@ -208,6 +208,13 @@ the edge. Every API change regenerates the spec and the client in the same PR. C
 `WmsApiClient.Create(HttpClient, IAuthenticationProvider?)`. The console workspaces reference the client and
 will reach the API only through it; their first API calls arrive with the workspace stories.
 
+## Bootstrap exceptions (E82.5)
+
+The steps that run outside the API are the ones in [docs/BOOTSTRAP.md](BOOTSTRAP.md) (migrate, identity and
+first administrator, license install, TLS/proxy, backup/restore) and nothing else; a new one is an ADR. The API's
+only bootstrap surface is the read-only `GET /system/schema` (`SchemaModule`, `ISchemaVersionSource`).
+API records get a `[JsonSerializable]` line in `WmsJsonContext` so they serialise without reflection.
+
 ## Records and classes (E1.7)
 
 DTOs, requests, responses and journal events are `record` types: immutable, `with` for copy-and-change, value

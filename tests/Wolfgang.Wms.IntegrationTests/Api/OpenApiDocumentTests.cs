@@ -54,6 +54,41 @@ public sealed class OpenApiDocumentTests : IClassFixture<WebApplicationFactory<P
 
 
     [Fact]
+    public async Task Served_descriptions_are_one_line_whatever_OS_built_it()
+    {
+        using var client = _factory.CreateClient();
+
+        var served = await client.GetStringAsync(new Uri("/openapi/v0.json", UriKind.Relative));
+
+        // SchemaStatus's description spans two source lines; the XML-comment generator keeps the break ("\r\n" from
+        // a Windows build), and Kiota would glue the words together.
+        Assert.Contains("the one this build expects", served, StringComparison.Ordinal);
+        Assert.DoesNotContain(@"\r", served, StringComparison.Ordinal);
+        Assert.DoesNotContain(@"\n", served, StringComparison.Ordinal);
+    }
+
+
+
+    [Fact]
+    public async Task SchemaStatus_upToDate_is_required_because_every_response_carries_it()
+    {
+        using var client = _factory.CreateClient();
+
+        using var document = JsonDocument.Parse(await client.GetStringAsync(new Uri("/openapi/v0.json", UriKind.Relative)));
+        var required = document.RootElement
+            .GetProperty("components")
+            .GetProperty("schemas")
+            .GetProperty("SchemaStatus")
+            .GetProperty("required")
+            .EnumerateArray()
+            .Select(e => e.GetString());
+
+        Assert.Equal(["current", "expected", "upToDate"], required.Order(StringComparer.Ordinal));
+    }
+
+
+
+    [Fact]
     public async Task Committed_document_matches_the_served_document()
     {
         using var client = _factory.CreateClient();

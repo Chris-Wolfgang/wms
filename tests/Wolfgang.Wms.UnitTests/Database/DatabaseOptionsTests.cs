@@ -27,6 +27,15 @@ public sealed class DatabaseOptionsTests
 
 
 
+    [Fact]
+    public void AcceptedProviders_lists_every_DatabaseProvider_name_so_a_new_engine_appears_in_the_message()
+    {
+        Assert.Equal("None, SqlServer or PostgreSql", DatabaseOptions.AcceptedProviders);
+        Assert.All(Enum.GetNames<DatabaseProvider>(), name => Assert.Contains(name, DatabaseOptions.AcceptedProviders, StringComparison.Ordinal));
+    }
+
+
+
     [Theory]
     [InlineData("Oracle")]
     [InlineData("")]
@@ -39,7 +48,7 @@ public sealed class DatabaseOptionsTests
         var errors = new DatabaseOptions { Provider = text }.Validate();
 
         var error = Assert.Single(errors);
-        Assert.Equal($"Wms:Database:Provider must be one of SqlServer, PostgreSql or None; got '{text}'.", error);
+        Assert.Equal($"Wms:Database:Provider must be one of None, SqlServer or PostgreSql; got '{text}'.", error);
     }
 
 

@@ -34,7 +34,7 @@ public sealed class DatabaseStartupTests : IClassFixture<WebApplicationFactory<P
 
         var exception = Assert.Throws<OptionsValidationException>(() => host.CreateClient());
 
-        Assert.Contains("Wms:Database:Provider must be one of SqlServer, PostgreSql or None; got 'Oracle'.", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Wms:Database:Provider must be one of None, SqlServer or PostgreSql; got 'Oracle'.", exception.Message, StringComparison.Ordinal);
     }
 
 

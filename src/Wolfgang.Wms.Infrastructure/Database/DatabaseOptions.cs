@@ -49,7 +49,16 @@ public sealed class DatabaseOptions
     public DatabaseProvider? ParsedProvider =>
         Enum.GetValues<DatabaseProvider>()
             .Cast<DatabaseProvider?>()
-            .FirstOrDefault(p => string.Equals(p.ToString(), Provider, StringComparison.OrdinalIgnoreCase));
+            .SingleOrDefault(p => string.Equals(p.ToString(), Provider, StringComparison.OrdinalIgnoreCase));
+
+
+
+    /// <summary>
+    /// The accepted <see cref="Provider"/> names as the validation message lists them (<c>None, SqlServer or
+    /// PostgreSql</c>), taken from <see cref="DatabaseProvider"/> so a new engine is listed without editing the
+    /// message.
+    /// </summary>
+    public static string AcceptedProviders { get; } = ListOf(Enum.GetNames<DatabaseProvider>());
 
 
 
@@ -86,7 +95,7 @@ public sealed class DatabaseOptions
         var provider = ParsedProvider;
         if (provider is null)
         {
-            errors.Add($"{SectionName}:Provider must be one of SqlServer, PostgreSql or None; got '{Provider}'.");
+            errors.Add($"{SectionName}:Provider must be one of {AcceptedProviders}; got '{Provider}'.");
             return errors;
         }
 
@@ -101,5 +110,12 @@ public sealed class DatabaseOptions
         }
 
         return errors;
+    }
+
+
+
+    private static string ListOf(string[] names)
+    {
+        return string.Join(", ", names[..^1]) + " or " + names[^1];
     }
 }

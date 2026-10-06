@@ -9,7 +9,9 @@ namespace Wolfgang.Wms.Infrastructure.Database;
 public enum DatabaseProvider
 {
     /// <summary>
-    /// No database: the host starts for bootstrap only (schema endpoint, health), nothing else works.
+    /// No database configured (the shipped default): the host starts so an installation can be checked before
+    /// a database is set up; <c>GET /api/v0/system/schema</c> answers and reports no current version, and nothing
+    /// that needs data works.
     /// </summary>
     None = 0,
 

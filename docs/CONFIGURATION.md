@@ -11,7 +11,7 @@ two in step.
 
 | Key | Values | Notes |
 |-----|--------|-------|
-| `Wms:Database:Provider` | `SqlServer`, `PostgreSql`, `None` | Chosen at install time. `None` starts the host without a database (only `GET /system/schema` is useful; nothing that needs data works); it is the shipped default so a fresh install can be probed before it is configured. Anything else fails startup with the accepted names taken from `DatabaseProvider` (`DatabaseOptions.AcceptedProviders`): `Wms:Database:Provider must be one of None, SqlServer or PostgreSql; got 'Oracle'.` |
+| `Wms:Database:Provider` | `SqlServer`, `PostgreSql`, `None` | Chosen at install time. `None` starts the host without a database (only `GET /api/v0/system/schema` is useful; nothing that needs data works); it is the shipped default so a fresh install can be probed before it is configured. Anything else fails startup with the accepted names taken from `DatabaseProvider` (`DatabaseOptions.AcceptedProviders`): `Wms:Database:Provider must be one of None, SqlServer or PostgreSql; got 'Oracle'.` |
 | `Wms:Database:ConnectionString` | provider connection string | Required for `SqlServer` and `PostgreSql`; startup fails when missing. Keep secrets out of `appsettings.json`: use an environment variable or the secrets store (E8). |
 | `Wms:Database:TrustServerCertificate` | `true` / `false` (default) | SQL Server only. Trusts the server certificate without validating its chain, which SQL Server Express and self-signed development servers need. Never on a shared network: install a certificate instead. Setting it with `PostgreSql` fails startup. |
 

@@ -235,7 +235,10 @@ default shape for anything that crosses the API or the journal.
 
 - `IsAotCompatible` and `IsTrimmable` are on for every non-UI product project (`Directory.Build.props`), and the
   Trimming/AOT/SingleFile analyzer categories fail the build, so reflection-based code is rejected at compile
-  time rather than at publish time.
+  time rather than at publish time. One exception: `Wolfgang.Wms.Infrastructure` sets both to `false`
+  because EF Core is reflection-based (its migrations APIs carry `RequiresDynamicCode`, so the IL3050 warnings
+  cannot be fixed on our side). It is rooted, not trimmed, at publish, and nothing that references it publishes
+  NativeAOT, so the AOT smoke job does not cover it.
 - Minimal APIs only (no MVC); endpoints compile to typed request delegates (`EnableRequestDelegateGenerator`);
   JSON uses source-generated `JsonSerializerContext`s; EF Core uses compiled models.
 - Publish shape: API and worker publish JIT + ReadyToRun until EF Core supports NativeAOT, then flip the flag

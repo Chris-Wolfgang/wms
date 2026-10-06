@@ -89,7 +89,7 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        return await ExecuteAsync(command, configuration, options, output, error, cancellationToken).ConfigureAwait(false);
+        return await ExecuteAsync(command, resolved, options, output, error, cancellationToken).ConfigureAwait(false);
     }
 
 

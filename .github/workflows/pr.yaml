@@ -478,7 +478,7 @@ jobs:
       - name: Breaking changes (fails only for a frozen version)
         id: breaking
         if: steps.classify.outputs.state == 'changed'
-        uses: oasdiff/oasdiff-action/breaking@5e81b5c380accc6b523f9d32a637ca630e33620b  # v0.1.17
+        uses: oasdiff/oasdiff-action/breaking@b9325c9e0a27ab65b0da3b766522cedec6be81dc  # v0.1.18
         with:
           base: base/docs/api/openapi-${{ matrix.document }}.json
           revision: pr/docs/api/openapi-${{ matrix.document }}.json
@@ -487,7 +487,7 @@ jobs:
 
       - name: Changelog
         if: steps.classify.outputs.state == 'changed'
-        uses: oasdiff/oasdiff-action/changelog@5e81b5c380accc6b523f9d32a637ca630e33620b  # v0.1.17
+        uses: oasdiff/oasdiff-action/changelog@b9325c9e0a27ab65b0da3b766522cedec6be81dc  # v0.1.18
         with:
           base: base/docs/api/openapi-${{ matrix.document }}.json
           revision: pr/docs/api/openapi-${{ matrix.document }}.json
@@ -719,7 +719,7 @@ jobs:
             --no-build
 
       - name: Upload SARIF to Code Scanning
-        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd  # v4.38.1
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
         with:
           sarif_file: inspect.sarif
 

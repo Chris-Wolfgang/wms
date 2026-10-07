@@ -716,6 +716,133 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                     b.ToTable("integrity_key", "wms");
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Organization.Organization", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AddressCity")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("address_city");
+
+                    b.Property<string>("AddressCountry")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("address_country");
+
+                    b.Property<string>("AddressLine1")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("address_line1");
+
+                    b.Property<string>("AddressLine2")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("address_line2");
+
+                    b.Property<string>("AddressPostalCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("address_postal_code");
+
+                    b.Property<string>("AddressRegion")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("address_region");
+
+                    b.Property<string>("LegalName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("legal_name");
+
+                    b.Property<string>("Locale")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("LogoDataUrl")
+                        .HasMaxLength(262144)
+                        .HasColumnType("character varying(262144)")
+                        .HasColumnName("logo_data_url");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("PrimaryContactEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("primary_contact_email");
+
+                    b.Property<string>("PrimaryContactName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("primary_contact_name");
+
+                    b.Property<string>("PrimaryContactPhone")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("primary_contact_phone");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version")
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
+
+                    b.Property<string>("SupportContactEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("support_contact_email");
+
+                    b.Property<string>("SupportContactName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("support_contact_name");
+
+                    b.Property<string>("SupportContactPhone")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("support_contact_phone");
+
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("time_zone");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_organization");
+
+                    b.HasIndex("RowVersion")
+                        .HasDatabaseName("ix_organization_row_version");
+
+                    b.ToTable("organization", "core", t =>
+                        {
+                            t.HasTrigger("trg_organization_row_version");
+                        });
+                });
+
             modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditDetail", b =>
                 {
                     b.HasOne("Wolfgang.AuditTrail.Entities.AuditHeader", "Header")

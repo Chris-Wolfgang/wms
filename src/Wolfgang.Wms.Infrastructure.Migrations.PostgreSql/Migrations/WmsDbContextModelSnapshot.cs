@@ -346,6 +346,69 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.LocalLoginGate", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset?>("LockedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("locked_at");
+
+                    b.Property<string>("LockedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("locked_by");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version")
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
+
+                    b.Property<DateTimeOffset?>("SsoVerifiedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("sso_verified_at");
+
+                    b.Property<string>("SsoVerifiedProvider")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("sso_verified_provider");
+
+                    b.Property<DateTimeOffset?>("UnlockedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("unlocked_at");
+
+                    b.Property<string>("UnlockedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("unlocked_by");
+
+                    b.Property<DateTimeOffset?>("UnlockedUntil")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("unlocked_until");
+
+                    b.HasKey("Id")
+                        .HasName("pk_local_login_gate");
+
+                    b.HasIndex("RowVersion")
+                        .HasDatabaseName("ix_local_login_gate_row_version");
+
+                    b.ToTable("local_login_gate", "core", t =>
+                        {
+                            t.HasTrigger("trg_local_login_gate_row_version");
+                        });
+                });
+
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.Role", b =>
                 {
                     b.Property<long>("Id")

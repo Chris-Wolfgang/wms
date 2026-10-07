@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Identity.BreakGlass;
 using Wolfgang.Wms.Core.Identity.External;
 using Wolfgang.Wms.Core.Identity.Providers;
 using Wolfgang.Wms.Infrastructure.Database;
@@ -15,13 +16,15 @@ namespace Wolfgang.Wms.Infrastructure.Identity;
 /// <see cref="IExternalAccounts"/> over <c>core.user</c> (E11.1): the account is found by (provider,
 /// subject) or created; its names follow the provider; its assignments are replaced by what the group
 /// mappings yield (E11.2), signed like any assignment (E10.4). A name already taken by another account
-/// gets <c>@provider</c> appended.
+/// gets <c>@provider</c> appended. The first success verifies single sign-on for the break-glass gate
+/// (E9.3), which closes local sign-in from then on.
 /// </summary>
 public sealed partial class EfExternalAccounts : IExternalAccounts
 {
     private readonly WmsDbContext _context;
     private readonly IRoles _roles;
     private readonly IIntegritySigner _signer;
+    private readonly ILocalLoginGate _gate;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<EfExternalAccounts> _logger;
 
@@ -31,11 +34,12 @@ public sealed partial class EfExternalAccounts : IExternalAccounts
     /// Creates the accounts.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public EfExternalAccounts(WmsDbContext context, IRoles roles, IIntegritySigner signer, TimeProvider timeProvider, ILogger<EfExternalAccounts> logger)
+    public EfExternalAccounts(WmsDbContext context, IRoles roles, IIntegritySigner signer, ILocalLoginGate gate, TimeProvider timeProvider, ILogger<EfExternalAccounts> logger)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _roles = roles ?? throw new ArgumentNullException(nameof(roles));
         _signer = signer ?? throw new ArgumentNullException(nameof(signer));
+        _gate = gate ?? throw new ArgumentNullException(nameof(gate));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -80,6 +84,7 @@ public sealed partial class EfExternalAccounts : IExternalAccounts
         await SyncAssignmentsAsync(user, provider, identity.Groups, now, cancellationToken).ConfigureAwait(false);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         LogAttempt(_logger, user.UserName, provider, ExternalSignInOutcome.Success);
+        await _gate.MarkSsoVerifiedAsync(provider, cancellationToken).ConfigureAwait(false);   // E9.3: the first success closes local sign-in
 
         var grants = await _roles.GrantsOfAsync(user.Id, now, cancellationToken).ConfigureAwait(false);
         return ExternalSignInResult.Succeeded(new LocalUser(user.Id, user.UserName, user.DisplayName, MustChangePassword: false, IsLocalAdmin: false, IsDisabled: false, grants));

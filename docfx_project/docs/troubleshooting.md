@@ -47,6 +47,13 @@ The account still has its bootstrap or reset password. Change it through the con
 A password change was refused: the current password is wrong or the new one fails the policy (length,
 not the user name, not the current password). The message says which.
 
+<a id="auth-local-login-closed"></a>
+### `auth.local_login_closed`
+Local sign-in is closed because single sign-on has been verified on this install and no unlock window is
+open. Sign in through the identity provider. If the provider is the problem, an administrator opens a timed
+window from the host (`wms-admin unlock --minutes N`, audited) or sets `Wms:Auth:ForceLocal=true` in
+`appsettings` as the emergency override.
+
 <a id="auth-provider-not-enabled"></a>
 ### `auth.provider_not_enabled`
 The named identity provider is not in `auth.providers.enabled` or is not registered on this host. Enable it

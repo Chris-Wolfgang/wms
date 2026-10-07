@@ -36,6 +36,27 @@ sign-out and who-am-I answers `403 auth.password_change_required`; the default i
 Once any local administrator exists, the bootstrap values are ignored on later starts. The local administrator
 can be disabled but never deleted (E9.3 keeps it as the break-glass account).
 
+## Break-glass gate on local sign-in (E9.3)
+
+Local accounts exist to bootstrap the install and to get back in when single sign-on breaks; once SSO works
+they are an attack surface. The gate (`ILocalLoginGate`, one audited row in `core.local_login_gate`):
+
+- **Open until SSO is verified.** The first successful external sign-in (any provider, through
+  `IExternalAccounts`) records the provider and the time; from then on `POST /auth/local/login` answers
+  `403 auth.local_login_closed` without checking the credentials, and the attempt is logged at Warning.
+- **Re-opened for a timed window from the host only.** An unlock names the host OS user and a duration
+  (default 30 minutes, 1 minute to 30 days, never open-ended; use a large value such as 1200 minutes when
+  needed); a lock closes the window early. Both are rows of the audit trail that carry the OS user, and both
+  are logged at Warning. The host command (`wms-admin unlock --minutes N`, `wms-admin lock`) and its
+  host-only channel arrive with the next E9.3 pull request; nothing in the web API opens the gate.
+- **`GET /auth/local/status`** (anonymous): `{ localLoginOpen, ssoVerified, unlockedUntil, forcedLocal }`.
+  The login page hides the password form when local sign-in is closed; the console shows a banner while a
+  window is open. The response carries no user names.
+- **`Wms:Auth:ForceLocal=true`** (the E11.0 emergency override) keeps local sign-in open whatever the gate
+  says, so a broken provider change is still recoverable from `appsettings` on the host.
+
+Without a database the gate is the always-open placeholder, and an unlock answers `auth.unavailable`.
+
 ## Permissions (E10.1)
 
 Every action has a named permission (`settings.write`, `workspace.configure.enter`), declared by the module
@@ -192,6 +213,7 @@ scheduled job, with their setup guides, follow in E11.3–E11.5.
 
 ## What comes next
 
-- E9.3: local sign-in disabled once SSO is verified and re-enabled for a timed window from the host only.
+- E9.3: the host-only channel and `wms-admin unlock`/`lock` command for the gate above; the console banner
+  while a window is open; the optional IP allow-list and second factor (passkey, TOTP) for the local admin.
 - A periodic job that audits expired assignments.
 - E11.3–E11.6: Keycloak and Entra ID verification jobs, ADFS checklist, setup guides.

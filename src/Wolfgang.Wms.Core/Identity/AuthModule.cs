@@ -10,8 +10,10 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Http;
+using Wolfgang.Wms.Core.Identity.BreakGlass;
 using Wolfgang.Wms.Core.Modules;
 
 namespace Wolfgang.Wms.Core.Identity;
@@ -21,8 +23,10 @@ namespace Wolfgang.Wms.Core.Identity;
 /// The cookie is protected by the shared Data Protection ring (every instance reads it, E12.6) and answers
 /// 401/403 problems rather than redirects (an API, not a site). A user who must change the password can call
 /// nothing but the password and sign-out endpoints until done (E9.1). Sign-in is rate-limited per address.
+/// Local sign-in sits behind the break-glass gate (E9.3): open until single sign-on is verified, then only
+/// inside a window opened from the host.
 /// </summary>
-public static class AuthModule
+public static partial class AuthModule
 {
     /// <summary>
     /// The session cookie name.
@@ -51,6 +55,9 @@ public static class AuthModule
     /// <summary>Route of the password change.</summary>
     public const string PasswordRoute = "/auth/local/password";
 
+    /// <summary>Route of the local sign-in gate status (E9.3).</summary>
+    public const string LocalStatusRoute = "/auth/local/status";
+
     /// <summary>Route of sign-out.</summary>
     public const string LogoutRoute = "/auth/logout";
 
@@ -70,7 +77,7 @@ public static class AuthModule
         .WithEndpoints(MapEndpoints)
         .WithSettings(AuthSettings.All)
         .WithPermissions(Providers.AuthProviderEndpoints.Manage)
-        .WithErrorCodes(AuthErrorCodes.InvalidCredentials, AuthErrorCodes.LockedOut, AuthErrorCodes.Disabled, AuthErrorCodes.IntegrityFailure, AuthErrorCodes.ProviderNotEnabled, AuthErrorCodes.ProviderFailed, AuthErrorCodes.MappingRejected, AuthErrorCodes.MappingNotFound, AuthErrorCodes.NotSignedIn, AuthErrorCodes.Forbidden, AuthErrorCodes.PasswordChangeRequired, AuthErrorCodes.PasswordRejected, AuthErrorCodes.Unavailable);
+        .WithErrorCodes(AuthErrorCodes.InvalidCredentials, AuthErrorCodes.LockedOut, AuthErrorCodes.Disabled, AuthErrorCodes.IntegrityFailure, AuthErrorCodes.LocalLoginClosed, AuthErrorCodes.ProviderNotEnabled, AuthErrorCodes.ProviderFailed, AuthErrorCodes.MappingRejected, AuthErrorCodes.MappingNotFound, AuthErrorCodes.NotSignedIn, AuthErrorCodes.Forbidden, AuthErrorCodes.PasswordChangeRequired, AuthErrorCodes.PasswordRejected, AuthErrorCodes.Unavailable);
 
 
 
@@ -96,6 +103,7 @@ public static class AuthModule
         });
         services.AddExceptionHandler<AuthExceptionHandler>();
         services.TryAddScoped<ILocalAccounts, NoLocalAccounts>();
+        services.TryAddScoped<ILocalLoginGate, NoLocalLoginGate>();   // E9.3: replaced by AddWmsDatabase
         services.TryAddScoped<ISessionRevocations, NoSessionRevocations>();
         services.TryAddScoped<External.IExternalAccounts, External.NoExternalAccounts>();   // E11.1: replaced by AddWmsDatabase
         services.TryAddScoped<External.IGroupRoleMappings, External.NoGroupRoleMappings>();   // E11.2: replaced by AddWmsDatabase
@@ -172,8 +180,13 @@ public static class AuthModule
             .AllowAnonymous()   // the way in
             .RequireRateLimiting(LoginRateLimit)
             .WithName("LocalLogin")
-            .WithSummary("Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled.")
+            .WithSummary("Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled or gate closed.")
             .Produces(StatusCodes.Status200OK);
+        app.MapGet(LocalStatusRoute, StatusAsync)
+            .AllowAnonymous()   // the login page decides whether to show the password form
+            .WithName("GetLocalLoginStatus")
+            .WithSummary("Whether local sign-in is open: before single sign-on is verified, inside a host-opened window, or under the ForceLocal override (E9.3).")
+            .Produces<LocalLoginStatus>(StatusCodes.Status200OK);
         app.MapPost(LogoutRoute, () => TypedResults.SignOut(authenticationSchemes: [CookieAuthenticationDefaults.AuthenticationScheme]))
             .AllowAnonymous()   // ending a session never needs one
             .WithName("Logout")
@@ -196,9 +209,25 @@ public static class AuthModule
 
 
 
-    private static async Task<IResult> LoginAsync(LocalLoginRequest body, ILocalAccounts accounts, CancellationToken cancellationToken)
+    private static async Task<IResult> LoginAsync
+    (
+        LocalLoginRequest body,
+        ILocalAccounts accounts,
+        ILocalLoginGate gate,
+        Providers.AuthProviderState providers,
+        TimeProvider timeProvider,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(body);
+
+        var info = await gate.GetAsync(cancellationToken).ConfigureAwait(false);
+        if (!info.IsOpenAt(timeProvider.GetUtcNow(), providers.ForceLocal))
+        {
+            LogClosedAttempt(loggerFactory.CreateLogger(typeof(AuthModule)), body.UserName ?? string.Empty);   // every attempt is logged (E9.3)
+            return ApiProblems.Problem(AuthErrorCodes.LocalLoginClosed);
+        }
 
         var result = await accounts.LoginAsync(body.UserName ?? string.Empty, body.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
         return result.Outcome switch
@@ -235,6 +264,19 @@ public static class AuthModule
             ? TypedResults.SignOut(authenticationSchemes: [CookieAuthenticationDefaults.AuthenticationScheme])
             : TypedResults.SignIn(SessionClaims.Principal(user), new AuthenticationProperties { IsPersistent = false }, CookieAuthenticationDefaults.AuthenticationScheme);   // refresh the claims
     }
+
+
+
+    private static async Task<IResult> StatusAsync(ILocalLoginGate gate, Providers.AuthProviderState providers, TimeProvider timeProvider, CancellationToken cancellationToken)
+    {
+        var info = await gate.GetAsync(cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(info.ToStatus(timeProvider.GetUtcNow(), providers.ForceLocal));
+    }
+
+
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Local sign-in refused for '{UserName}': the break-glass gate is closed (single sign-on verified, no unlock window).")]
+    private static partial void LogClosedAttempt(ILogger logger, string userName);
 
 
 

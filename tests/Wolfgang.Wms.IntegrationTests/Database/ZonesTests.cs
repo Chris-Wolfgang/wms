@@ -34,7 +34,8 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 /// same code in another site 201, a reject lane on a bulk zone 400; a resolution zone round-trips its properties
 /// and resolvers, an unknown resolver is 400; the list is in code order; an update needs <c>If-Match</c>, refuses
 /// a code another zone of the site holds, replaces the resolvers; retiring is 409 while <see cref="IOpenZoneGroups"/>
-/// reports open groups and succeeds once it does not; the settings cascade reaches the zone through its site;
+/// reports open groups and succeeds once it does not; the settings cascade reaches the zone through its site and
+/// a new zone starts with its site's effective values (E16.4);
 /// every write is audited with the user.
 /// </summary>
 public sealed class ZonesTests
@@ -119,7 +120,7 @@ public sealed class ZonesTests
         Assert.Equal(HttpStatusCode.NotFound, wrongSite.StatusCode);
 
         await AssertUpdateAsync(client, site.Id, pick, res, groups);
-        await AssertCascadeAsync(app.Services, site.Id, pick.Id);
+        await AssertCascadeAsync(client, app.Services, site.Id, pick.Id);
         await AssertAuditAsync(app.Services);
     }
 
@@ -162,7 +163,7 @@ public sealed class ZonesTests
 
 
 
-    private static async Task AssertCascadeAsync(IServiceProvider services, long siteId, long zoneId)
+    private static async Task AssertCascadeAsync(HttpClient client, IServiceProvider services, long siteId, long zoneId)
     {
         using var scope = services.CreateScope();
         var settings = scope.ServiceProvider.GetRequiredService<ISettings>();
@@ -171,15 +172,24 @@ public sealed class ZonesTests
         var children = await hierarchy.ChildrenAsync(SettingScopeRef.Site(siteId), CancellationToken.None);
         var parent = await hierarchy.ParentAsync(SettingScopeRef.Zone(zoneId), CancellationToken.None);
         var orphan = await hierarchy.ParentAsync(SettingScopeRef.Zone(zoneId + 1000), CancellationToken.None);
-        await settings.PopulateAsync(SettingScopeRef.Zone(zoneId), "admin", CancellationToken.None);
+        var createdNow = await settings.PopulateAsync(SettingScopeRef.Zone(zoneId), "admin", CancellationToken.None);
         await settings.SetAsync(LeaseTimeout, SettingScopeRef.Organization, TimeSpan.FromMinutes(45), "admin", CancellationToken.None);
         var effective = await settings.GetAsync(LeaseTimeout, SettingScopeRef.Zone(zoneId), CancellationToken.None);
+        await settings.SetAsync(LeaseTimeout, SettingScopeRef.Site(siteId), TimeSpan.FromMinutes(50), "admin", CancellationToken.None);
+        using var later = await client.PostAsync(new Uri($"/api/v0/sites/{siteId}/zones", UriKind.Relative), Body(Pick with { Code = "C01", IsRejectLane = false }));
+        var laterZone = (await later.Content.ReadFromJsonAsync<ZoneInfo>(Json))!;
+        var inherited = await settings.GetAsync(LeaseTimeout, SettingScopeRef.Zone(laterZone.Id), CancellationToken.None);
+        var rows = await settings.ListAsync(SettingScopeRef.Zone(laterZone.Id), CancellationToken.None);
 
         Assert.Equal(2, children.Count);
         Assert.Contains(SettingScopeRef.Zone(zoneId), children);
         Assert.Equal(SettingScopeRef.Site(siteId), parent);
         Assert.Null(orphan);
+        Assert.Equal(0, createdNow);   // E16.4: the create populated the zone's scope already
         Assert.Equal(TimeSpan.FromMinutes(45), effective);
+        Assert.Equal(HttpStatusCode.Created, later.StatusCode);
+        Assert.Equal(TimeSpan.FromMinutes(50), inherited);   // E16.4: a new zone starts with its site's effective value
+        Assert.Equal("00:50:00", rows.Single(v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal)).EffectiveValue);
     }
 
 
@@ -192,7 +202,7 @@ public sealed class ZonesTests
         var rows = await context.Zones.ToListAsync();
         var resolvers = await context.Set<Infrastructure.Zones.ZoneResolver>().CountAsync();
 
-        Assert.True(headers.Count >= 5, $"expected three creates and two updates to be audited; found {headers.Count}");
+        Assert.True(headers.Count >= 6, $"expected four creates and two updates to be audited; found {headers.Count}");
         Assert.Contains(headers.SelectMany(h => h.Details), d => string.Equals(d.ColumnName, "name", StringComparison.Ordinal) && string.Equals(d.ValueText, "Aisle 1 north", StringComparison.Ordinal));
         Assert.All(rows, r => Assert.Equal("admin", r.UpdatedBy));
         Assert.Equal(0, resolvers);

@@ -146,7 +146,8 @@ level and everything above it write normally, and a value written at a delegatin
 `value`. The console shows overridden children greyed with their retained values (`configuredValue` is
 present while `inheritedFrom` is null).
 
-`ISettings.PopulateAsync(scope)` (E7.3) gives a newly created site, zone or SKU a row for every setting
+`ISettings.PopulateAsync(scope)` (E7.3) gives a newly created site, zone or SKU a row for every setting (the
+sites and zones stores call it the moment a row is created, E16.4)
 allowed there, carrying the inherited effective value, so no record is ever unresolved; the create paths of
 those entities call it when they arrive. SKU-scoped keys (E7.4) declare `SettingScopes.OrganizationToSku`
 and cascade organisation → site → SKU through the same code; the hierarchy answers SKU parents once SKUs are

@@ -44,11 +44,15 @@ they are an attack surface. The gate (`ILocalLoginGate`, one audited row in `cor
 - **Open until SSO is verified.** The first successful external sign-in (any provider, through
   `IExternalAccounts`) records the provider and the time; from then on `POST /auth/local/login` answers
   `403 auth.local_login_closed` without checking the credentials, and the attempt is logged at Warning.
-- **Re-opened for a timed window from the host only.** An unlock names the host OS user and a duration
-  (default 30 minutes, 1 minute to 30 days, never open-ended; use a large value such as 1200 minutes when
-  needed); a lock closes the window early. Both are rows of the audit trail that carry the OS user, and both
-  are logged at Warning. The host command (`wms-admin unlock --minutes N`, `wms-admin lock`) and its
-  host-only channel arrive with the next E9.3 pull request; nothing in the web API opens the gate.
+- **Re-opened for a timed window from the host only.** `wms-admin unlock [--minutes N]` (default 30,
+  1 to 43200, never open-ended; use a large value such as 1200 when needed) and `wms-admin lock` run on the
+  host over RDP, SSH or `docker exec` and talk to a host-only channel: a named pipe on Windows with an
+  access list of the service account, local administrators and SYSTEM (a Unix domain socket elsewhere),
+  never the web API or the database. Every request is sealed with the host's Data Protection file ring, so a
+  tool that cannot open the ring (another machine, another install) is refused, and a request older than two
+  minutes is refused too. The host records the connected OS account (a Windows pipe reports it; elsewhere the
+  tool's own name) in the audited row, and logs every command at Warning. Nothing in the web API opens the
+  gate. Details: [ADMIN.md](ADMIN.md); the channel's keys: [CONFIGURATION.md](CONFIGURATION.md).
 - **`GET /auth/local/status`** (anonymous): `{ localLoginOpen, ssoVerified, unlockedUntil, forcedLocal }`.
   The login page hides the password form when local sign-in is closed; the console shows a banner while a
   window is open. The response carries no user names.

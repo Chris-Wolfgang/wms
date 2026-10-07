@@ -31,6 +31,13 @@ one with its file (`Smtp:Host (appsettings.json)`), so a value typed into the wr
 values are settings: define them in a module (docs/SETTINGS.md) and edit them in the Configure workspace.
 Environment variables are not inspected (the platform sets its own).
 
+## Admin channel (E9.3)
+
+| Key | Values | Notes |
+|-----|--------|-------|
+| `Wms:Admin:ChannelName` | pipe name (default `Wolfgang.Wms.Admin`) | The host-only pipe `wms-admin` talks to ([ADMIN.md](ADMIN.md)). Two API hosts on one machine need different names; the tool takes `--channel`. |
+| `Wms:Admin:Enabled` | `true` (default) / `false` | `false` turns the channel off; `Wms:Auth:ForceLocal` is then the only way to reopen local sign-in. |
+
 ## Database (E2)
 
 | Key | Values | Notes |

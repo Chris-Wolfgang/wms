@@ -9,6 +9,7 @@ using Wolfgang.Wms.Core.Organization;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Core.Sites;
+using Wolfgang.Wms.Core.Zones;
 
 namespace Wolfgang.Wms.Core.Json;
 
@@ -44,6 +45,9 @@ namespace Wolfgang.Wms.Core.Json;
 [JsonSerializable(typeof(SiteInfo))]
 [JsonSerializable(typeof(IReadOnlyList<SiteInfo>))]
 [JsonSerializable(typeof(SiteDraft))]
+[JsonSerializable(typeof(ZoneInfo))]
+[JsonSerializable(typeof(IReadOnlyList<ZoneInfo>))]
+[JsonSerializable(typeof(ZoneDraft))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

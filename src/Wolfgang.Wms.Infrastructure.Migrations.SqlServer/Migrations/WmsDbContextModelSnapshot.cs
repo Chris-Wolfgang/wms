@@ -933,6 +933,152 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Zones.Zone", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AcceptsAdjustments")
+                        .HasColumnType("bit")
+                        .HasColumnName("accepts_adjustments");
+
+                    b.Property<bool>("AcceptsMisdirects")
+                        .HasColumnType("bit")
+                        .HasColumnName("accepts_misdirects");
+
+                    b.Property<bool>("AcceptsShorts")
+                        .HasColumnType("bit")
+                        .HasColumnName("accepts_shorts");
+
+                    b.Property<bool>("AcceptsWeightFailures")
+                        .HasColumnType("bit")
+                        .HasColumnName("accepts_weight_failures");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("CodeNormalized")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("code_normalized");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsRejectLane")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_reject_lane");
+
+                    b.Property<bool>("IsVirtualQueue")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_virtual_queue");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("RestockingBin")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("restocking_bin");
+
+                    b.Property<string>("ReturnsContainer")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("returns_container");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version")
+                        .HasDefaultValueSql("NEXT VALUE FOR [wms].[row_version_seq]");
+
+                    b.Property<long>("SiteId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("site_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("WalkOrderPrefix")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("walk_order_prefix");
+
+                    b.HasKey("Id")
+                        .HasName("pk_zone");
+
+                    b.HasIndex("RowVersion")
+                        .HasDatabaseName("ix_zone_row_version");
+
+                    b.HasIndex("SiteId", "CodeNormalized")
+                        .IsUnique()
+                        .HasDatabaseName("ux_zone_site_id_code_normalized");
+
+                    b.ToTable("zone", "core", t =>
+                        {
+                            t.HasTrigger("trg_zone_row_version");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                });
+
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Zones.ZoneResolver", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.Property<long>("ZoneId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("zone_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_zone_resolver");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_zone_resolver_user_id");
+
+                    b.HasIndex("ZoneId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_zone_resolver_zone_id_user_id");
+
+                    b.ToTable("zone_resolver", "core");
+                });
+
             modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditDetail", b =>
                 {
                     b.HasOne("Wolfgang.AuditTrail.Entities.AuditHeader", "Header")
@@ -986,6 +1132,33 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Zones.Zone", b =>
+                {
+                    b.HasOne("Wolfgang.Wms.Infrastructure.Sites.Site", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_zone_site_id");
+                });
+
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Zones.ZoneResolver", b =>
+                {
+                    b.HasOne("Wolfgang.Wms.Infrastructure.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_zone_resolver_user_id");
+
+                    b.HasOne("Wolfgang.Wms.Infrastructure.Zones.Zone", null)
+                        .WithMany("Resolvers")
+                        .HasForeignKey("ZoneId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_zone_resolver_zone_id");
+                });
+
             modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditHeader", b =>
                 {
                     b.Navigation("Details");
@@ -994,6 +1167,11 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.Role", b =>
                 {
                     b.Navigation("Permissions");
+                });
+
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Zones.Zone", b =>
+                {
+                    b.Navigation("Resolvers");
                 });
 #pragma warning restore 612, 618
         }

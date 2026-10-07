@@ -121,6 +121,34 @@ public static class ReferencePages
 
 
 
+    /// <summary>
+    /// The import formats page (E16.6): one section per entity type with its route, natural key, default
+    /// policy, rules and the fields of the row type the API deserializes.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="formats"/> is null.</exception>
+    public static string ImportFormats(IReadOnlyList<Imports.ImportFormat> formats)
+    {
+        ArgumentNullException.ThrowIfNull(formats);
+
+        var text = new StringBuilder(Banner);
+        text.Append("# Import formats reference\n\nThe master data files the importer accepts (E16.6): one file per entity type, a JSON array of the objects below (the same objects the API takes, plus `action`), loaded by `POST` to the route with `policy=all_or_nothing|accept_valid_rows|validate_only` (the default differs per entity) and answered with one result shape: counts plus a line per row (`format=csv` for the rows as CSV). Every import is an idempotent upsert by the natural key; `action: Delete` retires the row. Files are loaded in the order listed.\n\n");
+        foreach (var format in formats)
+        {
+            text.Append(CultureInfo.InvariantCulture, $"## `{format.Entity}`\n\n| | |\n|---|---|\n| Route | `POST {format.Route}` |\n| Natural key | `{format.NaturalKey}` |\n| Default policy | `{Imports.ImportRules.Name(format.DefaultPolicy)}` |\n| Row type | `{format.RowType.Name}` |\n\n{Cell(format.Notes)}\n\n");
+            text.Append("| Field | Type | Required | Default | Notes |\n|---|---|---|---|---|\n");
+            foreach (var field in format.Fields)
+            {
+                text.Append(CultureInfo.InvariantCulture, $"| `{field.Name}` | {Cell(field.Type)} | {(field.Required ? "yes" : "no")} | {(field.Default is null ? string.Empty : "`" + Cell(field.Default) + "`")} | {Cell(field.Notes)} |\n");
+            }
+
+            text.Append('\n');
+        }
+
+        return text.ToString();
+    }
+
+
+
     private static string Cell(string text)
     {
         return text.Replace("|", "\\|", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal);

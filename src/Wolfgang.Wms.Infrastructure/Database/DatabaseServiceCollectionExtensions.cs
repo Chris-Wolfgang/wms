@@ -28,6 +28,7 @@ using Wolfgang.Wms.Infrastructure.Integrity;
 using Wolfgang.Wms.Core.Sites;
 using Wolfgang.Wms.Core.Zones;
 using Wolfgang.Wms.Core.Locations;
+using Wolfgang.Wms.Core.Imports;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -144,6 +145,8 @@ public static class DatabaseServiceCollectionExtensions
         services.TryAddSingleton<IOpenZoneGroups, NoOpenZoneGroups>();   // E16.2: nothing blocks retiring a zone until tote entry (E26) answers
         services.RemoveAll<ILocations>();
         services.AddScoped<ILocations, Locations.EfLocations>();   // E17.1: the stored locations replace the placeholder
+        services.RemoveAll<IImports>();
+        services.AddScoped<IImports, Imports.EfImports>();   // E16.6: the stored importer replaces the placeholder
     }
 
 

@@ -11,6 +11,7 @@ using Wolfgang.Wms.Infrastructure.Identity;
 using Wolfgang.Wms.Infrastructure.Database.Leader;
 using Wolfgang.Wms.Infrastructure.Integrity;
 using Wolfgang.Wms.Infrastructure.Sites;
+using Wolfgang.Wms.Infrastructure.Zones;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -105,6 +106,11 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
 
 
 
+    /// <summary>The zones (E16.2): the picking areas, bulk storage and resolution zones within each site.</summary>
+    public DbSet<Zone> Zones => Set<Zone>();
+
+
+
     /// <inheritdoc/>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -129,6 +135,9 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration(new LocalLoginGateConfiguration());   // E9.3
         modelBuilder.ApplyConfiguration(new OrganizationConfiguration());   // E16.0
         modelBuilder.ApplyConfiguration(new SiteConfiguration());   // E16.1
+        var zones = new ZoneConfiguration();   // E16.2
+        modelBuilder.ApplyConfiguration<Zone>(zones);
+        modelBuilder.ApplyConfiguration<ZoneResolver>(zones);
         modelBuilder.Entity<DataProtectionKey>().ToTable("data_protection_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E8.6: library-owned, in wms like the migrations history
         modelBuilder.Entity<DataProtectionKey>().Property(k => k.FriendlyName).HasMaxLength(256);
         modelBuilder.Entity<IntegrityKey>().ToTable("integrity_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E10.4: the HMAC key, protected by the ring

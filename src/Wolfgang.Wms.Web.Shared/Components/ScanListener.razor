@@ -9,7 +9,7 @@
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject IStringLocalizer<ConsoleText> L
-@inject IJSRuntime JS
+@inject IJSRuntime JsRuntime
 
 <input class="scan-listener"
        type="text"
@@ -47,12 +47,13 @@
         return _field.FocusAsync();
     }
 
+    /// <inheritdoc/>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             await FocusAsync();
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            _module = await JsRuntime.InvokeAsync<IJSObjectReference>("import", ModulePath);
             _refocus = await _module.InvokeAsync<IJSObjectReference>("attach", _field);
         }
     }

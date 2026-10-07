@@ -9,6 +9,7 @@ using System;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth;
 using Wolfgang.Wms.Client.Generated.Api.V0.Organization;
 using Wolfgang.Wms.Client.Generated.Api.V0.Settings;
+using Wolfgang.Wms.Client.Generated.Api.V0.Sites;
 using Wolfgang.Wms.Client.Generated.Api.V0.System;
 namespace Wolfgang.Wms.Client.Generated.Api.V0
 {
@@ -32,6 +33,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Settings.SettingsRequestBuilder Settings
         {
             get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Settings.SettingsRequestBuilder(PathParameters, RequestAdapter);
+        }
+        /// <summary>The sites property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.SitesRequestBuilder Sites
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.SitesRequestBuilder(PathParameters, RequestAdapter);
         }
         /// <summary>The system property</summary>
         public global::Wolfgang.Wms.Client.Generated.Api.V0.System.SystemRequestBuilder System

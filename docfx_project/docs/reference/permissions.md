@@ -16,3 +16,5 @@ Every permission an endpoint checks (E10.1), by module, with the built-in roles 
 | `organization.write` | organization | — | Create and edit the organization |
 | `settings.read` | settings | Supervisor, Support, Viewer | View settings and their values |
 | `settings.write` | settings | — | Change settings |
+| `sites.read` | sites | Supervisor, Support, Viewer | View the sites |
+| `sites.write` | sites | — | Create, edit and retire sites |

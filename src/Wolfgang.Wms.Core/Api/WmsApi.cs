@@ -2,7 +2,6 @@
 
 using System.Text.Json.Serialization.Metadata;
 using Asp.Versioning;
-using Asp.Versioning.Builder;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.Routing;
@@ -214,7 +213,7 @@ public static class WmsApi
 
     private static void SubstituteVersionInPaths(OpenApiDocument document, ApiVersion version)
     {
-        if (document.Paths is null || document.Paths.Count == 0)
+        if (document.Paths.Count == 0)
         {
             return;
         }

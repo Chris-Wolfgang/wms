@@ -114,7 +114,10 @@ public sealed record ModuleDescriptor
 
 
 
-    private static IReadOnlyList<T> Append<T>(IReadOnlyList<T> existing, IReadOnlyList<T> added)
+    // The added list is declared with nullable elements on purpose: callers that ignore the annotations
+    // (reflection, older compilers) can still hand over a null entry, and the check below has to be honest
+    // about that instead of being "always false" to the analyzer.
+    private static IReadOnlyList<T> Append<T>(IReadOnlyList<T> existing, IReadOnlyList<T?> added)
         where T : class
     {
         ArgumentNullException.ThrowIfNull(added);
@@ -123,6 +126,6 @@ public sealed record ModuleDescriptor
             throw new ArgumentException("Contributions must not contain null.", nameof(added));
         }
 
-        return [.. existing, .. added];
+        return [.. existing, .. added.Cast<T>()];
     }
 }

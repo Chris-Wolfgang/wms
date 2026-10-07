@@ -165,6 +165,29 @@ which tier includes it.
 A timed level elevation was refused: the level must lower the threshold (Trace, Debug or Information) and
 the duration must be between 1 minute and `logging.elevation_max_minutes`.
 
+## Organization (`organization.*`)
+
+<a id="organization-not-created"></a>
+### `organization.not_created`
+The install has no organization yet: the first-run wizard's first step has not run. An administrator creates
+it with `POST /organization` (or the wizard); until then the login page shows the product name only.
+
+<a id="organization-already-exists"></a>
+### `organization.already_exists`
+There is exactly one organization per install and it already exists. Edit it with `PUT /organization`
+(with `If-Match`) instead of creating another.
+
+<a id="organization-invalid"></a>
+### `organization.invalid`
+A field is missing, too long, or not what it must be: the message names the field. `timeZone` must be a time
+zone id the host knows (`Europe/Berlin`), `locale` a culture name (`en-US`), `logoDataUrl` a `data:image/…`
+URL of at most 256 KB, and a contact's `email` an e-mail address.
+
+<a id="organization-unavailable"></a>
+### `organization.unavailable`
+The organization lives in the database and `Wms:Database:Provider` is `None` (or not set). Configure the
+database and restart the API.
+
 ## Settings (`settings.*`)
 
 <a id="settings-unknown-key"></a>

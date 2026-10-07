@@ -1,6 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Microsoft.EntityFrameworkCore;
+using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Core.Sites;
 using Wolfgang.Wms.Domain.Settings;
@@ -38,9 +39,11 @@ public sealed class EfSites : ISites
 
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<SiteInfo>> ListAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<SiteInfo>> ListAsync(SiteScope scope, CancellationToken cancellationToken)
     {
-        var rows = await _context.Sites.AsNoTracking().OrderBy(s => s.CodeNormalized).ToListAsync(cancellationToken).ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(scope);
+
+        var rows = await _context.Sites.AsNoTracking().InScope(scope, nameof(Site.Id)).OrderBy(s => s.CodeNormalized).ToListAsync(cancellationToken).ConfigureAwait(false);   // E16.3: a site-scoped reader sees their sites only
         return rows.Select(s => s.ToInfo()).ToList();
     }
 

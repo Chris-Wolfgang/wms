@@ -67,10 +67,10 @@ public static class SitesModule
 
     private static void MapEndpoints(IEndpointRouteBuilder app)
     {
-        app.MapGet(Route, async (ISites sites, CancellationToken cancellationToken) => TypedResults.Ok(await sites.ListAsync(cancellationToken).ConfigureAwait(false)))
-            .RequirePermission(Read)
+        app.MapGet(Route, async (HttpContext http, ISites sites, CancellationToken cancellationToken) => TypedResults.Ok(await sites.ListAsync(SiteScope.Of(http.User, Read), cancellationToken).ConfigureAwait(false)))
+            .RequirePermissionInScope(Read)
             .WithName("ListSites")
-            .WithSummary("Every site, active and retired, in code order.")
+            .WithSummary("Every site the caller may see (all with an organization-level grant, their own with site-level grants), active and retired, in code order.")
             .Produces<IReadOnlyList<SiteInfo>>();
         app.MapGet(SiteRoute, async (HttpContext http, long siteId, ISites sites, CancellationToken cancellationToken) =>
                 WithEtag(http, await sites.FindAsync(siteId, cancellationToken).ConfigureAwait(false)))

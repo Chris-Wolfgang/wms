@@ -22,6 +22,7 @@ message; they pick a code, and the catalog of codes is generated from the defini
 | `204` | delete and body-less actions |
 | `400` | malformed request (bad cursor, both `after` and `before`, invalid key) |
 | `404` | not in the caller's site scope (hidden endpoints and flags too) |
+| `403` | the route's site is outside the caller's grants (E10.3); collection endpoints without a site in the route filter through `SiteScope` instead (E16.3, [SITES](SITES.md#site-scope-e163)) |
 | `409` | concurrency: `If-Match` did not match `row_version` |
 | `422` | `Idempotency-Key` reused with a different body |
 

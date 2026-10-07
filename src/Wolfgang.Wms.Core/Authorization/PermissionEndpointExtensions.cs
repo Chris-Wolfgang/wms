@@ -32,6 +32,24 @@ public static class PermissionEndpointExtensions
 
 
     /// <summary>
+    /// Requires <paramref name="permission"/> somewhere (E16.3): a collection endpoint without a <c>siteId</c> in
+    /// its route admits a caller granted at the organisation or at any site and filters its rows through
+    /// <see cref="SiteScope"/>, so a supervisor lists their own warehouse only.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    public static TBuilder RequirePermissionInScope<TBuilder>(this TBuilder builder, Permission permission)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(permission);
+
+        builder.WithMetadata(new CollectionScopeMetadata(permission));
+        return builder.RequirePermission(permission);
+    }
+
+
+
+    /// <summary>
     /// Registers the catalog, the policy provider and the handler.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="services"/> is null.</exception>

@@ -1,7 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Text.Json.Serialization.Metadata;
 using Asp.Versioning;
-using Asp.Versioning.Builder;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.Routing;
@@ -152,13 +152,68 @@ public static class WmsApi
             document.Servers = null;   // host-neutral: the committed copy must not carry the test host's URL
             return Task.CompletedTask;
         });
+
+        // A doc comment's line breaks are source wrapping, not content. The XML-comment generator keeps them with the
+        // line ending of the OS that compiled it ("\r\n" from Windows, "\n" from Linux), and Kiota drops them without a
+        // space ("build" + "expects" became "buildexpects"). Its transformers run before these, and the document
+        // joins the lines with single spaces.
+        options.AddSchemaTransformer((schema, context, _) =>
+        {
+            schema.Description = AsOneLine(schema.Description);
+            MarkComputedValuesRequired(schema, context.JsonTypeInfo);
+            return Task.CompletedTask;
+        });
+        options.AddOperationTransformer((operation, _, _) =>
+        {
+            operation.Summary = AsOneLine(operation.Summary);
+            operation.Description = AsOneLine(operation.Description);
+            foreach (var parameter in (operation.Parameters ?? []).OfType<OpenApiParameter>())
+            {
+                parameter.Description = AsOneLine(parameter.Description);
+            }
+
+            foreach (var response in operation.Responses?.Values.OfType<OpenApiResponse>() ?? [])
+            {
+                response.Description = AsOneLine(response.Description);
+            }
+
+            return Task.CompletedTask;
+        });
+    }
+
+
+
+    // A get-only property of a non-nullable value type (e.g. SchemaStatus.UpToDate) is computed on the server and
+    // always serialized with a value, so a client may rely on it; the generator only marks constructor parameters
+    // and [Required]/required members, and [Required] on a get-only property makes System.Text.Json refuse the type.
+    private static void MarkComputedValuesRequired(OpenApiSchema schema, JsonTypeInfo type)
+    {
+        if (type.Kind != JsonTypeInfoKind.Object)
+        {
+            return;
+        }
+
+        foreach (var property in type.Properties.Where(p => p.Set is null && p.PropertyType.IsValueType && Nullable.GetUnderlyingType(p.PropertyType) is null))
+        {
+            schema.Required ??= new HashSet<string>(StringComparer.Ordinal);
+            schema.Required.Add(property.Name);
+        }
+    }
+
+
+
+    private static string? AsOneLine(string? text)
+    {
+        return text is null
+            ? null
+            : string.Join(' ', text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
     }
 
 
 
     private static void SubstituteVersionInPaths(OpenApiDocument document, ApiVersion version)
     {
-        if (document.Paths is null || document.Paths.Count == 0)
+        if (document.Paths.Count == 0)
         {
             return;
         }

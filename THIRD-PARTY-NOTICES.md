@@ -10,7 +10,6 @@ Do not edit by hand; re-run the script after changing a package reference.
 | AsyncFixer | 2.1.0 | Apache-2.0 | Semih Okur | https://github.com/semihokur/AsyncFixer |
 | GoogleGson | 2.13.1.1 | MIT AND Apache-2.0 | Microsoft | https://aka.ms/android-libraries |
 | Meziantou.Analyzer | 3.0.290 | MIT | meziantou | https://github.com/meziantou/Meziantou.Analyzer |
-| Meziantou.Analyzer | 3.0.98 | MIT | meziantou | https://github.com/meziantou/Meziantou.Analyzer |
 | Microsoft.AspNetCore.App.Internal.Assets | 10.0.11 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.Authorization | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.Components | 10.0.12 | MIT | Microsoft | https://asp.net/ |
@@ -20,7 +19,6 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Microsoft.AspNetCore.Metadata | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.OpenApi | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.Build.Tasks.Git | 10.0.401 | MIT | Microsoft | https://github.com/dotnet/dotnet |
-| Microsoft.CodeAnalysis.BannedApiAnalyzers | 4.14.0 | MIT | Microsoft | https://github.com/dotnet/roslyn |
 | Microsoft.CodeAnalysis.BannedApiAnalyzers | 5.6.0 | MIT | Microsoft | https://github.com/dotnet/roslyn |
 | Microsoft.DotNet.ILCompiler | 10.0.11 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Configuration | 10.0.0 | MIT | Microsoft | https://dot.net/ |
@@ -37,6 +35,7 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Microsoft.Extensions.DependencyInjection | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.DependencyInjection.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.DependencyInjection.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
+| Microsoft.Extensions.DependencyInjection.Abstractions | 8.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Diagnostics | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Diagnostics.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Diagnostics.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
@@ -64,7 +63,15 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Microsoft.Extensions.Primitives | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Primitives | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Validation | 10.0.12 | MIT | Microsoft | https://asp.net/ |
+| Microsoft.IO.RecyclableMemoryStream | 3.0.1 | MIT | Microsoft | https://github.com/Microsoft/Microsoft.IO.RecyclableMemoryStream |
 | Microsoft.JSInterop | 10.0.12 | MIT | Microsoft | https://asp.net/ |
+| Microsoft.Kiota.Abstractions | 2.1.2 | MIT | Microsoft | https://aka.ms/kiota/docs |
+| Microsoft.Kiota.Bundle | 2.1.2 | MIT | Microsoft | https://aka.ms/kiota/docs |
+| Microsoft.Kiota.Http.HttpClientLibrary | 2.1.2 | MIT | Microsoft | https://aka.ms/kiota/docs |
+| Microsoft.Kiota.Serialization.Form | 2.1.2 | MIT | Microsoft | https://aka.ms/kiota/docs |
+| Microsoft.Kiota.Serialization.Json | 2.1.2 | MIT | Microsoft | https://aka.ms/kiota/docs |
+| Microsoft.Kiota.Serialization.Multipart | 2.1.2 | MIT | Microsoft | https://aka.ms/kiota/docs |
+| Microsoft.Kiota.Serialization.Text | 2.1.2 | MIT | Microsoft | https://aka.ms/kiota/docs |
 | Microsoft.Maui.Controls | 10.0.20 | MIT | Microsoft | https://github.com/dotnet/maui |
 | Microsoft.Maui.Controls.Build.Tasks | 10.0.20 | MIT | Microsoft | https://github.com/dotnet/maui |
 | Microsoft.Maui.Controls.Core | 10.0.20 | MIT | Microsoft | https://github.com/dotnet/maui |
@@ -77,14 +84,12 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Microsoft.OpenApi | 2.12.0 | MIT | Microsoft | https://github.com/Microsoft/OpenAPI.NET |
 | Microsoft.SourceLink.Common | 10.0.401 | MIT | Microsoft | https://github.com/dotnet/dotnet |
 | Microsoft.SourceLink.GitHub | 10.0.401 | MIT | Microsoft | https://github.com/dotnet/dotnet |
-| Microsoft.VisualStudio.Threading.Analyzers | 17.14.15 | MIT | Microsoft | https://microsoft.github.io/vs-threading/ |
 | Microsoft.VisualStudio.Threading.Analyzers | 18.7.23 | MIT | Microsoft | https://microsoft.github.io/vs-threading/ |
 | MinVer | 8.0.0 | Apache-2.0 | MinVer | https://github.com/adamralph/minver |
-| Roslynator.Analyzers | 4.15.0 | Apache-2.0 | Josef Pihrt | https://github.com/dotnet/roslynator |
 | Roslynator.Analyzers | 5.0.0 | Apache-2.0 | Josef Pihrt | https://github.com/dotnet/roslynator |
 | runtime.win-x64.Microsoft.DotNet.ILCompiler | 10.0.11 | MIT | Microsoft | https://dot.net/ |
-| SonarAnalyzer.CSharp | 10.27.0.140913 | licenses\LICENSE.txt | SonarSource | https://redirect.sonarsource.com/doc/sonar-visualstudio.html |
 | SonarAnalyzer.CSharp | 10.34.0.3385 | licenses\LICENSE.txt | SonarSource | https://redirect.sonarsource.com/doc/sonar-visualstudio.html |
+| Std.UriTemplate | 2.0.12 | Apache-2.0 | Std.UriTemplate | https://www.nuget.org/packages/Std.UriTemplate/2.0.12 |
 | System.Diagnostics.EventLog | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | System.IO.Hashing | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Wolfgang.TryPattern | 0.4.1 | MIT | Chris Wolfgang | https://github.com/Chris-Wolfgang/Try-Pattern |

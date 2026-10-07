@@ -24,7 +24,8 @@ public sealed class TimeConventionTests
     {
         var publicTypes = ProductAssemblies
             .Select(Assembly.Load)
-            .SelectMany(a => a.GetExportedTypes());
+            .SelectMany(a => a.GetExportedTypes())
+            .ToArray();
 
         Assert.NotEmpty(publicTypes);
         Assert.Empty(DateTimeExposuresIn(publicTypes));

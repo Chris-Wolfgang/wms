@@ -26,7 +26,8 @@ public sealed class DataAccessConventionTests
     {
         var contracts = Assembly.Load("Wolfgang.Wms.Core")
             .GetTypes()
-            .Where(t => t.IsInterface && string.Equals(t.Namespace, "Wolfgang.Wms.Core.Data", StringComparison.Ordinal));
+            .Where(t => t.IsInterface && string.Equals(t.Namespace, "Wolfgang.Wms.Core.Data", StringComparison.Ordinal))
+            .ToArray();
 
         Assert.NotEmpty(contracts);
         Assert.Empty(ProviderLeaksIn(contracts));

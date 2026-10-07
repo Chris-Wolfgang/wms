@@ -2,10 +2,7 @@
 
 using System.Net;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
 using Wolfgang.Wms.Core.Modules;
 
 namespace Wolfgang.Wms.IntegrationTests.Modules;
@@ -66,7 +63,7 @@ public sealed class ModuleEndpointsTests : IClassFixture<WebApplicationFactory<P
     {
         var app = WebApplication.CreateBuilder().Build();
 
-        var exception = Assert.Throws<InvalidOperationException>(() => ((IEndpointRouteBuilder)app).MapWmsModules());
+        var exception = Assert.Throws<InvalidOperationException>(() => app.MapWmsModules());
 
         Assert.Contains("AddWmsModules", exception.Message, StringComparison.Ordinal);
     }

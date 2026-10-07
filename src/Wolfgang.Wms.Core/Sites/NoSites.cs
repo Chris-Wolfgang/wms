@@ -1,5 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Wolfgang.Wms.Core.Authorization;
+
 namespace Wolfgang.Wms.Core.Sites;
 
 /// <summary>
@@ -9,8 +11,10 @@ namespace Wolfgang.Wms.Core.Sites;
 public sealed class NoSites : ISites
 {
     /// <inheritdoc/>
-    public Task<IReadOnlyList<SiteInfo>> ListAsync(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<SiteInfo>> ListAsync(SiteScope scope, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(scope);
+
         throw Unavailable();
     }
 

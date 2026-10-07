@@ -20,13 +20,13 @@ public sealed class WorkspacesTests
     [Fact]
     public void Each_workspace_is_a_license_feature_and_a_permission_named_after_it()
     {
-        Assert.All(Workspaces.All, w =>
+        foreach (var w in Workspaces.All)
         {
             Assert.Equal("workspace." + w.Name, w.LicenseFeature.Name);
             Assert.Equal("workspace." + w.Name + ".enter", w.Permission.Name);
             Assert.Equal("workspace." + w.Name + ".title", w.TitleKey);
             Assert.Equal("workspace." + w.Name + ".description", w.DescriptionKey);
-        });
+        }
     }
 
 

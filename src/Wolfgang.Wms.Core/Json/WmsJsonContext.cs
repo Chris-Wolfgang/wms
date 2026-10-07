@@ -6,6 +6,8 @@ using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Identity.BreakGlass;
 using Wolfgang.Wms.Core.Licensing;
 using Wolfgang.Wms.Core.Organization;
+using Wolfgang.Wms.Core.Locations;
+using Wolfgang.Wms.Core.Http.Paging;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Core.Sites;
@@ -48,6 +50,9 @@ namespace Wolfgang.Wms.Core.Json;
 [JsonSerializable(typeof(ZoneInfo))]
 [JsonSerializable(typeof(IReadOnlyList<ZoneInfo>))]
 [JsonSerializable(typeof(ZoneDraft))]
+[JsonSerializable(typeof(LocationInfo))]
+[JsonSerializable(typeof(Page<LocationInfo>))]
+[JsonSerializable(typeof(LocationDraft))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

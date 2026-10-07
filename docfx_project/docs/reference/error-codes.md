@@ -32,6 +32,13 @@ Every error the API answers with (E82.3): `application/problem+json` whose `code
 | `device.version_invalid` | 400 | error | '{0}' is not an app version. | [device-version-invalid](../troubleshooting.md#device-version-invalid) |
 | `device.version_missing` | 400 | error | The device did not send its app version. | [device-version-missing](../troubleshooting.md#device-version-missing) |
 | `device.version_too_old` | 426 | warning | App version {0} is below the minimum {1}; update the app. | [device-version-too-old](../troubleshooting.md#device-version-too-old) |
+| `imports.duplicate_in_file` | 400 | error | {0} | [imports-duplicate-in-file](../troubleshooting.md#imports-duplicate-in-file) |
+| `imports.invalid` | 400 | error | {0} | [imports-invalid](../troubleshooting.md#imports-invalid) |
+| `imports.key_not_found` | 400 | error | {0} | [imports-key-not-found](../troubleshooting.md#imports-key-not-found) |
+| `imports.reference_not_found` | 400 | error | {0} | [imports-reference-not-found](../troubleshooting.md#imports-reference-not-found) |
+| `imports.resolution_zone` | 400 | error | {0} | [imports-resolution-zone](../troubleshooting.md#imports-resolution-zone) |
+| `imports.site_not_found` | 404 | warning | The site does not exist. | [imports-site-not-found](../troubleshooting.md#imports-site-not-found) |
+| `imports.unavailable` | 503 | warning | Imports are unavailable until the database is configured. | [imports-unavailable](../troubleshooting.md#imports-unavailable) |
 | `license.feature_not_licensed` | 403 | warning | '{0}' is not included in the {1} tier. | [license-feature-not-licensed](../troubleshooting.md#license-feature-not-licensed) |
 | `license.key_not_found` | 404 | error | No installed key has the id '{0}'. | [license-key-not-found](../troubleshooting.md#license-key-not-found) |
 | `license.key_rejected` | 400 | error | The key was refused: {0}. | [license-key-rejected](../troubleshooting.md#license-key-rejected) |

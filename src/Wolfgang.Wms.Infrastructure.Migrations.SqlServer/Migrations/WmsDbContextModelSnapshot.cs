@@ -350,6 +350,71 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.LocalLoginGate", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("LockedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("locked_at");
+
+                    b.Property<string>("LockedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("locked_by");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version")
+                        .HasDefaultValueSql("NEXT VALUE FOR [wms].[row_version_seq]");
+
+                    b.Property<DateTime?>("SsoVerifiedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("sso_verified_at");
+
+                    b.Property<string>("SsoVerifiedProvider")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("sso_verified_provider");
+
+                    b.Property<DateTime?>("UnlockedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("unlocked_at");
+
+                    b.Property<string>("UnlockedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("unlocked_by");
+
+                    b.Property<DateTime?>("UnlockedUntil")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("unlocked_until");
+
+                    b.HasKey("Id")
+                        .HasName("pk_local_login_gate");
+
+                    b.HasIndex("RowVersion")
+                        .HasDatabaseName("ix_local_login_gate_row_version");
+
+                    b.ToTable("local_login_gate", "core", t =>
+                        {
+                            t.HasTrigger("trg_local_login_gate_row_version");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                });
+
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.Role", b =>
                 {
                     b.Property<long>("Id")

@@ -1,15 +1,18 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using System.Net;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Wolfgang.Wms.Core.Identity.BreakGlass;
 
 namespace Wolfgang.Wms.IntegrationTests.Api;
 
 /// <summary>
 /// E9 on the real API host before a database is configured: sign-in answers <c>auth.unavailable</c>, the
-/// signed-in-only endpoints answer <c>auth.not_signed_in</c> as problems (never redirects), sign-out works.
+/// signed-in-only endpoints answer <c>auth.not_signed_in</c> as problems (never redirects), sign-out works,
+/// and the break-glass gate reports local sign-in open (E9.3: nothing is stored without a database).
 /// </summary>
 public sealed class AuthEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -40,6 +43,18 @@ public sealed class AuthEndpointsTests : IClassFixture<WebApplicationFactory<Pro
         Assert.Equal("auth.not_signed_in", await CodeAsync(me));
         Assert.Equal(HttpStatusCode.Unauthorized, password.StatusCode);
         Assert.Equal(HttpStatusCode.OK, logout.StatusCode);
+    }
+
+
+
+    [Fact]
+    public async Task Without_a_database_the_local_sign_in_gate_reports_open_and_unverified()
+    {
+        using var client = _factory.CreateClient();
+
+        var status = await client.GetFromJsonAsync<LocalLoginStatus>("/api/v0/auth/local/status", JsonSerializerOptions.Web);
+
+        Assert.Equal(new LocalLoginStatus(LocalLoginOpen: true, SsoVerified: false, UnlockedUntil: null, ForcedLocal: false), status);
     }
 
 

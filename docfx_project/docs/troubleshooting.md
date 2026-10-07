@@ -249,6 +249,46 @@ Let the pickers complete them first, then retry.
 Zones live in the database and `Wms:Database:Provider` is `None` (or not set). Configure the database and
 restart the API.
 
+## Locations (`locations.*`)
+
+<a id="locations-site-not-found"></a>
+### `locations.site_not_found`
+No site has the `siteId` in the route. `GET /sites` lists every site with its id.
+
+<a id="locations-not-found"></a>
+### `locations.not_found`
+No location of that site has that id. `GET /sites/{siteId}/locations` pages through the site's bins; a bin is
+never deleted, and a bin of another site answers this too.
+
+<a id="locations-zone-not-found"></a>
+### `locations.zone_not_found`
+`zoneId` does not name a zone of this site. `GET /sites/{siteId}/zones` lists the site's zones with their ids;
+a zone of another site cannot hold this site's bins.
+
+<a id="locations-code-taken"></a>
+### `locations.code_taken`
+Another bin of the same site already has that code. Codes are compared without regard to case within a site;
+the same code in another site is fine.
+
+<a id="locations-barcode-taken"></a>
+### `locations.barcode_taken`
+Another bin of the same site already carries that barcode. A scan must resolve to one bin, so relabel one of
+them.
+
+<a id="locations-invalid"></a>
+### `locations.invalid`
+Either the draft or the page request is not what it must be: the message names the problem. Drafts: `code`
+is 1-64 letters, digits, `-` and `_`; `barcode` and `walkSequence` are 1-128 and 1-64 visible ASCII characters
+without spaces or `|`; `walkSequence` must start with the zone's walk-order prefix when the zone has one.
+Page requests: `sort` is one of `walk_sequence`, `code`, `barcode`, `id` (with a leading `-` for descending),
+`after` and `before` are cursors this API issued under the same sort and never both at once, and `id_from`
+must not exceed `id_to`. After changing the sort, start again from the first page.
+
+<a id="locations-unavailable"></a>
+### `locations.unavailable`
+Locations live in the database and `Wms:Database:Provider` is `None` (or not set). Configure the database
+and restart the API.
+
 ## Settings (`settings.*`)
 
 <a id="settings-unknown-key"></a>

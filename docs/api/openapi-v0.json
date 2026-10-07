@@ -1419,6 +1419,243 @@
           }
         }
       }
+    },
+    "/api/v0/sites/{siteId}/locations": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One page of the site\u0027s locations (after/before cursor, sort=walk_sequence|code|barcode|id, size, id_from/id_to, zone_id).",
+        "operationId": "ListLocations",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "id_from",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "id_to",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "zone_id",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfLocationInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates a location in the site; 409 locations.code_taken or locations.barcode_taken when in use there.",
+        "operationId": "CreateLocation",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/locations/{locationId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One location; the ETag is the row\u0027s version.",
+        "operationId": "GetLocation",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces a location\u0027s details; If-Match required.",
+        "operationId": "UpdateLocation",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationInfo"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2142,6 +2379,140 @@
         },
         "description": "Whether local sign-in is open (\u0060GET /auth/local/status\u0060, E9.3): read anonymously by the login page (to hide or show the password form) and by the console (to show the unlock banner). Carries no user names."
       },
+      "LocationDraft": {
+        "required": [
+          "code",
+          "barcode",
+          "zoneId",
+          "walkSequence"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The bin code, unique within the site: letters, digits, \u0060-\u0060 and \u0060_\u0060, compared without regard to case (the site\u0027s code format, E17.11, generates it from aisle/bay/level/position)."
+          },
+          "barcode": {
+            "type": "string",
+            "description": "The label on the bin, unique within the site; what a picker scans."
+          },
+          "zoneId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The zone the bin is in; a zone of the same site.",
+            "format": "int64"
+          },
+          "walkSequence": {
+            "type": "string",
+            "description": "A sortable string: the order a picker walks the bins in. Starts with the zone\u0027s walk-order prefix when the zone has one."
+          },
+          "isPickable": {
+            "type": "boolean",
+            "description": "False for a bin that holds stock but is never picked from (staging, overflow).",
+            "default": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False to retire the bin: it stays in history but takes no new stock or tasks.",
+            "default": true
+          }
+        },
+        "description": "What an administrator (or an import) sends to create or replace a location (E17.1): one bin."
+      },
+      "LocationInfo": {
+        "required": [
+          "id",
+          "siteId",
+          "zoneId",
+          "code",
+          "barcode",
+          "walkSequence",
+          "isPickable",
+          "isActive",
+          "updatedAt",
+          "updatedBy",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The site the bin belongs to.",
+            "format": "int64"
+          },
+          "zoneId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The zone the bin is in.",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string",
+            "description": "The bin code, unique within the site."
+          },
+          "barcode": {
+            "type": "string",
+            "description": "The label on the bin, unique within the site."
+          },
+          "walkSequence": {
+            "type": "string",
+            "description": "The sortable walk order."
+          },
+          "isPickable": {
+            "type": "boolean",
+            "description": "False for a bin never picked from."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False once the bin is retired."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When the row was last written (UTC).",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string",
+            "description": "Who last wrote the row."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s version (E5.1); the string LocationInfo.Etag is derived from it.",
+            "format": "int64"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag a client sends back in \u0060If-Match\u0060."
+          }
+        },
+        "description": "A location as the API reports it (E17.1): one bin in a zone of a site."
+      },
       "LoggingStatus": {
         "required": [
           "level",
@@ -2480,6 +2851,70 @@
           }
         },
         "description": "The organisation as the login page shows it before anyone is signed in (E16.0): the name and the logo, nothing that identifies people or places."
+      },
+      "PageOfLocationInfo": {
+        "required": [
+          "nextCursor",
+          "previousCursor",
+          "minId",
+          "maxId",
+          "items",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Cursor for the page after this one (\u0060after=\u0060), or null on the last page."
+          },
+          "previousCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Cursor for the page before this one (\u0060before=\u0060), or null on the first page."
+          },
+          "minId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Lowest id matching the filters in scope, or null when empty.",
+            "format": "int64"
+          },
+          "maxId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Highest id matching the filters in scope, or null when empty.",
+            "format": "int64"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocationInfo"
+            },
+            "description": "The items on this page, never null."
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Exact total in scope; never negative.",
+            "format": "int64"
+          }
+        },
+        "description": "One keyset page of a list endpoint (E82.3): the items, opaque cursors for the neighbouring pages, the exact total in scope, and the id bounds so a parallel client can split the range with \u0060id_from\u0060/\u0060id_to\u0060."
       },
       "PermissionDescriptor": {
         "required": [

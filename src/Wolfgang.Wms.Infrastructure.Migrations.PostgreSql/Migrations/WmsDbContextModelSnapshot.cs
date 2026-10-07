@@ -716,6 +716,99 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                     b.ToTable("integrity_key", "wms");
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Locations.Location", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Barcode")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("barcode");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("CodeNormalized")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code_normalized");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsPickable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_pickable");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version")
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
+
+                    b.Property<long>("SiteId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("site_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("WalkSequence")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("walk_sequence");
+
+                    b.Property<long>("ZoneId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("zone_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_location");
+
+                    b.HasIndex("RowVersion")
+                        .HasDatabaseName("ix_location_row_version");
+
+                    b.HasIndex("SiteId", "Barcode")
+                        .IsUnique()
+                        .HasDatabaseName("ux_location_site_id_barcode");
+
+                    b.HasIndex("SiteId", "CodeNormalized")
+                        .IsUnique()
+                        .HasDatabaseName("ux_location_site_id_code_normalized");
+
+                    b.HasIndex("SiteId", "WalkSequence", "Id")
+                        .HasDatabaseName("ix_location_site_id_walk_sequence_id");
+
+                    b.HasIndex("ZoneId", "WalkSequence", "Id")
+                        .HasDatabaseName("ix_location_zone_id_walk_sequence_id");
+
+                    b.ToTable("location", "core", t =>
+                        {
+                            t.HasTrigger("trg_location_row_version");
+                        });
+                });
+
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Organization.Organization", b =>
                 {
                     b.Property<long>("Id")
@@ -1109,6 +1202,23 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         .HasConstraintName("fk_user_role_user_id");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Locations.Location", b =>
+                {
+                    b.HasOne("Wolfgang.Wms.Infrastructure.Sites.Site", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_location_site_id");
+
+                    b.HasOne("Wolfgang.Wms.Infrastructure.Zones.Zone", null)
+                        .WithMany()
+                        .HasForeignKey("ZoneId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_location_zone_id");
                 });
 
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Zones.Zone", b =>

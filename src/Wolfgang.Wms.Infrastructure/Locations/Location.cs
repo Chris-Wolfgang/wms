@@ -45,6 +45,9 @@ public sealed class Location : IVersionedEntity
     /// <summary>Who last wrote the row.</summary>
     public string UpdatedBy { get; set; } = string.Empty;
 
+    /// <summary>The id of the row this one was copied from (E16.5); null when created outright. Audited with the create.</summary>
+    public long? CopiedFromId { get; set; }
+
     /// <inheritdoc/>
     public long RowVersion { get; set; }
 
@@ -55,7 +58,7 @@ public sealed class Location : IVersionedEntity
     /// </summary>
     public LocationInfo ToInfo()
     {
-        return new LocationInfo(Id, SiteId, ZoneId, Code, Barcode, WalkSequence, IsPickable, IsActive, UpdatedAt, UpdatedBy, RowVersion);
+        return new LocationInfo(Id, SiteId, ZoneId, Code, Barcode, WalkSequence, IsPickable, IsActive, UpdatedAt, UpdatedBy, RowVersion, CopiedFromId);
     }
 
 

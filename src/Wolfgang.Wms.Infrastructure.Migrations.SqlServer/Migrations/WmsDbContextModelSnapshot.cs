@@ -758,6 +758,10 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("nvarchar(64)")
                         .HasColumnName("code_normalized");
 
+                    b.Property<long?>("CopiedFromId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("copied_from_id");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit")
                         .HasColumnName("is_active");
@@ -976,6 +980,10 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasColumnType("nvarchar(32)")
                         .HasColumnName("code_normalized");
 
+                    b.Property<long?>("CopiedFromId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("copied_from_id");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit")
                         .HasColumnName("is_active");
@@ -1064,6 +1072,10 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)")
                         .HasColumnName("code_normalized");
+
+                    b.Property<long?>("CopiedFromId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("copied_from_id");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit")

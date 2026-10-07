@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
+using Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Zones.Item.Copy;
 using Wolfgang.Wms.Client.Generated.Models;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Zones.Item
 {
@@ -17,6 +18,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Zones.Item
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class WithZoneItemRequestBuilder : BaseRequestBuilder
     {
+        /// <summary>The copy property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Zones.Item.Copy.CopyRequestBuilder Copy
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Zones.Item.Copy.CopyRequestBuilder(PathParameters, RequestAdapter);
+        }
         /// <summary>
         /// Instantiates a new <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Zones.Item.WithZoneItemRequestBuilder"/> and sets the default values.
         /// </summary>

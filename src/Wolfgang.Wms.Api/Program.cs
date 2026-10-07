@@ -8,6 +8,7 @@ using Wolfgang.Wms.Core.Json;
 using Wolfgang.Wms.Core.Localization;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Schema;
+using Wolfgang.Wms.Infrastructure.Database;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +34,9 @@ builder.Services.AddWmsCompression();
 // Modules register here explicitly (ADR 0001): services.AddPickingModule() etc. No assembly scanning.
 builder.Services.AddWmsModules();
 builder.Services.AddWmsSchemaModule();   // E82.5: GET /system/schema, read-only
+
+// E2.1: Wms:Database:{Provider,ConnectionString,TrustServerCertificate}; an unknown provider fails startup.
+builder.Services.AddWmsDatabase(builder.Configuration);
 
 // E82.7: device groups call .RequireDeviceVersion(). After the modules, so the no-minimum fallback only fills
 // the gap: the settings module (E12) registers the organisation -> site policy, with Add or TryAdd.

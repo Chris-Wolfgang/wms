@@ -217,9 +217,26 @@ container (challenge, provider redirect, callback with the correlation and nonce
 token exchange, mapping applied and removed, forged state → 502). Keycloak (realm import) and the Entra ID
 scheduled job, with their setup guides, follow in E11.3–E11.5.
 
+## Provider verification (E11.3)
+
+Sign-on is verified against real providers on every change, not only against the handler's own expectations:
+
+- **Keycloak on every PR.** `KeycloakSignInTests` starts Keycloak from Testcontainers with an imported realm
+  (`wms`: one confidential client with the callback as its redirect URI and a group-membership mapper named
+  `groups`, the `wms-supervisors` group, users `alice` and `bob`), configures the provider through the
+  settings, posts Keycloak's real login form, and asserts that the session's roles follow the group mapping
+  and that a user in no mapped group holds none. The realm in the test is the recipe in [KEYCLOAK.md](KEYCLOAK.md).
+- **Claim edge cases on every PR.** `OidcClaimEdgeCaseTests` runs `mock-oauth2-server` with several token
+  shapes: no group claim at all (the user signs in with no permissions), alternate claim names (`roles`,
+  `upn`, `display`, selected through `auth.oidc.group_claim`, `auth.oidc.name_claim`,
+  `auth.oidc.display_name_claim`), and an expired token (refused with `502 auth.provider_failed`).
+- Both run where Docker runs (the Linux CI job; skipped with the tracking issue elsewhere, E13.1).
+- **Entra ID** is exercised on a scheduled job against a free developer tenant once that tenant exists
+  (E11.4, E11.5); its setup guide is written from that working configuration.
+
 ## What comes next
 
 - E9.3: the host-only channel and `wms-admin unlock`/`lock` command for the gate above; the console banner
   while a window is open; the optional IP allow-list and second factor (passkey, TOTP) for the local admin.
 - A periodic job that audits expired assignments.
-- E11.3–E11.6: Keycloak and Entra ID verification jobs, ADFS checklist, setup guides.
+- E11.4–E11.6: the Entra ID tenant and its scheduled verification job, the ADFS checklist, their setup guides.

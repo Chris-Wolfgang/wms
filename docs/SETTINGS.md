@@ -100,8 +100,9 @@ and the CLI all go through it, and nothing writes `core.setting` directly.
   matching problem: `settings.unknown_key` (404), `settings.unknown_scope` (400), `settings.scope_not_allowed`
   (400), `settings.invalid_value` (400), `settings.store_unavailable` (503, before a database is configured;
   reads then answer defaults).
-- `ISettingScopeHierarchy` supplies parents and children. Until sites, zones and SKUs are entities, the
-  placeholder knows only that a site's parent is the organisation; E7.1 replaces it.
+- `ISettingScopeHierarchy` supplies parents and children. With a database it runs over the stored sites
+  (E16.1): the organisation's children are every site, a site's parent is the organisation. Zones (E16.2)
+  and SKUs extend it; without a database the placeholder knows only that a site's parent is the organisation.
 - Secrets are masked in every `SettingValue` and stored encrypted (`enc:v1:`, E8.3) through `ISecretProtector`;
   only `GetAsync<SecretText>` sees the plain value.
 

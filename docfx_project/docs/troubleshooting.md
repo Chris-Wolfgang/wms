@@ -188,6 +188,34 @@ URL of at most 256 KB, and a contact's `email` an e-mail address.
 The organization lives in the database and `Wms:Database:Provider` is `None` (or not set). Configure the
 database and restart the API.
 
+## Sites (`sites.*`)
+
+<a id="sites-not-found"></a>
+### `sites.not_found`
+No site has that id. `GET /sites` lists every site, active and retired, with its id; a site is never deleted,
+so an id that once existed still does.
+
+<a id="sites-code-taken"></a>
+### `sites.code_taken`
+Another site already has that code. Codes are compared without regard to case (`dc1` and `DC1` are the same
+site), so pick a different one or edit the existing site.
+
+<a id="sites-invalid"></a>
+### `sites.invalid`
+A field is missing, too long, or not what it must be: the message names the field. `code` is 1-32 letters,
+digits, `-` and `_`; `name` is at most 128 characters; `timeZone` must be a time zone id the host knows
+(`Europe/Berlin`, `America/Chicago`).
+
+<a id="sites-has-open-releases"></a>
+### `sites.has_open_releases`
+The site cannot be retired (`isActive: false`) while releases are open against it: the message says how
+many. Complete or cancel them first, then retry; or leave the site active and stop assigning work to it.
+
+<a id="sites-unavailable"></a>
+### `sites.unavailable`
+Sites live in the database and `Wms:Database:Provider` is `None` (or not set). Configure the database and
+restart the API.
+
 ## Settings (`settings.*`)
 
 <a id="settings-unknown-key"></a>

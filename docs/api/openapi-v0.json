@@ -1121,6 +1121,133 @@
           }
         }
       }
+    },
+    "/api/v0/sites": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every site, active and retired, in code order.",
+        "operationId": "ListSites",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SiteInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates a site; 409 sites.code_taken when the code is in use.",
+        "operationId": "CreateSite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One site; the ETag is the row\u0027s version.",
+        "operationId": "GetSite",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces a site\u0027s details; If-Match required; 409 sites.has_open_releases when retiring a site with open releases.",
+        "operationId": "UpdateSite",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteInfo"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2621,6 +2748,100 @@
           }
         },
         "description": "One setting at one scope as the API and the console see it (E6.3): what is configured here, what applies here, and where the effective value comes from when it is inherited. Secrets are masked."
+      },
+      "SiteDraft": {
+        "required": [
+          "code",
+          "name",
+          "timeZone"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The short unique code (\u0060DC1\u0060, \u0060HAM-01\u0060): letters, digits, \u0060-\u0060 and \u0060_\u0060, compared without regard to case."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "An IANA or Windows time zone id the host knows; what the site\u0027s clocks, cut-offs and digests use."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False to retire the site: it stays in reports and history but takes no new work. Refused while open releases exist.",
+            "default": true
+          }
+        },
+        "description": "What an administrator sends to create or replace a site (E16.1)."
+      },
+      "SiteInfo": {
+        "required": [
+          "id",
+          "code",
+          "name",
+          "timeZone",
+          "isActive",
+          "updatedAt",
+          "updatedBy",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier; what \u0060siteId\u0060 route values and \u0060X-Wms-Site\u0060 carry.",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string",
+            "description": "The short unique code."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The site\u0027s time zone id."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False once the site is retired."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When the row was last written (UTC).",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string",
+            "description": "Who last wrote the row."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s version (E5.1); the string SiteInfo.Etag is derived from it.",
+            "format": "int64"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag a client sends back in \u0060If-Match\u0060."
+          }
+        },
+        "description": "A site as the API reports it (E16.1): one warehouse, the operational level pickers, role assignments and settings are scoped to."
       }
     }
   },

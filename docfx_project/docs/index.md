@@ -27,5 +27,5 @@ app, starting with the picking module. These pages are for the people who instal
 ## Reference
 
 - [API Reference](../api/index.md) - generated from the source code
-- Generated from the product: [settings](reference/settings.md), [permissions](reference/permissions.md), [error codes](reference/error-codes.md), [modules](reference/modules.md)
+- Generated from the product: [settings](reference/settings.md), [permissions](reference/permissions.md), [error codes](reference/error-codes.md), [modules](reference/modules.md), [import formats](reference/import-formats.md)
 - [Project website](https://github.com/Chris-Wolfgang/wms)

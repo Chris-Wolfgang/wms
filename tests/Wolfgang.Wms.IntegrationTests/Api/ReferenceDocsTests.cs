@@ -4,6 +4,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Wolfgang.Wms.Core.Docs;
+using Wolfgang.Wms.Core.Imports;
 using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Domain.Keys;
@@ -42,6 +43,7 @@ public sealed class ReferenceDocsTests : IClassFixture<WebApplicationFactory<Pro
             ["permissions.md"] = ReferencePages.Permissions(modules),
             ["error-codes.md"] = ReferencePages.ErrorCodes(codes),
             ["modules.md"] = ReferencePages.Modules(modules),
+            ["import-formats.md"] = ReferencePages.ImportFormats(ImportFormats.All),
         };
 
         foreach (var (name, generated) in pages)
@@ -58,6 +60,8 @@ public sealed class ReferenceDocsTests : IClassFixture<WebApplicationFactory<Pro
         Assert.Throws<ArgumentNullException>(() => ReferencePages.Permissions(null!));
         Assert.Throws<ArgumentNullException>(() => ReferencePages.ErrorCodes(null!));
         Assert.Throws<ArgumentNullException>(() => ReferencePages.Modules(null!));
+        Assert.Throws<ArgumentNullException>(() => ReferencePages.ImportFormats(null!));
+        Assert.Contains("| `zoneCode` | string | yes |", pages["import-formats.md"], StringComparison.Ordinal);
     }
 
 

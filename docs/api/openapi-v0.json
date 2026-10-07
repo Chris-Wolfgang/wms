@@ -1656,6 +1656,126 @@
           }
         }
       }
+    },
+    "/api/v0/sites/{siteId}/imports/zones": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only; format=csv for the row results as CSV.",
+        "operationId": "ImportZones",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "policy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ZoneImportRow"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/imports/locations": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only; format=csv for the row results as CSV.",
+        "operationId": "ImportLocations",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "policy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LocationImportRow"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1976,6 +2096,156 @@
           }
         },
         "description": "One directory group mapped to one role (E11.2), everywhere or at one site."
+      },
+      "ImportAction": {
+        "enum": [
+          "Upsert",
+          "Delete"
+        ],
+        "description": "What a row asks for (E16.6): an upsert by natural key (the default) or a soft delete."
+      },
+      "ImportPolicy": {
+        "enum": [
+          "AllOrNothing",
+          "AcceptValidRows",
+          "ValidateOnly"
+        ],
+        "description": "What an import does with bad rows (E16.6), chosen per run with a default per entity type."
+      },
+      "ImportResult": {
+        "required": [
+          "entity",
+          "policy",
+          "written",
+          "inserted",
+          "updated",
+          "deleted",
+          "unchanged",
+          "failed",
+          "rows"
+        ],
+        "type": "object",
+        "properties": {
+          "entity": {
+            "type": "string",
+            "description": "The entity type the file carried (\u0060zones\u0060, \u0060locations\u0060)."
+          },
+          "policy": {
+            "description": "The bad-row policy the run used.",
+            "$ref": "#/components/schemas/ImportPolicy"
+          },
+          "written": {
+            "type": "boolean",
+            "description": "True when the rows were written; false under ImportPolicy.ValidateOnly and for a rolled-back ImportPolicy.AllOrNothing run."
+          },
+          "inserted": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Rows with a new key.",
+            "format": "int32"
+          },
+          "updated": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Rows whose key existed and changed.",
+            "format": "int32"
+          },
+          "deleted": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Rows retired.",
+            "format": "int32"
+          },
+          "unchanged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Rows that needed nothing.",
+            "format": "int32"
+          },
+          "failed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Rows refused.",
+            "format": "int32"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportRowResult"
+            },
+            "description": "The rows, never null."
+          }
+        },
+        "description": "What an import run produced (E16.6): the counts, whether anything was written, and one line per row. The same shape is returned by the API, shown in the console and downloadable as CSV (string ImportResult.ToCsv())."
+      },
+      "ImportRowOutcome": {
+        "enum": [
+          "Inserted",
+          "Updated",
+          "Deleted",
+          "Unchanged",
+          "Failed"
+        ],
+        "description": "What happened to one row (E16.6), or what would have happened under ImportPolicy.ValidateOnly and for the valid rows of a rolled-back ImportPolicy.AllOrNothing run."
+      },
+      "ImportRowResult": {
+        "required": [
+          "row",
+          "key",
+          "outcome",
+          "code",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "row": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s position in the file, starting at 1.",
+            "format": "int32"
+          },
+          "key": {
+            "type": "string",
+            "description": "The row\u0027s natural key (zone code, bin code); blank when the row had none."
+          },
+          "outcome": {
+            "description": "What happened, or would have happened.",
+            "$ref": "#/components/schemas/ImportRowOutcome"
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The error code when the row failed; null otherwise."
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Why the row failed; null otherwise."
+          }
+        },
+        "description": "One row of an import result (E16.6): the same shape in the API, the console and the downloadable CSV."
       },
       "InstalledKeyInfo": {
         "required": [
@@ -2421,6 +2691,49 @@
           }
         },
         "description": "What an administrator (or an import) sends to create or replace a location (E17.1): one bin."
+      },
+      "LocationImportRow": {
+        "required": [
+          "code",
+          "barcode",
+          "zoneCode",
+          "walkSequence",
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The natural key: the bin code, unique within the site."
+          },
+          "barcode": {
+            "type": "string",
+            "description": "The label on the bin, unique within the site."
+          },
+          "zoneCode": {
+            "type": "string",
+            "description": "The code of a zone of the site; it must already exist."
+          },
+          "walkSequence": {
+            "type": "string",
+            "description": "The sortable walk order; starts with the zone\u0027s walk-order prefix when it has one."
+          },
+          "action": {
+            "description": "\u0060Upsert\u0060 (the default) or \u0060Delete\u0060.",
+            "$ref": "#/components/schemas/ImportAction"
+          },
+          "isPickable": {
+            "type": "boolean",
+            "description": "False for a bin never picked from.",
+            "default": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False to retire the bin.",
+            "default": true
+          }
+        },
+        "description": "One location in a locations file (E16.6): the same object as LocationDraft except that the zone is named by its code (the natural key an ERP or a spreadsheet knows), plus the optional ImportAction LocationImportRow.Action."
       },
       "LocationInfo": {
         "required": [
@@ -3566,6 +3879,51 @@
           }
         },
         "description": "What an administrator sends to create or replace a zone (E16.2)."
+      },
+      "ZoneImportRow": {
+        "required": [
+          "code",
+          "name",
+          "type",
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The natural key: the zone\u0027s code, unique within the site."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "type": {
+            "description": "\u0060Pick\u0060 (the default) or \u0060Bulk\u0060.",
+            "$ref": "#/components/schemas/ZoneType"
+          },
+          "action": {
+            "description": "\u0060Upsert\u0060 (the default) or \u0060Delete\u0060.",
+            "$ref": "#/components/schemas/ImportAction"
+          },
+          "walkOrderPrefix": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The optional sortable prefix the zone\u0027s locations\u0027 walk sequences start with."
+          },
+          "isRejectLane": {
+            "type": "boolean",
+            "description": "True when a pick zone is also the conveyor\u0027s error/overflow lane.",
+            "default": false
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False to retire the zone.",
+            "default": true
+          }
+        },
+        "description": "One zone in a zones file (E16.6): the same object as ZoneDraft plus the optional ImportAction ZoneImportRow.Action. Resolution zones are not importable (E16.2): a row with \u0060type: Resolution\u0060 fails."
       },
       "ZoneInfo": {
         "required": [

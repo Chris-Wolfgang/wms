@@ -29,6 +29,7 @@ using Wolfgang.Wms.Core.Sites;
 using Wolfgang.Wms.Core.Zones;
 using Wolfgang.Wms.Core.Locations;
 using Wolfgang.Wms.Core.Imports;
+using Wolfgang.Wms.Core.Copies;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -147,6 +148,8 @@ public static class DatabaseServiceCollectionExtensions
         services.AddScoped<ILocations, Locations.EfLocations>();   // E17.1: the stored locations replace the placeholder
         services.RemoveAll<IImports>();
         services.AddScoped<IImports, Imports.EfImports>();   // E16.6: the stored importer replaces the placeholder
+        services.RemoveAll<ICopies>();
+        services.AddScoped<ICopies, Copies.EfCopies>();   // E16.5: the stored copier replaces the placeholder
     }
 
 

@@ -42,6 +42,7 @@
     private WorkspaceAccessResult? _result;
     private string? _unusedScan;
 
+    /// <inheritdoc/>
     protected override async Task OnInitializedAsync()
     {
         _result = await Access.CheckAsync(Workspace, CancellationToken.None);

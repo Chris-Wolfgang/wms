@@ -11,6 +11,7 @@
 @code {
     private IReadOnlyList<Workspace> _enterable = [];
 
+    /// <inheritdoc/>
     protected override async Task OnInitializedAsync()
     {
         _enterable = await Access.EnterableAsync(Workspaces.All, CancellationToken.None);

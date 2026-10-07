@@ -326,6 +326,36 @@ Row level: resolution zones are created and edited in the console or the API onl
 Imports write to the database and `Wms:Database:Provider` is `None` (or not set). Configure the database and
 restart the API.
 
+## Copies (`copies.*`)
+
+<a id="copies-not-found"></a>
+### `copies.not_found`
+The source (site, zone, location), the target site or a zone named in the request does not exist, or no
+location's code starts with the range's `codePrefixFrom`. The message says which. `GET /sites`,
+`GET /sites/{siteId}/zones` and `GET /sites/{siteId}/locations` list the ids and codes.
+
+<a id="copies-invalid"></a>
+### `copies.invalid`
+The request is not what it must be: `codePrefixFrom`/`codePrefixTo` (or `walkPrefixFrom`/`walkPrefixTo`) given
+only half, the new code or name failing the entity's rules, a copied location's walk sequence outside its
+zone's walk-order prefix, or a zone copied with its locations within the same site without a substitution.
+
+<a id="copies-code-taken"></a>
+### `copies.code_taken`
+The copy would need a code already in use: a site code, a zone code within the target site, a bin code within
+the site, or the substitution gives two copies the same code. Choose another code or prefix.
+
+<a id="copies-barcode-taken"></a>
+### `copies.barcode_taken`
+The copy would need a barcode already in use within the site, or the substitution gives two copies the same
+barcode. A barcode that does not start with `codePrefixFrom` is kept as it is, so within one site it clashes
+with its source: relabel it in the copy, or copy into another site.
+
+<a id="copies-unavailable"></a>
+### `copies.unavailable`
+Copies write to the database and `Wms:Database:Provider` is `None` (or not set). Configure the database and
+restart the API.
+
 ## Settings (`settings.*`)
 
 <a id="settings-unknown-key"></a>

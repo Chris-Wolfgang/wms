@@ -84,7 +84,8 @@ public sealed class ClientIsolationTests
     [Fact]
     public void Create_builds_a_client_over_the_HttpClient_base_address()
     {
-        using var http = new HttpClient { BaseAddress = new Uri("https://wms.example/") };
+        using var http = new HttpClient();
+        http.BaseAddress = new Uri("https://wms.example/");
 
         var client = WmsApiClient.Create(http);
 

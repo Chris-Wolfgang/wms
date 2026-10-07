@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @inject IWorkspaceAccess Access
+@inject ILocalLoginNotice Notice
 @inject IStringLocalizer<ConsoleText> L
 
 <PageTitle>@L[Workspace.TitleKey]</PageTitle>
@@ -8,6 +9,12 @@
     <span class="product">@L["product.name"]</span>
     <WorkspaceNav />
 </header>
+
+@if (_notice is not null)
+{
+    @* E9.3: a host-opened window keeps local sign-in open; every signed-in user sees it until it ends. *@
+    <div class="break-glass-banner" role="status">@L["layout.local_login_unlocked", _notice.UnlockedUntil.ToLocalTime()]</div>
+}
 
 <main class="workspace-body" data-workspace="@Workspace.Name">
     @if (_result is null)
@@ -40,12 +47,14 @@
 @code {
     private readonly ScanDispatcher _scans = new();
     private WorkspaceAccessResult? _result;
+    private LocalLoginNotice? _notice;
     private string? _unusedScan;
 
     /// <inheritdoc/>
     protected override async Task OnInitializedAsync()
     {
         _result = await Access.CheckAsync(Workspace, CancellationToken.None);
+        _notice = await Notice.GetAsync(CancellationToken.None);
     }
 
     // Every workspace takes tethered-scanner input here; the screen that registered with the cascading

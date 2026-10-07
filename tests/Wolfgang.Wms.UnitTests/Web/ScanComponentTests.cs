@@ -122,6 +122,7 @@ public sealed class ScanComponentTests : IDisposable
     public async Task WorkspaceLayout_sends_a_scan_to_the_screen_that_listens()
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.Allowed));
+        _context.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();   // E9.3: no window, no banner
         var layout = _context.Render<TestLayout>(p => p.Add(x => x.Body, Screen<ListeningScreen>()));
 
         await Scan(layout, "TOTE-0017");
@@ -136,6 +137,7 @@ public sealed class ScanComponentTests : IDisposable
     public async Task WorkspaceLayout_reports_a_scan_no_screen_takes_and_clears_it_once_one_is_taken()
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.Allowed));
+        _context.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();   // E9.3: no window, no banner
         var layout = _context.Render<TestLayout>(p => p.Add(x => x.Body, Screen<IdleScreen>()));
 
         await Scan(layout, "TOTE-0017");
@@ -150,6 +152,7 @@ public sealed class ScanComponentTests : IDisposable
     public void WorkspaceLayout_renders_no_scan_field_when_the_workspace_is_denied()
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.NotPermitted));
+        _context.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();   // E9.3: no window, no banner
 
         var layout = _context.Render<TestLayout>(p => p.Add(x => x.Body, Screen<ListeningScreen>()));
 
@@ -163,6 +166,7 @@ public sealed class ScanComponentTests : IDisposable
     public void WorkspaceLayout_names_the_missing_license_feature_and_renders_no_scan_field()
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.NotLicensed));
+        _context.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();   // E9.3: no window, no banner
 
         var layout = _context.Render<TestLayout>(p => p.Add(x => x.Body, Screen<ListeningScreen>()));
 

@@ -39,6 +39,7 @@ public sealed class SitesUnitTests
         { Valid with { Name = "" }, "name is required" },
         { Valid with { Name = new string('x', 129) }, "name must be at most 128" },
         { Valid with { TimeZone = " " }, "timeZone is required" },
+        { Valid with { TimeZone = null }, "timeZone is required" },
         { Valid with { TimeZone = "Mars/Olympus" }, "not a known time zone id" },
     };
 

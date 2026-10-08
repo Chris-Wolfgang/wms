@@ -135,9 +135,9 @@ public static class SettingCodecs
 
     private static bool TryParseEnum<T>(string text, [MaybeNullWhen(false)] out T value)
     {
-        if (IsName(text) && System.Enum.TryParse(typeof(T), text, ignoreCase: true, out var parsed) && System.Enum.IsDefined(typeof(T), parsed!))
+        if (IsName(text) && System.Enum.TryParse(typeof(T), text, ignoreCase: true, out var parsed) && System.Enum.IsDefined(typeof(T), parsed))
         {
-            value = (T)parsed!;
+            value = (T)parsed;
             return true;
         }
 

@@ -7,7 +7,7 @@ using Wolfgang.Wms.Infrastructure.Database;
 namespace Wolfgang.Wms.Infrastructure.Zones;
 
 /// <summary>
-/// <see cref="IZones"/> over <c>core.zone</c> (E16.2). Codes are unique within the site without regard to
+/// <see cref="IZones"/> over <c>layout.zone</c> (E16.2). Codes are unique within the site without regard to
 /// case; assigned resolvers must be existing users; deactivating a zone asks <see cref="IOpenZoneGroups"/>
 /// first; every write goes through the audited context (E6.4) and bumps the row version (E5.1).
 /// </summary>

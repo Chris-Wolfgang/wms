@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
 using Wolfgang.Wms.Core.Api;
 using Wolfgang.Wms.Core.Http;
@@ -45,13 +44,12 @@ public sealed class EfSettingsTests
 
 
 
-    [DockerFact]
+    [SqlServerFact]
     public async Task SqlServer_reads_writes_cascades_and_caches()
     {
-        await using var container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
-        await container.StartAsync();
+        await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await AssertSettingsAsync("SqlServer", container.GetConnectionString(), trustServerCertificate: true);
+        await AssertSettingsAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
     }
 
 

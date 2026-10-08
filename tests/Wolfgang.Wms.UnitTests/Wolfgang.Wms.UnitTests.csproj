@@ -5,6 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- Coverlet resolves the references of [GeneratedCode] members (e.g. [LoggerMessage] output) while it
+         instruments a module; without the compilation context it cannot find Microsoft.Extensions.Logging.Abstractions
+         on the Linux runner, skips Wolfgang.Wms.Infrastructure entirely, and the unit tests' coverage of it is lost
+         (CecilAssemblyResolutionException in the coverlet diagnostics). -->
+    <PreserveCompilationContext>true</PreserveCompilationContext>
   </PropertyGroup>
 
   <ItemGroup>

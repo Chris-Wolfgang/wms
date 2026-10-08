@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
@@ -124,7 +125,7 @@ public sealed class MigrationRunnerTests
         var help = await MigrateProgram.RunAsync(["--help"], output, error, Configuration("None", null), CancellationToken.None);
         var usage = await MigrateProgram.RunAsync(["--up"], output, error, Configuration("None", null), CancellationToken.None);
         var noProvider = await MigrateProgram.RunAsync([], output, error, Configuration("None", null), CancellationToken.None);
-        var badTarget = await MigrateProgram.RunAsync(["--script", "--to", "Nope"], output, error, Configuration("PostgreSql", "Host=x"), CancellationToken.None);
+        var badTarget = await MigrateProgram.RunAsync(["--script", "--to", "Nope"], output, error, Configuration("PostgreSql", TestConnectionStrings.PostgreSql("x")), CancellationToken.None);
 
         Assert.Equal(MigrateProgram.ExitOk, help);
         Assert.Equal(MigrateProgram.ExitUsage, usage);
@@ -145,8 +146,8 @@ public sealed class MigrationRunnerTests
         var file = Path.Combine(Path.GetTempPath(), "wms-migrate-" + Guid.NewGuid().ToString("N") + ".sql");
         try
         {
-            var toStdout = await MigrateProgram.RunAsync(["--script", "--provider", "SqlServer", "--connection-string", "Server=nowhere"], output, TextWriter.Null, Configuration("None", null), CancellationToken.None);
-            var toFile = await MigrateProgram.RunAsync(["--script", "--output", file], output, TextWriter.Null, Configuration("PostgreSql", "Host=nowhere"), CancellationToken.None);
+            var toStdout = await MigrateProgram.RunAsync(["--script", "--provider", "SqlServer", "--connection-string", TestConnectionStrings.SqlServer("nowhere")], output, TextWriter.Null, Configuration("None", null), CancellationToken.None);
+            var toFile = await MigrateProgram.RunAsync(["--script", "--output", file], output, TextWriter.Null, Configuration("PostgreSql", TestConnectionStrings.PostgreSql("nowhere")), CancellationToken.None);
 
             Assert.Equal(MigrateProgram.ExitOk, toStdout);
             Assert.Equal(MigrateProgram.ExitOk, toFile);
@@ -323,7 +324,7 @@ public sealed class MigrationRunnerTests
     {
         var error = new StringWriter();
 
-        var code = await MigrateProgram.RunAsync(["--status", "--trust-server-certificate"], TextWriter.Null, error, Configuration("SqlServer", "Server=x;this is not a keyword value pair"), CancellationToken.None);
+        var code = await MigrateProgram.RunAsync(["--status", "--trust-server-certificate"], TextWriter.Null, error, Configuration("SqlServer", "Server=x;Encrypt=True;this is not a keyword value pair"), CancellationToken.None);
 
         Assert.Equal(MigrateProgram.ExitUsage, code);
         Assert.StartsWith("Wms:Database:ConnectionString is not valid: ", error.ToString(), StringComparison.Ordinal);
@@ -399,14 +400,23 @@ public sealed class MigrationRunnerTests
 
 
 
-    private const string UnreachableSqlServer = "Server=127.0.0.1,1;Database=wms;User Id=x;Password=x;Encrypt=False;Connect Timeout=1;Connect Retry Count=0";
+    private static readonly string UnreachableSqlServer = new SqlConnectionStringBuilder
+    {
+        DataSource = "127.0.0.1,1",
+        InitialCatalog = "wms",
+        UserID = "x",
+        Password = "x",
+        Encrypt = SqlConnectionEncryptOption.Mandatory,
+        ConnectTimeout = 1,
+        ConnectRetryCount = 0,
+    }.ConnectionString;
 
 
 
     private static WmsDbContext Context(string provider)
     {
         var builder = new DbContextOptionsBuilder<WmsDbContext>();
-        DatabaseServiceCollectionExtensions.Configure(builder, new DatabaseOptions { Provider = provider, ConnectionString = "Server=nowhere;Host=nowhere" });
+        DatabaseServiceCollectionExtensions.Configure(builder, new DatabaseOptions { Provider = provider, ConnectionString = string.Equals(provider, "SqlServer", StringComparison.Ordinal) ? TestConnectionStrings.SqlServer("nowhere") : TestConnectionStrings.PostgreSql("nowhere") });
         return new WmsDbContext(builder.Options);
     }
 

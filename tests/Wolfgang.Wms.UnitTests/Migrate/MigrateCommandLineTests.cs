@@ -37,14 +37,16 @@ public sealed class MigrateCommandLineTests
     [Fact]
     public void Script_takes_from_to_and_output()
     {
-        var command = MigrateCommandLine.Parse(["--script", "--from", "0", "--to", "Initial", "--output", "up.sql", "--connection-string", "Server=x"]);
+        var connectionString = TestConnectionStrings.SqlServer("x");
+
+        var command = MigrateCommandLine.Parse(["--script", "--from", "0", "--to", "Initial", "--output", "up.sql", "--connection-string", connectionString]);
 
         Assert.Null(command.Error);
         Assert.True(command.Script);
         Assert.Equal("0", command.From);
         Assert.Equal("Initial", command.To);
         Assert.Equal("up.sql", command.Output);
-        Assert.Equal("Server=x", command.ConnectionString);
+        Assert.Equal(connectionString, command.ConnectionString);
     }
 
 
@@ -79,21 +81,23 @@ public sealed class MigrateCommandLineTests
     [Fact]
     public void Flags_override_the_configured_database_section()
     {
+        var configuredString = TestConnectionStrings.SqlServer("configured");
+        var flagString = TestConnectionStrings.PostgreSql("flag");
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["Wms:Database:Provider"] = "SqlServer",
-                ["Wms:Database:ConnectionString"] = "Server=configured",
+                ["Wms:Database:ConnectionString"] = configuredString,
             })
             .Build();
 
         var configured = MigrateProgram.Options(MigrateCommandLine.Parse([]), configuration);
-        var overridden = MigrateProgram.Options(MigrateCommandLine.Parse(["--provider", "PostgreSql", "--connection-string", "Host=flag", "--trust-server-certificate"]), configuration);
+        var overridden = MigrateProgram.Options(MigrateCommandLine.Parse(["--provider", "PostgreSql", "--connection-string", flagString, "--trust-server-certificate"]), configuration);
 
         Assert.Equal("SqlServer", configured.Provider);
-        Assert.Equal("Server=configured", configured.ConnectionString);
+        Assert.Equal(configuredString, configured.ConnectionString);
         Assert.Equal("PostgreSql", overridden.Provider);
-        Assert.Equal("Host=flag", overridden.ConnectionString);
+        Assert.Equal(flagString, overridden.ConnectionString);
         Assert.True(overridden.TrustServerCertificate);
         Assert.Throws<ArgumentNullException>(() => MigrateProgram.Options(null!, configuration));
         Assert.Throws<ArgumentNullException>(() => MigrateProgram.Options(MigrateCommandLine.Parse([]), null!));

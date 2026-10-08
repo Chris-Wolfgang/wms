@@ -262,7 +262,7 @@ public sealed class MigrationRunner
 
 
 
-    private async Task<MigrationResult> RunAsync(IMigrator migrator, MigrationDirection direction, string? from, string? to, IReadOnlyList<string> steps, IReadOnlyList<string> targets, IReadOnlyList<string> destructive, CancellationToken cancellationToken)
+    private static async Task<MigrationResult> RunAsync(IMigrator migrator, MigrationDirection direction, string? from, string? to, IReadOnlyList<string> steps, IReadOnlyList<string> targets, IReadOnlyList<string> destructive, CancellationToken cancellationToken)
     {
         var done = new List<string>();
         for (var i = 0; i < steps.Count; i++)

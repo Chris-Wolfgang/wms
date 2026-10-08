@@ -222,7 +222,12 @@ The installer picks SQL Server or PostgreSQL at run time: `Wms:Database:Provider
 Server `Wms:Database:TrustServerCertificate` (see [docs/CONFIGURATION.md](CONFIGURATION.md)). An unknown
 provider or a missing connection string fails startup with a message naming the setting. `WmsDbContext`
 (`Wolfgang.Wms.Infrastructure.Database`) is the only place a provider is chosen; no provider-specific SQL in
-the shared model (E2.3), migrations per provider (E2.4).
+the shared model (E2.3). Migrations are per provider (E2.4): `Wolfgang.Wms.Infrastructure.Migrations.SqlServer`
+and `.PostgreSql`, generated together by `scripts/Check-Migrations.ps1 -Add <Name>` and never hand-edited except
+for index comments (E3.5); `scripts/Check-Migrations.ps1` (also a CI step) fails when the model changed without
+both migrations. The API references both migration assemblies; EF reads migrations only from the
+`MigrationsAssembly` that `DatabaseServiceCollectionExtensions.Configure` names for the configured provider,
+so a SqlServer install never runs the PostgreSql migrations and vice versa.
 
 ## Records and classes (E1.7)
 

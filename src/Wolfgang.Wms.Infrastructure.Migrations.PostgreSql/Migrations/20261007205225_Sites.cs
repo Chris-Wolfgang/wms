@@ -16,9 +16,12 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.EnsureSchema(
+                name: "layout");
+
             migrationBuilder.CreateTable(
                 name: "site",
-                schema: "core",
+                schema: "layout",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
@@ -39,29 +42,29 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "ix_site_row_version",
-                schema: "core",
+                schema: "layout",
                 table: "site",
                 column: "row_version");
 
             migrationBuilder.CreateIndex(
                 name: "ux_site_code_normalized",
-                schema: "core",
+                schema: "layout",
                 table: "site",
                 column: "code_normalized",
                 unique: true);
 
             // E5.1: the update trigger that reassigns row_version on every write outside EF and inside it.
-            RowVersioning.AddUpdateTrigger(migrationBuilder, "core", "site");
+            RowVersioning.AddUpdateTrigger(migrationBuilder, "layout", "site");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            RowVersioning.DropUpdateTrigger(migrationBuilder, "core", "site");
+            RowVersioning.DropUpdateTrigger(migrationBuilder, "layout", "site");
 
             migrationBuilder.DropTable(
                 name: "site",
-                schema: "core");
+                schema: "layout");
         }
     }
 }

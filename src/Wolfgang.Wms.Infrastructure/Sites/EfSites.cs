@@ -7,7 +7,7 @@ using Wolfgang.Wms.Infrastructure.Database;
 namespace Wolfgang.Wms.Infrastructure.Sites;
 
 /// <summary>
-/// <see cref="ISites"/> over <c>core.site</c> (E16.1). Codes are unique without regard to case; deactivating a
+/// <see cref="ISites"/> over <c>layout.site</c> (E16.1). Codes are unique without regard to case; deactivating a
 /// site asks <see cref="IOpenReleases"/> first; every write goes through the audited context (E6.4) and bumps
 /// the row version (E5.1).
 /// </summary>

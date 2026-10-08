@@ -1,7 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Microsoft.EntityFrameworkCore;
-using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Database.Settings;
@@ -17,13 +16,12 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 /// </summary>
 public sealed class SettingStorageTests
 {
-    [DockerFact]
+    [SqlServerFact]
     public async Task SqlServer_stores_settings_per_scope_and_key()
     {
-        await using var container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
-        await container.StartAsync();
+        await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await AssertStorageAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = container.GetConnectionString(), TrustServerCertificate = true });
+        await AssertStorageAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = database.ConnectionString, TrustServerCertificate = true });
     }
 
 

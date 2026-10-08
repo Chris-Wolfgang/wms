@@ -113,8 +113,9 @@ public static class DatabaseServiceCollectionExtensions
 
         return options.ParsedProvider switch
         {
-            // Retry on transient failures (E6.4: the audited context owns the strategy wrap, so this is safe);
-            // PostgreSQL batches are capped at 100 rows, where AuditTrail's own benchmarks stop paying off.
+            // Both providers retry transient failures, which is safe because the audited context (E6.4) owns the
+            // execution-strategy wrap. PostgreSQL batches are capped at 100 rows, where AuditTrail's own benchmarks
+            // stop paying off.
             DatabaseProvider.SqlServer => builder.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema).EnableRetryOnFailure()),
             DatabaseProvider.PostgreSql => builder.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema).EnableRetryOnFailure().MaxBatchSize(WmsAuditing.PostgreSqlMaxBatchSize)),
             _ => throw new InvalidOperationException($"{DatabaseOptions.SectionName}:Provider '{options.Provider}' cannot host a database context."),

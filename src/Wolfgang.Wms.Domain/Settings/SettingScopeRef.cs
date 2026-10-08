@@ -1,5 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Runtime.InteropServices;
+
 namespace Wolfgang.Wms.Domain.Settings;
 
 /// <summary>
@@ -8,6 +10,7 @@ namespace Wolfgang.Wms.Domain.Settings;
 /// </summary>
 /// <param name="Type">The scope type.</param>
 /// <param name="Id">The site, zone or SKU id; 0 for the organisation.</param>
+[StructLayout(LayoutKind.Auto)]
 public readonly record struct SettingScopeRef(SettingScope Type, long Id)
 {
     /// <summary>

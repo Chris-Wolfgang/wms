@@ -19,7 +19,7 @@ public sealed class SqlServerDesignTimeContextFactory : IDesignTimeDbContextFact
         var options = new DatabaseOptions
         {
             Provider = nameof(DatabaseProvider.SqlServer),
-            ConnectionString = "Server=localhost;Database=wms-design;Encrypt=False",
+            ConnectionString = "Server=localhost;Database=wms-design;Encrypt=True",   // never opened at design time
         };
         var builder = new DbContextOptionsBuilder<WmsDbContext>();
         DatabaseServiceCollectionExtensions.Configure(builder, options);

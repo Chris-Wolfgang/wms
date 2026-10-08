@@ -1,8 +1,10 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql;
 using Wolfgang.Wms.Infrastructure.Database;
 
 namespace Wolfgang.Wms.UnitTests.Database;
@@ -32,7 +34,7 @@ public sealed class MigrationAssembliesTests
     public void Each_provider_reads_migrations_from_its_own_assembly(string provider, string assembly)
     {
         var builder = new DbContextOptionsBuilder<WmsDbContext>();
-        DatabaseServiceCollectionExtensions.Configure(builder, new DatabaseOptions { Provider = provider, ConnectionString = "Server=x;Host=x" });
+        DatabaseServiceCollectionExtensions.Configure(builder, new DatabaseOptions { Provider = provider, ConnectionString = ConnectionStringFor(provider) });
         using var context = new WmsDbContext(builder.Options);
 
         var migrations = context.Database.GetMigrations().ToList();
@@ -49,6 +51,16 @@ public sealed class MigrationAssembliesTests
     private static string NameOf(string migrationId)
     {
         return migrationId[(migrationId.IndexOf('_', StringComparison.Ordinal) + 1)..];
+    }
+
+
+
+    private static string ConnectionStringFor(string provider)
+    {
+        // Built with each provider's builder, not written as a literal; never opened.
+        return string.Equals(provider, "SqlServer", StringComparison.Ordinal)
+            ? new SqlConnectionStringBuilder { DataSource = "x", Encrypt = SqlConnectionEncryptOption.Mandatory }.ConnectionString
+            : new NpgsqlConnectionStringBuilder { Host = "x" }.ConnectionString;
     }
 
 

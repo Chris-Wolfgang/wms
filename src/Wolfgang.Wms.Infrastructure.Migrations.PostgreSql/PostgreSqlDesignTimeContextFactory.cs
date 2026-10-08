@@ -2,6 +2,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Npgsql;
 using Wolfgang.Wms.Infrastructure.Database;
 
 namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql;
@@ -19,7 +20,7 @@ public sealed class PostgreSqlDesignTimeContextFactory : IDesignTimeDbContextFac
         var options = new DatabaseOptions
         {
             Provider = nameof(DatabaseProvider.PostgreSql),
-            ConnectionString = "Host=localhost;Database=wms-design",
+            ConnectionString = new NpgsqlConnectionStringBuilder { Host = "localhost", Database = "wms-design" }.ConnectionString,
         };
         var builder = new DbContextOptionsBuilder<WmsDbContext>();
         DatabaseServiceCollectionExtensions.Configure(builder, options);

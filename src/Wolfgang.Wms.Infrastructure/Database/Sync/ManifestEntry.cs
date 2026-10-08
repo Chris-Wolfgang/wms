@@ -1,5 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Runtime.InteropServices;
+
 namespace Wolfgang.Wms.Infrastructure.Database.Sync;
 
 /// <summary>
@@ -9,4 +11,5 @@ namespace Wolfgang.Wms.Infrastructure.Database.Sync;
 /// </summary>
 /// <param name="Id">The server-assigned identifier.</param>
 /// <param name="RowVersion">The row's current version.</param>
+[StructLayout(LayoutKind.Auto)]
 public readonly record struct ManifestEntry(long Id, long RowVersion);

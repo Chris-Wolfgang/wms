@@ -8,7 +8,7 @@ using Wolfgang.Wms.Infrastructure.Database;
 namespace Wolfgang.Wms.Infrastructure.Locations;
 
 /// <summary>
-/// <see cref="ILocations"/> over <c>core.location</c> (E17.1). The list is a keyset page over one index per sort
+/// <see cref="ILocations"/> over <c>layout.location</c> (E17.1). The list is a keyset page over one index per sort
 /// (walk sequence, normalized code, barcode or id, each with the id as tiebreaker); codes and barcodes are
 /// unique within the site; the zone must belong to the site and the walk sequence must start with the zone's
 /// walk-order prefix; every write goes through the audited context (E6.4) and bumps the row version (E5.1).

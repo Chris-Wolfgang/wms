@@ -126,7 +126,7 @@ public sealed class LocationsUnitTests
         var entity = context.Model.FindEntityType(typeof(Location))!;
         var indexes = entity.GetIndexes().Select(i => (i.GetDatabaseName(), i.IsUnique)).ToList();
 
-        Assert.Equal(("location", "core"), (entity.GetTableName(), entity.GetSchema()));
+        Assert.Equal(("location", "layout"), (entity.GetTableName(), entity.GetSchema()));
         Assert.Equal(LocationRules.BarcodeLength, entity.FindProperty(nameof(Location.Barcode))!.GetMaxLength());
         Assert.Contains(("ux_location_site_id_code_normalized", true), indexes);
         Assert.Contains(("ux_location_site_id_barcode", true), indexes);

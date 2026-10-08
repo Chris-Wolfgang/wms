@@ -17,7 +17,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
         {
             migrationBuilder.CreateTable(
                 name: "location",
-                schema: "core",
+                schema: "layout",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
@@ -40,14 +40,14 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                     table.ForeignKey(
                         name: "fk_location_site_id",
                         column: x => x.site_id,
-                        principalSchema: "core",
+                        principalSchema: "layout",
                         principalTable: "site",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "fk_location_zone_id",
                         column: x => x.zone_id,
-                        principalSchema: "core",
+                        principalSchema: "layout",
                         principalTable: "zone",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
@@ -55,48 +55,48 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "ix_location_row_version",
-                schema: "core",
+                schema: "layout",
                 table: "location",
                 column: "row_version");
 
             migrationBuilder.CreateIndex(
                 name: "ix_location_site_id_walk_sequence_id",
-                schema: "core",
+                schema: "layout",
                 table: "location",
                 columns: new[] { "site_id", "walk_sequence", "id" });
 
             migrationBuilder.CreateIndex(
                 name: "ix_location_zone_id_walk_sequence_id",
-                schema: "core",
+                schema: "layout",
                 table: "location",
                 columns: new[] { "zone_id", "walk_sequence", "id" });
 
             migrationBuilder.CreateIndex(
                 name: "ux_location_site_id_barcode",
-                schema: "core",
+                schema: "layout",
                 table: "location",
                 columns: new[] { "site_id", "barcode" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "ux_location_site_id_code_normalized",
-                schema: "core",
+                schema: "layout",
                 table: "location",
                 columns: new[] { "site_id", "code_normalized" },
                 unique: true);
 
             // E5.1: the update trigger that reassigns row_version on every write outside EF and inside it.
-            RowVersioning.AddUpdateTrigger(migrationBuilder, "core", "location");
+            RowVersioning.AddUpdateTrigger(migrationBuilder, "layout", "location");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            RowVersioning.DropUpdateTrigger(migrationBuilder, "core", "location");
+            RowVersioning.DropUpdateTrigger(migrationBuilder, "layout", "location");
 
             migrationBuilder.DropTable(
                 name: "location",
-                schema: "core");
+                schema: "layout");
         }
     }
 }

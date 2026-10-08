@@ -9,14 +9,14 @@ using Wolfgang.Wms.Infrastructure.Zones;
 namespace Wolfgang.Wms.Infrastructure.Locations;
 
 /// <summary>
-/// Maps <see cref="Location"/> to <c>core.location</c> (E17.1): the normalized code and the barcode are each
+/// Maps <see cref="Location"/> to <c>layout.location</c> (E17.1): the normalized code and the barcode are each
 /// unique within the site, the lengths come from <see cref="LocationRules"/>, and every sortable field has an
 /// index ending with the id so a keyset page reads one index.
 /// </summary>
 public sealed class LocationConfiguration : IEntityTypeConfiguration<Location>
 {
     /// <summary>The module schema.</summary>
-    public const string Schema = "core";
+    public const string Schema = "layout";
 
     /// <summary>The table name.</summary>
     public const string Table = "location";

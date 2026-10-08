@@ -1,6 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using System.Globalization;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 using Wolfgang.Wms.Infrastructure.Database.Conventions;
@@ -70,10 +71,14 @@ public sealed class SchemaCatalogTests
     public async Task SqlServer_catalog_matches_the_conventions()
     {
         await using var database = await SqlServerTestDatabase.StartAsync();
-        // The test database is the model's own (created per test and dropped after it), so no fixed catalog name:
-        // a fixed name outlives the test on a local instance and the next run finds it already populated.
+        // A container's connection string points at master, so the model gets a database of its own there; a local
+        // instance already gave the test a database of its own (created per test, dropped after it), and a fixed
+        // name would outlive the test and be found populated on the next run.
+        var connectionString = database.IsContainer
+            ? new SqlConnectionStringBuilder(database.ConnectionString) { InitialCatalog = "wms_catalog" }.ConnectionString
+            : database.ConnectionString;
         var options = new DbContextOptionsBuilder<CatalogDbContext>()
-            .UseSqlServer(database.ConnectionString)
+            .UseSqlServer(connectionString)
             .Options;
 
         await AssertCatalogAsync

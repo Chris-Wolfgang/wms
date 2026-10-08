@@ -3,7 +3,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
 using Wolfgang.AuditTrail;
 using Wolfgang.AuditTrail.Entities;
@@ -28,13 +27,12 @@ public sealed class SettingsAuditTests
 
 
 
-    [DockerFact]
+    [SqlServerFact]
     public async Task SqlServer_setting_changes_are_audited()
     {
-        await using var container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
-        await container.StartAsync();
+        await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await AssertAuditedAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = container.GetConnectionString(), TrustServerCertificate = true });
+        await AssertAuditedAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = database.ConnectionString, TrustServerCertificate = true });
     }
 
 

@@ -3,7 +3,6 @@
 using System.Globalization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
 using Wolfgang.Wms.Infrastructure.Database.Conventions;
 using Wolfgang.Wms.IntegrationTests.Database.TestModels;
@@ -68,14 +67,12 @@ public sealed class SchemaCatalogTests
 
 
 
-    [DockerFact]
+    [SqlServerFact]
     public async Task SqlServer_catalog_matches_the_conventions()
     {
-        await using var container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
-            .Build();
-        await container.StartAsync();
+        await using var database = await SqlServerTestDatabase.StartAsync();
         // The container's connection string points at master; the model gets a database of its own.
-        var connectionString = new SqlConnectionStringBuilder(container.GetConnectionString())
+        var connectionString = new SqlConnectionStringBuilder(database.ConnectionString)
         {
             InitialCatalog = "wms_catalog",
         };

@@ -1,7 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Microsoft.EntityFrameworkCore;
-using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Database.Conventions;
@@ -16,13 +15,12 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 /// </summary>
 public sealed class RowVersionTriggerTests
 {
-    [DockerFact]
+    [SqlServerFact]
     public async Task SqlServer_sequence_default_and_update_trigger_assign_monotonic_row_versions()
     {
-        await using var container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
-        await container.StartAsync();
+        await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await AssertRowVersioningAsync("SqlServer", container.GetConnectionString(), trustServerCertificate: true,
+        await AssertRowVersioningAsync("SqlServer", database.ConnectionString, trustServerCertificate: true,
             createTable: "CREATE TABLE [picking].[thing] ([id] bigint IDENTITY(1,1) PRIMARY KEY, [name] nvarchar(50) NOT NULL, [row_version] bigint NOT NULL DEFAULT (NEXT VALUE FOR [wms].[row_version_seq]));",
             insert: "INSERT INTO [picking].[thing] ([name]) VALUES ('a'), ('b');",
             updateWithSuppliedVersion: "UPDATE [picking].[thing] SET [name] = 'a2', [row_version] = 1 WHERE [name] = 'a';",

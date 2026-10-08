@@ -18,7 +18,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
         {
             migrationBuilder.CreateTable(
                 name: "zone",
-                schema: "core",
+                schema: "layout",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
@@ -48,7 +48,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                     table.ForeignKey(
                         name: "fk_zone_site_id",
                         column: x => x.site_id,
-                        principalSchema: "core",
+                        principalSchema: "layout",
                         principalTable: "site",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
@@ -56,7 +56,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
 
             migrationBuilder.CreateTable(
                 name: "zone_resolver",
-                schema: "core",
+                schema: "layout",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
@@ -77,7 +77,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                     table.ForeignKey(
                         name: "fk_zone_resolver_zone_id",
                         column: x => x.zone_id,
-                        principalSchema: "core",
+                        principalSchema: "layout",
                         principalTable: "zone",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
@@ -85,46 +85,46 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "ix_zone_row_version",
-                schema: "core",
+                schema: "layout",
                 table: "zone",
                 column: "row_version");
 
             migrationBuilder.CreateIndex(
                 name: "ux_zone_site_id_code_normalized",
-                schema: "core",
+                schema: "layout",
                 table: "zone",
                 columns: new[] { "site_id", "code_normalized" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_zone_resolver_user_id",
-                schema: "core",
+                schema: "layout",
                 table: "zone_resolver",
                 column: "user_id");
 
             migrationBuilder.CreateIndex(
                 name: "ux_zone_resolver_zone_id_user_id",
-                schema: "core",
+                schema: "layout",
                 table: "zone_resolver",
                 columns: new[] { "zone_id", "user_id" },
                 unique: true);
 
             // E5.1: the update trigger that reassigns row_version on every write outside EF and inside it.
-            RowVersioning.AddUpdateTrigger(migrationBuilder, "core", "zone");
+            RowVersioning.AddUpdateTrigger(migrationBuilder, "layout", "zone");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            RowVersioning.DropUpdateTrigger(migrationBuilder, "core", "zone");
+            RowVersioning.DropUpdateTrigger(migrationBuilder, "layout", "zone");
 
             migrationBuilder.DropTable(
                 name: "zone_resolver",
-                schema: "core");
+                schema: "layout");
 
             migrationBuilder.DropTable(
                 name: "zone",
-                schema: "core");
+                schema: "layout");
         }
     }
 }

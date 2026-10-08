@@ -9,14 +9,14 @@ using Wolfgang.Wms.Infrastructure.Sites;
 namespace Wolfgang.Wms.Infrastructure.Zones;
 
 /// <summary>
-/// Maps <see cref="Zone"/> and <see cref="ZoneResolver"/> to <c>core.zone</c> and <c>core.zone_resolver</c>
+/// Maps <see cref="Zone"/> and <see cref="ZoneResolver"/> to <c>layout.zone</c> and <c>layout.zone_resolver</c>
 /// (E16.2): the normalized code is unique within the site, the type is stored as its lower-case name, the
 /// lengths come from <see cref="ZoneRules"/>, and a resolver row names a zone and a user once.
 /// </summary>
 public sealed class ZoneConfiguration : IEntityTypeConfiguration<Zone>, IEntityTypeConfiguration<ZoneResolver>
 {
     /// <summary>The module schema.</summary>
-    public const string Schema = "core";
+    public const string Schema = "layout";
 
     /// <summary>The zone table name.</summary>
     public const string Table = "zone";

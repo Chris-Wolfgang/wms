@@ -3,7 +3,7 @@
 namespace Wolfgang.Wms.Infrastructure.Zones;
 
 /// <summary>
-/// A row of <c>core.zone_resolver</c> (E16.2): one user assigned to resolve in a resolution zone.
+/// A row of <c>layout.zone_resolver</c> (E16.2): one user assigned to resolve in a resolution zone.
 /// </summary>
 public sealed class ZoneResolver
 {

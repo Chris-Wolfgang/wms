@@ -1761,7 +1761,11 @@ jobs:
               $testAssemblies += $(if ($m.Success) { $m.Groups[1].Value.Trim() } else { $_.BaseName })
             }
           }
-          Write-Host "Test assemblies (gated at ${testThreshold}%): $($testAssemblies -join ', ')"
+          # Test assemblies are gated in Stage 1 (Linux) only. This job has no engine for Linux containers, so
+          # Docker-only tests skip here (each naming its tracking issue) and leave their bodies uncovered; the
+          # Linux job runs them and holds every test assembly to ${testThreshold}%. Here they are reported, and
+          # src assemblies (and explicit floors) are still gated.
+          Write-Host "Test assemblies (reported here, gated at ${testThreshold}% in Stage 1): $($testAssemblies -join ', ')"
           Write-Host ""
 
           foreach ($line in (Get-Content "CoverageReport/Summary.txt")) {
@@ -1811,7 +1815,9 @@ jobs:
 
               Write-Host "Checking $kind module: '$module' - Coverage: ${percent}%"
 
-              if ($percent -lt $applies) {
+              if ($kind -eq "test") {
+                Write-Host "  ℹ️  Reported only: test assemblies are gated in Stage 1 (Linux)"
+              } elseif ($percent -lt $applies) {
                 Write-Host "  ❌ FAIL: Below ${applies}% threshold" -ForegroundColor Red
                 $failedProjects += "$module (${percent}%, needs ${applies}%)"
               } else {
@@ -1835,7 +1841,7 @@ jobs:
             Write-Host "==========================================" -ForegroundColor Red
             Write-Host "Modules below their threshold: $($failedProjects -join ', ')" -ForegroundColor Red
             Write-Host ""
-            Write-Host "src assemblies must reach ${threshold}%; test assemblies must reach ${testThreshold}%." -ForegroundColor Red
+            Write-Host "src assemblies must reach ${threshold}% (test assemblies are gated in Stage 1)." -ForegroundColor Red
             Write-Host ""
             Write-Host "Stage 2 failed."
             exit 1
@@ -1845,7 +1851,7 @@ jobs:
           Write-Host "==========================================" -ForegroundColor Green
           Write-Host "✅ COVERAGE GATE PASSED" -ForegroundColor Green
           Write-Host "==========================================" -ForegroundColor Green
-          Write-Host "src assemblies meet ${threshold}%; test assemblies meet ${testThreshold}%."
+          Write-Host "src assemblies meet ${threshold}% (test assemblies are gated in Stage 1)."
           Write-Host "Stage 2 was the last stage (Windows + Linux matrix only, E1.5). PR is ready to merge."
 
       - name: Upload Windows coverage results

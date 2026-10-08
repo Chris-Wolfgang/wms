@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Database.Conventions;
@@ -27,13 +26,12 @@ public sealed class SyncTests
 
 
 
-    [DockerFact]
+    [SqlServerFact]
     public async Task SqlServer_deltas_and_manifest()
     {
-        await using var container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
-        await container.StartAsync();
+        await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await AssertSyncAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = container.GetConnectionString(), TrustServerCertificate = true });
+        await AssertSyncAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = database.ConnectionString, TrustServerCertificate = true });
     }
 
 

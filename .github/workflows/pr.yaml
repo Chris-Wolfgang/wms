@@ -1563,8 +1563,24 @@ jobs:
       - name: Build solution
         run: dotnet build --no-restore --configuration Release
 
+      - name: Start SQL Server Express LocalDB (E13.1)
+        # The Windows job has no Docker; the SQL Server integration tests run against Express LocalDB instead
+        # (SqlServerTestDatabase creates a database per test on the instance WMS_TEST_SQLSERVER names).
+        shell: pwsh
+        run: |
+          if (-not (Get-Command sqllocaldb -ErrorAction SilentlyContinue)) {
+            choco install sqllocaldb -y --no-progress
+            $env:PATH = "$env:PATH;C:\Program Files\Microsoft SQL Server\150\Tools\Binn;C:\Program Files\Microsoft SQL Server\160\Tools\Binn"
+          }
+          sqllocaldb start MSSQLLocalDB
+          sqllocaldb info MSSQLLocalDB
+
       - name: Run all .NET tests (.NET 5.0-10.0 and Framework 4.6.2-4.8.1)
         shell: pwsh
+        env:
+          # E13.1: the SQL Server integration tests use the LocalDB instance started above. A fixed value
+          # here rather than a $GITHUB_ENV write from the previous step (zizmor github-env).
+          WMS_TEST_SQLSERVER: 'Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true'
         run: |
           $ErrorActionPreference = 'Stop'
 

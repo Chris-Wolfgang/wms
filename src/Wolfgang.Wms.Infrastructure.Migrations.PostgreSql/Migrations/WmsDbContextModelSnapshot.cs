@@ -803,7 +803,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                     b.HasIndex("ZoneId", "WalkSequence", "Id")
                         .HasDatabaseName("ix_location_zone_id_walk_sequence_id");
 
-                    b.ToTable("location", "core", t =>
+                    b.ToTable("location", "layout", t =>
                         {
                             t.HasTrigger("trg_location_row_version");
                         });

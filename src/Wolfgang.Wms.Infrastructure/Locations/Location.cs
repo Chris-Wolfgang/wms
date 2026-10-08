@@ -6,7 +6,7 @@ using Wolfgang.Wms.Infrastructure.Database;
 namespace Wolfgang.Wms.Infrastructure.Locations;
 
 /// <summary>
-/// A row of <c>core.location</c> (E17.1): one bin in a zone of a site. Audited (E6.4) and versioned (E5.1).
+/// A row of <c>layout.location</c> (E17.1): one bin in a zone of a site. Audited (E6.4) and versioned (E5.1).
 /// The code is kept as entered and compared through <see cref="CodeNormalized"/> within the site; the barcode
 /// is compared as entered.
 /// </summary>

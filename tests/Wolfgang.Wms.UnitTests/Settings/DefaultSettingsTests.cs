@@ -136,4 +136,11 @@ public sealed class DefaultSettingsTests
         var failure = await Assert.ThrowsAsync<SettingException>(action);
         Assert.Equal(expected, failure.Code);
     }
+
+
+
+    private static Task AssertCodeAsync<T>(ErrorCode expected, Func<Task<T>> action)
+    {
+        return AssertCodeAsync(expected, async () => { await action(); });
+    }
 }

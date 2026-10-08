@@ -82,10 +82,7 @@ public sealed class MaxRowVersionSource : IRowVersionSource
     /// <summary>
     /// One row of <see cref="Sql"/>: the projection EF materialises from the raw query.
     /// </summary>
-    private sealed class StampRow
-    {
-        public long MaxVersion { get; init; }
-
-        public long RowCount { get; init; }
-    }
+    /// <param name="MaxVersion">The highest row version in the table.</param>
+    /// <param name="RowCount">The number of rows.</param>
+    private sealed record StampRow(long MaxVersion, long RowCount);
 }

@@ -6,7 +6,7 @@ using Wolfgang.Wms.Infrastructure.Database;
 namespace Wolfgang.Wms.Infrastructure.Sites;
 
 /// <summary>
-/// A row of <c>core.site</c> (E16.1): one warehouse. Audited (E6.4) and versioned (E5.1). The code is kept as
+/// A row of <c>layout.site</c> (E16.1): one warehouse. Audited (E6.4) and versioned (E5.1). The code is kept as
 /// entered and compared through <see cref="CodeNormalized"/>, the way role names are (E10.2), so the unique index
 /// behaves the same on both providers.
 /// </summary>

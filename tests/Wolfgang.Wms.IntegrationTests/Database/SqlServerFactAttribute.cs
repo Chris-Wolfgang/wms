@@ -18,9 +18,15 @@ public sealed class SqlServerFactAttribute : FactAttribute
     /// </summary>
     public SqlServerFactAttribute()
     {
-        if (!DockerFactAttribute.IsCi && !DockerFactAttribute.DockerIsReachable && !SqlServerTestDatabase.InstanceIsConfigured)
+        if (DockerFactAttribute.DockerIsReachable || SqlServerTestDatabase.InstanceIsConfigured)
         {
-            Skip = "Neither Docker nor WMS_TEST_SQLSERVER is available on this machine; CI runs this test (Chris-Wolfgang/wms#220).";
+            return;
         }
+
+        // A runner with neither (the Windows job before its LocalDB step exists) skips with the tracking issue, like
+        // DockerFactAttribute, instead of failing inside a container start; the coverage gate still reports the gap.
+        Skip = DockerFactAttribute.IsCi
+            ? "Neither a Linux Docker engine nor WMS_TEST_SQLSERVER is available on this runner; the Linux job runs this test — " + DockerFactAttribute.TrackingIssue
+            : "Neither Docker nor WMS_TEST_SQLSERVER is available on this machine; CI runs this test — " + DockerFactAttribute.TrackingIssue;
     }
 }

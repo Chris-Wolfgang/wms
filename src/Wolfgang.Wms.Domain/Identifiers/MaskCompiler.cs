@@ -28,13 +28,14 @@ public static class MaskCompiler
         var pattern = new StringBuilder(@"\A");
         string? run = null;
         var runLength = 0;
-        for (var i = 0; i < mask.Length; i++)
+        var i = 0;
+        while (i < mask.Length)
         {
-            var c = mask[i];
+            var c = mask[i++];
             if (c == '(')
             {
-                var close = mask.IndexOf(')', i + 1);
-                if (close < 0 || run is null || !int.TryParse(mask.AsSpan(i + 1, close - i - 1), NumberStyles.None, CultureInfo.InvariantCulture, out var count) || count < 1)
+                var close = mask.IndexOf(')', i);
+                if (close < 0 || run is null || !int.TryParse(mask.AsSpan(i, close - i), NumberStyles.None, CultureInfo.InvariantCulture, out var count) || count < 1)
                 {
                     throw new ArgumentException($"Mask '{mask}': '(n)' must follow a token and n must be a positive number.", nameof(mask));
                 }
@@ -43,7 +44,7 @@ public static class MaskCompiler
                 Flush(pattern, run, count);
                 run = null;
                 runLength = 0;
-                i = close;
+                i = close + 1;
                 continue;
             }
 

@@ -54,7 +54,7 @@ public sealed class IdentifierFormat
     /// <summary>
     /// True when the engine could use <see cref="RegexOptions.NonBacktracking"/> (linear time guaranteed).
     /// </summary>
-    public bool IsNonBacktracking => (_regex.Options & RegexOptions.NonBacktracking) != 0;
+    public bool IsNonBacktracking => (_regex.Options & RegexOptions.NonBacktracking) == RegexOptions.NonBacktracking;
 
 
 

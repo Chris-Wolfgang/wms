@@ -52,7 +52,7 @@ public sealed record ValidationProfile(string Field, int SystemMaxLength)
         get => _minLength;
         init => _minLength = value >= 0
             ? value
-            : throw new ArgumentOutOfRangeException(nameof(MinLength), value, "The minimum length cannot be negative.");
+            : throw new ArgumentOutOfRangeException(nameof(value), value, "The minimum length cannot be negative.");
     }
 
 
@@ -66,7 +66,7 @@ public sealed record ValidationProfile(string Field, int SystemMaxLength)
         get => _maxLength;
         init => _maxLength = value is null or > 0
             ? value
-            : throw new ArgumentOutOfRangeException(nameof(MaxLength), value, "The maximum length must be positive.");
+            : throw new ArgumentOutOfRangeException(nameof(value), value, "The maximum length must be positive.");
     }
 
 

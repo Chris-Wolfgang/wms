@@ -14,21 +14,21 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
         {
             migrationBuilder.AddColumn<long>(
                 name: "copied_from_id",
-                schema: "core",
+                schema: "layout",
                 table: "zone",
                 type: "bigint",
                 nullable: true);
 
             migrationBuilder.AddColumn<long>(
                 name: "copied_from_id",
-                schema: "core",
+                schema: "layout",
                 table: "site",
                 type: "bigint",
                 nullable: true);
 
             migrationBuilder.AddColumn<long>(
                 name: "copied_from_id",
-                schema: "core",
+                schema: "layout",
                 table: "location",
                 type: "bigint",
                 nullable: true);
@@ -39,17 +39,17 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
         {
             migrationBuilder.DropColumn(
                 name: "copied_from_id",
-                schema: "core",
+                schema: "layout",
                 table: "zone");
 
             migrationBuilder.DropColumn(
                 name: "copied_from_id",
-                schema: "core",
+                schema: "layout",
                 table: "site");
 
             migrationBuilder.DropColumn(
                 name: "copied_from_id",
-                schema: "core",
+                schema: "layout",
                 table: "location");
         }
     }

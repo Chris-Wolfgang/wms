@@ -6,10 +6,10 @@ using Wolfgang.Wms.Infrastructure.Database;
 namespace Wolfgang.Wms.Infrastructure.Zones;
 
 /// <summary>
-/// A row of <c>core.zone</c> (E16.2): a picking area, bulk storage or resolution zone within a site. Audited
+/// A row of <c>layout.zone</c> (E16.2): a picking area, bulk storage or resolution zone within a site. Audited
 /// (E6.4) and versioned (E5.1). The code is kept as entered and compared through <see cref="CodeNormalized"/>
 /// within the site. The resolution-zone properties are flattened into nullable columns and the assigned
-/// resolvers into <c>core.zone_resolver</c>.
+/// resolvers into <c>layout.zone_resolver</c>.
 /// </summary>
 public sealed class Zone : IVersionedEntity
 {

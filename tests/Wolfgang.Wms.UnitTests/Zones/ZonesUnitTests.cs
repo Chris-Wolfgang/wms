@@ -140,8 +140,8 @@ public sealed class ZonesUnitTests
         var resolver = context.Model.FindEntityType(typeof(ZoneResolver))!;
         var type = zone.FindProperty(nameof(Zone.Type))!;
 
-        Assert.Equal(("zone", "core"), (zone.GetTableName(), zone.GetSchema()));
-        Assert.Equal(("zone_resolver", "core"), (resolver.GetTableName(), resolver.GetSchema()));
+        Assert.Equal(("zone", "layout"), (zone.GetTableName(), zone.GetSchema()));
+        Assert.Equal(("zone_resolver", "layout"), (resolver.GetTableName(), resolver.GetSchema()));
         Assert.Equal(ZoneConfiguration.TypeLength, type.GetMaxLength());
         Assert.Equal("resolution", type.GetValueConverter()!.ConvertToProvider(ZoneType.Resolution));
         Assert.Equal(ZoneType.Pick, type.GetValueConverter()!.ConvertFromProvider("PICK"));

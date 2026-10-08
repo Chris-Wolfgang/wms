@@ -1041,7 +1041,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_zone_site_id_code_normalized");
 
-                    b.ToTable("zone", "core", t =>
+                    b.ToTable("zone", "layout", t =>
                         {
                             t.HasTrigger("trg_zone_row_version");
                         });
@@ -1076,7 +1076,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_zone_resolver_zone_id_user_id");
 
-                    b.ToTable("zone_resolver", "core");
+                    b.ToTable("zone_resolver", "layout");
                 });
 
             modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditDetail", b =>

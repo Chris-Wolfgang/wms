@@ -119,7 +119,7 @@ public sealed class SitesUnitTests
         var hierarchy = new EfSettingScopeHierarchy(context);
 
         Assert.Equal("site", entity.GetTableName());
-        Assert.Equal("core", entity.GetSchema());
+        Assert.Equal("layout", entity.GetSchema());
         Assert.Equal(SiteRules.CodeLength, entity.FindProperty(nameof(Site.CodeNormalized))!.GetMaxLength());
         Assert.False(entity.FindProperty(nameof(Site.TimeZone))!.IsNullable);
         Assert.Contains(entity.GetIndexes(), i => i.IsUnique && string.Equals(i.GetDatabaseName(), "ux_site_code_normalized", StringComparison.Ordinal));

@@ -7,13 +7,13 @@ using Wolfgang.Wms.Core.Sites;
 namespace Wolfgang.Wms.Infrastructure.Sites;
 
 /// <summary>
-/// Maps <see cref="Site"/> to <c>core.site</c> (E16.1): the normalized code is the unique natural key, the
+/// Maps <see cref="Site"/> to <c>layout.site</c> (E16.1): the normalized code is the unique natural key, the
 /// lengths come from <see cref="SiteRules"/>.
 /// </summary>
 public sealed class SiteConfiguration : IEntityTypeConfiguration<Site>
 {
     /// <summary>The module schema.</summary>
-    public const string Schema = "core";
+    public const string Schema = "layout";
 
     /// <summary>The table name.</summary>
     public const string Table = "site";

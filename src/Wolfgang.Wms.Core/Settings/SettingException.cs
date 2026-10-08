@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Diagnostics.CodeAnalysis;
 using Wolfgang.Wms.Domain.Keys;
 
 namespace Wolfgang.Wms.Core.Settings;
@@ -8,6 +9,7 @@ namespace Wolfgang.Wms.Core.Settings;
 /// A settings read or write the registry or the store refuses (E6.3), carrying the error code the API
 /// answers with (<see cref="SettingExceptionHandler"/>).
 /// </summary>
+[SuppressMessage("Roslynator", "RCS1194:Implement exception constructors", Justification = "Every SettingException carries the error code the API answers with; the standard constructors would create one without it.")]
 public sealed class SettingException : Exception
 {
     /// <summary>

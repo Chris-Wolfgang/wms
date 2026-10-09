@@ -64,14 +64,27 @@ internal static class TestLogins
     {
         if (IsSqlServer(provider))
         {
-            var login = new SqlConnectionStringBuilder(runtimeConnectionString).UserID;
-            await using var connection = new SqlConnection(adminConnectionString);
-            await connection.OpenAsync(cancellationToken);
-            await ExecuteAsync(connection, string.Format(CultureInfo.InvariantCulture, "ALTER ROLE db_datareader ADD MEMBER [{0}]; ALTER ROLE db_datawriter ADD MEMBER [{0}]", login), cancellationToken);
-            return;
+            await GrantSqlServerAsync(adminConnectionString, new SqlConnectionStringBuilder(runtimeConnectionString).UserID, cancellationToken);
         }
+        else
+        {
+            await GrantPostgreSqlAsync(adminConnectionString, new NpgsqlConnectionStringBuilder(runtimeConnectionString).Username!, cancellationToken);
+        }
+    }
 
-        var role = new NpgsqlConnectionStringBuilder(runtimeConnectionString).Username;
+
+
+    private static async Task GrantSqlServerAsync(string adminConnectionString, string login, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(adminConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        await ExecuteAsync(connection, string.Format(CultureInfo.InvariantCulture, "ALTER ROLE db_datareader ADD MEMBER [{0}]; ALTER ROLE db_datawriter ADD MEMBER [{0}]", login), cancellationToken);
+    }
+
+
+
+    private static async Task GrantPostgreSqlAsync(string adminConnectionString, string role, CancellationToken cancellationToken)
+    {
         await using var pg = new NpgsqlConnection(adminConnectionString);
         await pg.OpenAsync(cancellationToken);
         var schemas = new List<string>();

@@ -768,6 +768,10 @@ jobs:
     runs-on:  ubuntu-latest
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      # Testcontainers starts a Ryuk reaper container (testcontainers/ryuk, from Docker Hub) beside every test
+      # engine to clean up after a crashed test host. An ephemeral runner is thrown away anyway, so the pull is
+      # one more Docker Hub request per job for nothing; it took the SQL Server tool test down with it (#842).
+      TESTCONTAINERS_RYUK_DISABLED: 'true'
     needs: detect-projects
     if: github.repository != 'Chris-Wolfgang/repo-template' && needs.detect-projects.outputs.has-projects == 'true'
     

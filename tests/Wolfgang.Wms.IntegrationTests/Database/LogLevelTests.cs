@@ -26,7 +26,7 @@ using Wolfgang.Wms.Logging;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E12.4 against PostgreSQL: an administrator elevates to Debug for ten minutes and the host's switch moves
+/// E12.4 on each provider: an administrator elevates to Debug for ten minutes and the host's switch moves
 /// at once (the settings hold the elevation for every instance); ending it reverts the switch; the audit
 /// of the change rides the settings store.
 /// </summary>
@@ -36,12 +36,30 @@ public sealed class LogLevelTests
 
 
 
+    [SqlServerFact]
+    public async Task SqlServer_a_timed_elevation_moves_the_switch_and_reverts_on_demand()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertElevationAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
+    }
+
+
+
     [DockerFact]
-    public async Task A_timed_elevation_moves_the_switch_and_reverts_on_demand()
+    public async Task PostgreSql_a_timed_elevation_moves_the_switch_and_reverts_on_demand()
     {
         await using var container = new PostgreSqlBuilder("postgres:16").Build();
         await container.StartAsync();
-        await using var app = await StartHostAsync(container.GetConnectionString());
+
+        await AssertElevationAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    private static async Task AssertElevationAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));
         var level = app.Services.GetRequiredService<WmsLogLevel>();
@@ -63,14 +81,15 @@ public sealed class LogLevelTests
 
 
 
-    private static async Task<WebApplication> StartHostAsync(string connectionString)
+    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["Wms:Database:Provider"] = "PostgreSql",
+            ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
+            ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
             ["Wms:Database:AutoMigrate"] = "true",
             ["Wms:Logging:Stdout"] = "false",
         });

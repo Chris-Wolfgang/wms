@@ -17,12 +17,39 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 /// </summary>
 public sealed class AuditTrailCapabilityTests
 {
+    [SqlServerFact]
+    public async Task SqlServer_aggregate_saves_owned_types_and_cascade_deletes_behave_as_documented()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertCapabilitiesAsync("SqlServer", database.ConnectionString);
+    }
+
+
+
     [DockerFact]
-    public async Task Aggregate_saves_owned_types_and_cascade_deletes_behave_as_documented()
+    public async Task PostgreSql_aggregate_saves_owned_types_and_cascade_deletes_behave_as_documented()
     {
         await using var container = new PostgreSqlBuilder("postgres:16").Build();
         await container.StartAsync();
-        var builder = new DbContextOptionsBuilder<AuditCapabilityDbContext>().UseNpgsql(container.GetConnectionString());
+
+        await AssertCapabilitiesAsync("PostgreSql", container.GetConnectionString());
+    }
+
+
+
+    private static async Task AssertCapabilitiesAsync(string provider, string connectionString)
+    {
+        var builder = new DbContextOptionsBuilder<AuditCapabilityDbContext>();
+        if (string.Equals(provider, "SqlServer", StringComparison.Ordinal))
+        {
+            builder.UseSqlServer(connectionString);
+        }
+        else
+        {
+            builder.UseNpgsql(connectionString);
+        }
+
         using var context = new AuditCapabilityDbContext(builder.Options);
         await context.Database.EnsureCreatedAsync();
 

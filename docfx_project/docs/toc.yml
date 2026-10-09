@@ -14,5 +14,7 @@
   href: database-conventions.md
 - name: Device app version
   href: device-app-version.md
+- name: Your identifiers
+  href: identifiers.md
 - name: Project website
   href: 'https://github.com/Chris-Wolfgang/wms'

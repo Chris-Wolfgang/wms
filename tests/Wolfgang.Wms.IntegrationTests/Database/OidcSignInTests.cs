@@ -31,7 +31,7 @@ using Wolfgang.Wms.IntegrationTests.Api;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E11.1–E11.3 against PostgreSQL and a mock OpenID Connect provider (navikt/mock-oauth2-server): the
+/// E11.1–E11.3 on each provider with a mock OpenID Connect provider (navikt/mock-oauth2-server): the
 /// provider is configured through settings and enabled without a restart; discovery is the health check;
 /// the full authorization-code flow (challenge, provider redirect, callback with the correlation and nonce
 /// cookies, back-channel token exchange) ends in a console session whose account was created on first
@@ -45,15 +45,34 @@ public sealed class OidcSignInTests
 
 
 
-    [DockerFact]
-    public async Task Configured_from_settings_the_provider_signs_a_directory_user_in_with_mapped_roles()
+    [DockerFact]   // the mock provider is a container, so Docker serves this one either way
+    public async Task SqlServer_configured_from_settings_the_provider_signs_a_directory_user_in_with_mapped_roles()
     {
-        await using var database = new PostgreSqlBuilder("postgres:16").Build();
-        await using var provider = MockProvider();
-        await Task.WhenAll(database.StartAsync(), provider.StartAsync());
-        var authority = $"http://{provider.Hostname}:{provider.GetMappedPublicPort(8080)}/{Issuer}";
+        await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await using var app = await StartHostAsync(database.GetConnectionString());
+        await AssertSignInAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
+    }
+
+
+
+    [DockerFact]
+    public async Task PostgreSql_configured_from_settings_the_provider_signs_a_directory_user_in_with_mapped_roles()
+    {
+        await using var container = new PostgreSqlBuilder("postgres:16").Build();
+        await container.StartAsync();
+
+        await AssertSignInAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    private static async Task AssertSignInAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        await using var mockProvider = MockProvider();
+        await mockProvider.StartAsync();
+        var authority = $"http://{mockProvider.Hostname}:{mockProvider.GetMappedPublicPort(8080)}/{Issuer}";
+
+        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
         using var client = app.GetTestClient();
         var admin = await TestSessions.SignInAsAdministratorAsync(client);
         client.DefaultRequestHeaders.Add("Cookie", admin);
@@ -246,14 +265,15 @@ public sealed class OidcSignInTests
 
 
 
-    private static async Task<WebApplication> StartHostAsync(string connectionString)
+    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["Wms:Database:Provider"] = "PostgreSql",
+            ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
+            ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
             ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();

@@ -48,6 +48,7 @@ public sealed class Gs1Tests
     [Theory]
     [InlineData("261231", true)]
     [InlineData("260200", true)]
+    [InlineData("261300", false)]
     [InlineData("280229", true)]
     [InlineData("260229", false)]
     [InlineData("261301", false)]
@@ -230,6 +231,8 @@ public sealed class Gs1Tests
 
     [Theory]
     [InlineData("2612312359", true)]
+    [InlineData("2612312400", false)]
+    [InlineData("2612002359", false)]
     [InlineData("261231235x", false)]
     [InlineData("261231", false)]
     [InlineData(null, false)]

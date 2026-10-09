@@ -13,7 +13,7 @@ Out of the box the WMS accepts your identifiers as they are:
   different identifiers; nothing is upper-cased unless you ask for it.
 - **Any characters you use**, in any language: `Zürich-Ω-日本` is a valid bin code.
 - **Only control characters are refused**: tabs, line breaks and other invisible codes that cannot be printed
-  on a label. A value containing one is rejected with `no control characters`.
+  on a label. A value containing one is rejected with `control characters are not allowed`.
 - **Up to the field's maximum length.** Each field has a hard upper limit set by the system; you can lower it
   but not raise it.
 
@@ -119,7 +119,7 @@ Every rejection names the field and what was expected, in the same words on ever
 |------|-----------------|
 | Required | `tote_barcode: a value is required` |
 | GS1 structure | `tote_barcode: (01) GTIN: check digit is wrong.` |
-| Control characters | `tote_barcode: no control characters` |
+| Control characters | `tote_barcode: control characters are not allowed` |
 | Minimum length | `tote_barcode: at least 3 characters` |
 | Maximum length | `tote_barcode: at most 5 characters` |
 | Format | `tote_barcode: format T-9(4)` |

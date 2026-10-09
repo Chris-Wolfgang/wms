@@ -46,7 +46,7 @@ public static class IdentifierValidator
         }
         else if (value.Any(char.IsControl))
         {
-            return IdentifierValidation.Failure(profile.Field, "control_characters", "no control characters");
+            return IdentifierValidation.Failure(profile.Field, "control_characters", "control characters are not allowed");
         }
 
         if (value.Length < profile.MinLength)

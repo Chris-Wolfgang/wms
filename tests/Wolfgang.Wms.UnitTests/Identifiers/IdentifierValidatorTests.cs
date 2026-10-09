@@ -31,7 +31,7 @@ public sealed class IdentifierValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Equal("control_characters", result.FailedRule);
-        Assert.Equal("tote_barcode: no control characters", result.Message);
+        Assert.Equal("tote_barcode: control characters are not allowed", result.Message);
     }
 
 

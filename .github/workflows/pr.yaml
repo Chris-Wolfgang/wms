@@ -113,6 +113,13 @@ jobs:
   detect-projects:
     name: "Detect .NET Projects"
     runs-on: ubuntu-latest
+    # The full checks (every job that needs this one: Stage 1, Stage 2, InspectCode, AOT smoke, OpenAPI diff)
+    # run only for a pull request that targets main. A stacked PR (base = another PR's branch) gets them when it
+    # reaches main; until then the per-push workflows (actionlint, zizmor, Semgrep, SBOM, SourceLink, licence
+    # audit) and the cheap jobs here (gitleaks, changelog fragment, DevSkim) are its signal. Every restack of a
+    # stack pushes every branch, and the full set on each of them was burning runner minutes and Docker Hub
+    # pulls for results the merge to main repeats anyway (#842).
+    if: github.event.pull_request.base.ref == 'main'
     outputs:
       has-projects: ${{ steps.check-projects.outputs.has-projects }}
     

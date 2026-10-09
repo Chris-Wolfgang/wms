@@ -23,7 +23,7 @@ using Wolfgang.Wms.Infrastructure.Secrets;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E9 against PostgreSQL through the API: the bootstrap administrator is created once, signs in with the
+/// E9 on each provider through the API: the bootstrap administrator is created once, signs in with the
 /// documented default, is held to the password change, cannot reuse the default, changes it and is free;
 /// wrong passwords lock the account; the audit trail records the user without the hash; a second start
 /// creates nothing.
@@ -34,13 +34,30 @@ public sealed class LocalAccountsTests
 
 
 
+    [SqlServerFact]
+    public async Task SqlServer_bootstrap_admin_signs_in_changes_the_password_and_locks_out_after_failures()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertLocalAccountsAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
+    }
+
+
+
     [DockerFact]
-    public async Task Bootstrap_admin_signs_in_changes_the_password_and_locks_out_after_failures()
+    public async Task PostgreSql_bootstrap_admin_signs_in_changes_the_password_and_locks_out_after_failures()
     {
         await using var container = new PostgreSqlBuilder("postgres:16").Build();
         await container.StartAsync();
 
-        await using (var first = await StartHostAsync(container.GetConnectionString()))
+        await AssertLocalAccountsAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    private static async Task AssertLocalAccountsAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        await using (var first = await StartHostAsync(provider, connectionString, trustServerCertificate))
         {
             using var client = first.GetTestClient();
             var cookie = await AssertFirstSignInAndGateAsync(client);
@@ -49,7 +66,7 @@ public sealed class LocalAccountsTests
             await AssertAuditAsync(first.Services);
         }
 
-        await using var second = await StartHostAsync(container.GetConnectionString());
+        await using var second = await StartHostAsync(provider, connectionString, trustServerCertificate);
         using var scope = second.Services.CreateScope();
         Assert.Equal(1, await scope.ServiceProvider.GetRequiredService<WmsDbContext>().Users.CountAsync());   // bootstrap ignored thereafter
     }
@@ -142,14 +159,15 @@ public sealed class LocalAccountsTests
 
 
 
-    private static async Task<WebApplication> StartHostAsync(string connectionString)
+    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["Wms:Database:Provider"] = "PostgreSql",
+            ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
+            ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
             ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();

@@ -28,7 +28,7 @@ using Wolfgang.Wms.Logging;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E79.3, E79.11 against PostgreSQL: the administrator installs a pro base key and a device add-on signed
+/// E79.3, E79.11 on each provider: the administrator installs a pro base key and a device add-on signed
 /// with the test pair (the host verifies with that pair's public key); the page shows "5 included + 10
 /// purchased"; a key with the same id replaces the old one; removing the add-on drops the devices; the
 /// stored setting is the secret kind, so it is encrypted at rest and masked on the settings page.
@@ -39,13 +39,31 @@ public sealed class LicenseKeyInstallTests
 
 
 
-    [DockerFact]
-    public async Task Keys_install_replace_and_remove_without_a_restart()
+    [SqlServerFact]
+    public async Task SqlServer_keys_install_replace_and_remove_without_a_restart()
     {
-        using var pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertKeysAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
+    }
+
+
+
+    [DockerFact]
+    public async Task PostgreSql_keys_install_replace_and_remove_without_a_restart()
+    {
         await using var container = new PostgreSqlBuilder("postgres:16").Build();
         await container.StartAsync();
-        await using var app = await StartHostAsync(container.GetConnectionString(), Convert.ToBase64String(pair.ExportSubjectPublicKeyInfo()));
+
+        await AssertKeysAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    private static async Task AssertKeysAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        using var pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate, Convert.ToBase64String(pair.ExportSubjectPublicKeyInfo()));
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));
         var coverage = new[] { new CoveragePeriod(new DateOnly(2026, 1, 1), new DateOnly(2027, 12, 31)) };
@@ -78,14 +96,15 @@ public sealed class LicenseKeyInstallTests
 
 
 
-    private static async Task<WebApplication> StartHostAsync(string connectionString, string publicKey)
+    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate, string publicKey)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["Wms:Database:Provider"] = "PostgreSql",
+            ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
+            ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
             ["Wms:Database:AutoMigrate"] = "true",
             ["Wms:Logging:Stdout"] = "false",
         });

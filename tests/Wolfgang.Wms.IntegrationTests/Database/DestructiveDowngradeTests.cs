@@ -10,7 +10,7 @@ using Wolfgang.Wms.Migrate;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E4.1 / E4.6 against a real engine with migrations of this assembly's own (the product's <c>Initial</c> loses
+/// E4.1 / E4.6 against each engine with migrations of this assembly's own (the product's <c>Initial</c> loses
 /// nothing on the way down and cannot fail): an applied downgrade whose <c>Down</c> drops a schema or runs raw
 /// SQL is refused without <c>--confirm-data-loss</c> and runs with it, and a failing migration is named with
 /// the ones before it kept.
@@ -25,12 +25,30 @@ public sealed class DestructiveDowngradeTests
 
 
 
+    [SqlServerFact]
+    public async Task SqlServer_a_data_losing_downgrade_needs_confirmation_and_a_failing_migration_is_named()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertDowngradeAsync("SqlServer", database.ConnectionString);
+    }
+
+
+
     [DockerFact]
-    public async Task A_data_losing_downgrade_needs_confirmation_and_a_failing_migration_is_named()
+    public async Task PostgreSql_a_data_losing_downgrade_needs_confirmation_and_a_failing_migration_is_named()
     {
         await using var container = new PostgreSqlBuilder("postgres:16").Build();
         await container.StartAsync();
-        using var context = Context(container.GetConnectionString());
+
+        await AssertDowngradeAsync("PostgreSql", container.GetConnectionString());
+    }
+
+
+
+    private static async Task AssertDowngradeAsync(string provider, string connectionString)
+    {
+        using var context = Context(provider, connectionString);
         var runner = new MigrationRunner(context);
 
         var up = await ApplyAsync(runner, ["--to", RawSql]);
@@ -57,16 +75,30 @@ public sealed class DestructiveDowngradeTests
 
 
 
-    private static WmsDbContext Context(string connectionString)
+    private static WmsDbContext Context(string provider, string connectionString)
     {
         var builder = new DbContextOptionsBuilder<WmsDbContext>();
-        builder.UseNpgsql
-        (
-            connectionString,
-            npgsql => npgsql
-                .MigrationsAssembly(typeof(DestructiveDowngradeTests).Assembly.GetName().Name)
-                .MigrationsHistoryTable(DatabaseServiceCollectionExtensions.HistoryTable, DatabaseServiceCollectionExtensions.HistorySchema)
-        );
+        if (string.Equals(provider, "SqlServer", StringComparison.Ordinal))
+        {
+            builder.UseSqlServer
+            (
+                connectionString,
+                sqlServer => sqlServer
+                    .MigrationsAssembly(typeof(DestructiveDowngradeTests).Assembly.GetName().Name)
+                    .MigrationsHistoryTable(DatabaseServiceCollectionExtensions.HistoryTable, DatabaseServiceCollectionExtensions.HistorySchema)
+            );
+        }
+        else
+        {
+            builder.UseNpgsql
+            (
+                connectionString,
+                npgsql => npgsql
+                    .MigrationsAssembly(typeof(DestructiveDowngradeTests).Assembly.GetName().Name)
+                    .MigrationsHistoryTable(DatabaseServiceCollectionExtensions.HistoryTable, DatabaseServiceCollectionExtensions.HistorySchema)
+            );
+        }
+
         return new WmsDbContext(builder.Options);
     }
 

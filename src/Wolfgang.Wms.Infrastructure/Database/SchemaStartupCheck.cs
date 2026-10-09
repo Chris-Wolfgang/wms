@@ -3,19 +3,18 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
 /// <summary>
-/// Refuses to start on a schema that is behind (E4.4) or ahead (E4.6) of this build, naming the migrations,
-/// unless <see cref="DatabaseOptions.AutoMigrate"/> applies the pending ones first (bundled installs only).
-/// An unreachable database also stops startup: the API cannot serve without it and a health check would fail.
+/// Refuses to start on a schema that is behind (E4.4) or ahead (E4.6) of this build, naming the migrations.
+/// The API never applies a migration itself: its service account has no schema rights, so <c>wms-migrate</c>
+/// runs as a separate step with the DBA's. An unreachable database also stops startup: the API cannot serve
+/// without it and a health check would fail.
 /// </summary>
 public sealed partial class SchemaStartupCheck : IHostedService
 {
     private readonly IServiceScopeFactory _scopes;
-    private readonly DatabaseOptions _options;
     private readonly ILogger<SchemaStartupCheck> _logger;
 
 
@@ -24,22 +23,19 @@ public sealed partial class SchemaStartupCheck : IHostedService
     /// Creates the check.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public SchemaStartupCheck(IServiceScopeFactory scopes, IOptions<DatabaseOptions> options, ILogger<SchemaStartupCheck> logger)
+    public SchemaStartupCheck(IServiceScopeFactory scopes, ILogger<SchemaStartupCheck> logger)
     {
         ArgumentNullException.ThrowIfNull(scopes);
-        ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(logger);
 
         _scopes = scopes;
-        _options = options.Value;
         _logger = logger;
     }
 
 
 
     /// <inheritdoc/>
-    /// <exception cref="InvalidOperationException">The database is unreachable, behind this build without
-    /// <c>AutoMigrate</c>, or ahead of it.</exception>
+    /// <exception cref="InvalidOperationException">The database is unreachable, behind this build, or ahead of it.</exception>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopes.CreateScope();
@@ -52,24 +48,12 @@ public sealed partial class SchemaStartupCheck : IHostedService
             throw new InvalidOperationException(refusal);
         }
 
-        if (status.Pending.Count == 0)
+        if (status.Pending.Count != 0)
         {
-            LogUpToDate(_logger, status.Current);
-            return;
+            throw new InvalidOperationException($"The database schema is behind this build; pending migrations: {string.Join(", ", status.Pending)}. Run wms-migrate with the DBA's rights, then start the API.");
         }
 
-        if (!_options.AutoMigrate)
-        {
-            throw new InvalidOperationException($"The database schema is behind this build; pending migrations: {string.Join(", ", status.Pending)}. Run wms-migrate, or set {DatabaseOptions.SectionName}:AutoMigrate=true for a bundled install.");
-        }
-
-        var result = await runner.ApplyAsync(target: null, confirmDataLoss: false, cancellationToken).ConfigureAwait(false);
-        if (!result.Succeeded)
-        {
-            throw new InvalidOperationException($"AutoMigrate failed at {result.FailedMigration}: {result.Error}");
-        }
-
-        LogMigrated(_logger, string.Join(", ", result.Steps));
+        LogUpToDate(_logger, status.Current);
     }
 
 
@@ -83,10 +67,4 @@ public sealed partial class SchemaStartupCheck : IHostedService
 
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Database schema is up to date at {Migration}.")]
-    private static partial void LogUpToDate(ILogger logger, string? migration);
-
-
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "AutoMigrate applied pending migrations: {Migrations}.")]
-    private static partial void LogMigrated(ILogger logger, string migrations);
-}
+    private static partial void LogUpToDate(ILogger logger, string? migration);}

@@ -4,8 +4,8 @@ The one way the schema is created, upgraded, scripted or rolled back. `wms-migra
 (`src/Wolfgang.Wms.Migrate`, assembly `wms-migrate`) that runs EF Core migrations in-process against the
 provider in `Wms:Database` (or the flags). There is no `wms migrate` subcommand: the NativeAOT `wms` CLI does
 not forward to it. A leading `migrate` word is accepted and ignored (`wms-migrate migrate --status`), so an
-installer that passes the verb still works. The API never migrates unless `Wms:Database:AutoMigrate` is on,
-which is for bundled installs only ([CONFIGURATION.md](CONFIGURATION.md)).
+installer that passes the verb still works. The API never migrates: its service account has no schema rights
+([CONFIGURATION.md](CONFIGURATION.md)).
 
 The operator-facing page is [docfx_project/docs/migrate.md](../docfx_project/docs/migrate.md) (published with
 the documentation site); keep the two in step.

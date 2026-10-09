@@ -11,7 +11,6 @@ the console's Configure workspace. Each key can be set in `appsettings.json`, in
 |-----|--------|-------|
 | `Wms:Database:Provider` | `SqlServer`, `PostgreSql`, `None` | Chosen at install time; names only, in any letter case. `None`, the shipped default, means no database is configured yet: the server still starts, so you can check that a fresh install runs before you set up a database (`GET /api/v0/system/schema` answers and reports no database), but nothing that needs data works. Set `SqlServer` or `PostgreSql` once the database exists. Any other value stops startup and names the accepted values; for example, setting it to `Oracle` gives `Wms:Database:Provider must be one of None, SqlServer or PostgreSql; got 'Oracle'.` |
 | `Wms:Database:ConnectionString` | The database connection string | Required for `SqlServer` and `PostgreSql`; startup stops when it is missing. Keep passwords out of `appsettings.json`: use an environment variable or the secrets store. |
-| `Wms:Database:AutoMigrate` | `true` or `false` (default) | Apply pending migrations when the server starts instead of refusing to start. Only for bundled installs, where the installer created the database and one server process is the only thing that changes it; everywhere else, leave it off and run `wms-migrate` as a separate step with the database administrator's rights. Even with it on, the server never downgrades and refuses to start when the database is unreachable or newer than the server. |
 | `Wms:Database:TrustServerCertificate` | `true` or `false` (default) | SQL Server only. Trusts the server's certificate without checking who issued it, which SQL Server Express and self-signed test servers need; encryption is then always required (`Encrypt=Mandatory`, or `Strict` if you set it). Never use it on a shared network: install a proper certificate instead. Setting it with `PostgreSql` stops startup. |
 
 Examples:
@@ -24,7 +23,7 @@ Examples:
 { "Wms": { "Database": { "Provider": "PostgreSql", "ConnectionString": "Host=db;Database=wms;Username=wms;Password=…" } } }
 ```
 
-Supported databases: SQL Server 2022 and later, including Express, and PostgreSQL 16 and later. By default,
-creating the database and applying its migrations is a separate step outside the API, with `wms-migrate`; a
-bundled install with `AutoMigrate` set to `true` lets the API apply pending migrations at startup instead. See
+Supported databases: SQL Server 2022 and later, including Express, and PostgreSQL 16 and later. Creating the
+database and applying its migrations is a separate step outside the API, with `wms-migrate` and the database
+administrator's rights; the server's own account never changes the schema. See
 [Database migrations](migrate.md) and [Before the API can serve](bootstrap.md).

@@ -1,17 +1,30 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.IntegrationTests.Database;
 
 namespace Wolfgang.Wms.IntegrationTests.Api;
 
 /// <summary>
 /// E2.1 through the database module as <c>Program</c> composes it, started directly (<see cref="DatabaseHost"/>):
-/// an unknown provider fails startup with a message naming the setting, a provider without a connection string
-/// fails startup, and a configured provider whose server is unreachable refuses to start.
+/// no provider starts without a database, an unknown provider fails startup with a message naming the setting,
+/// a provider without a connection string fails startup, and a configured provider whose server is unreachable
+/// refuses to start.
 /// </summary>
 public sealed class DatabaseStartupTests
 {
+    [Fact]
+    public async Task Without_a_provider_the_host_starts_with_no_database()
+    {
+        await using var app = await DatabaseHost.StartAsync("None", string.Empty, trustServerCertificate: false);
+
+        Assert.Equal(DatabaseProvider.None, app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value.ParsedProvider);
+    }
+
+
+
     [Fact]
     public async Task An_unknown_provider_fails_startup_with_a_clear_message()
     {

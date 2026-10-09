@@ -26,7 +26,7 @@ using Wolfgang.Wms.IntegrationTests.Api;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E10.2/E10.3 against PostgreSQL through the API: the built-in roles are seeded from the catalog and the
+/// E10.2/E10.3 on each provider through the API: the built-in roles are seeded from the catalog and the
 /// administrator holds Administrator; roles are created from catalog permissions only, built-in ones are
 /// read-only but copyable; a site-scoped assignment grants at that site only and an expired one grants
 /// nothing; assignments and custom roles can be removed.
@@ -37,12 +37,30 @@ public sealed class RolesTests
 
 
 
+    [SqlServerFact]
+    public async Task SqlServer_built_in_roles_custom_roles_and_site_scoped_assignments()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertRolesAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
+    }
+
+
+
     [DockerFact]
-    public async Task Built_in_roles_custom_roles_and_site_scoped_assignments()
+    public async Task PostgreSql_built_in_roles_custom_roles_and_site_scoped_assignments()
     {
         await using var container = new PostgreSqlBuilder("postgres:16").Build();
         await container.StartAsync();
-        await using var app = await StartHostAsync(container.GetConnectionString());
+
+        await AssertRolesAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    private static async Task AssertRolesAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));
 
@@ -165,14 +183,15 @@ public sealed class RolesTests
 
 
 
-    private static async Task<WebApplication> StartHostAsync(string connectionString)
+    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["Wms:Database:Provider"] = "PostgreSql",
+            ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
+            ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
             ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();

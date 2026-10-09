@@ -21,17 +21,35 @@ using Wolfgang.Wms.IntegrationTests.Api;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E10.6 against PostgreSQL: the CORS allow-list is a setting; listing an origin grants it (with credentials)
+/// E10.6 on each provider: the CORS allow-list is a setting; listing an origin grants it (with credentials)
 /// on the next request, clearing it revokes it, an invalid origin is refused, all without a restart.
 /// </summary>
 public sealed class CorsTests
 {
+    [SqlServerFact]
+    public async Task SqlServer_allowed_origins_apply_without_a_restart()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertCorsAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
+    }
+
+
+
     [DockerFact]
-    public async Task Allowed_origins_apply_without_a_restart()
+    public async Task PostgreSql_allowed_origins_apply_without_a_restart()
     {
         await using var container = new PostgreSqlBuilder("postgres:16").Build();
         await container.StartAsync();
-        await using var app = await StartHostAsync(container.GetConnectionString());
+
+        await AssertCorsAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    private static async Task AssertCorsAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
         using var client = app.GetTestClient();
         var cookie = await TestSessions.SignInAsAdministratorAsync(client);
 
@@ -56,14 +74,15 @@ public sealed class CorsTests
 
 
 
-    private static async Task<WebApplication> StartHostAsync(string connectionString)
+    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["Wms:Database:Provider"] = "PostgreSql",
+            ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
+            ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
             ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();

@@ -27,7 +27,7 @@ using Wolfgang.Wms.IntegrationTests.Api;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E10.4 against PostgreSQL: every user, role and assignment is signed on save with a key stored protected
+/// E10.4 on each provider: every user, role and assignment is signed on save with a key stored protected
 /// in <c>wms.integrity_key</c>; an assignment, a role or a user changed through the database grants
 /// nothing (403 on sign-in for the user); the verification job counts the failures; a database without
 /// the key (the first start after the upgrade) gets its key and its rows signed once.
@@ -39,13 +39,30 @@ public sealed class IntegrityTests
 
 
 
+    [SqlServerFact]
+    public async Task SqlServer_rows_are_signed_verified_on_read_and_counted_by_the_job()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertIntegrityAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
+    }
+
+
+
     [DockerFact]
-    public async Task Rows_are_signed_verified_on_read_and_counted_by_the_job()
+    public async Task PostgreSql_rows_are_signed_verified_on_read_and_counted_by_the_job()
     {
         await using var container = new PostgreSqlBuilder("postgres:16").Build();
         await container.StartAsync();
 
-        await using (var first = await StartHostAsync(container.GetConnectionString()))
+        await AssertIntegrityAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    private static async Task AssertIntegrityAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        await using (var first = await StartHostAsync(provider, connectionString, trustServerCertificate))
         {
             using var client = first.GetTestClient();
             var admin = await TestSessions.SignInAsAdministratorAsync(client);
@@ -66,7 +83,7 @@ public sealed class IntegrityTests
             await TamperAsync(first.Services, "INSERT INTO core.role_permission (role_id, permission_name) VALUES (" + custom + ", 'auth.roles.write')");
             Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, await SignInAsync(client, "bob")));   // the role grants nothing
 
-            await TamperAsync(first.Services, "UPDATE core.\"user\" SET is_local_admin = true WHERE id = " + bob);
+            await TamperAsync(first.Services, "UPDATE core.\"user\" SET is_local_admin = 'true' WHERE id = " + bob);
             using var login = await client.PostAsync(new Uri("/api/v0/auth/local/login", UriKind.Relative), Body(new LocalLoginRequest("bob", Password)));
             Assert.Equal(HttpStatusCode.Forbidden, login.StatusCode);
             Assert.Equal("auth.integrity_failure", (await JsonDocument.ParseAsync(await login.Content.ReadAsStreamAsync())).RootElement.GetProperty("code").GetString());
@@ -74,11 +91,11 @@ public sealed class IntegrityTests
             Assert.Equal(3, result.Failed);
             Assert.Same(result, first.Services.GetRequiredService<IntegrityVerificationJob>().LastResult);
 
-            await TamperAsync(first.Services, "UPDATE core.\"user\" SET is_local_admin = false WHERE id = " + bob);
+            await TamperAsync(first.Services, "UPDATE core.\"user\" SET is_local_admin = 'false' WHERE id = " + bob);
             await TamperAsync(first.Services, "DELETE FROM wms.integrity_key");
         }
 
-        await using var second = await StartHostAsync(container.GetConnectionString());   // the upgrade start: a new key, every row signed once
+        await using var second = await StartHostAsync(provider, connectionString, trustServerCertificate);   // the upgrade start: a new key, every row signed once
         using var later = second.GetTestClient();
         await AssertEverythingSignedAsync(second.Services);
         Assert.Equal(0, (await second.Services.GetRequiredService<IntegrityVerificationJob>().RunOnceAsync(CancellationToken.None)).Failed);
@@ -175,14 +192,15 @@ public sealed class IntegrityTests
 
 
 
-    private static async Task<WebApplication> StartHostAsync(string connectionString)
+    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["Wms:Database:Provider"] = "PostgreSql",
+            ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
+            ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
             ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();

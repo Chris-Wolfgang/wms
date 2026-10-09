@@ -453,6 +453,7 @@ jobs:
         document: [v0]
     env:
       DOCUMENT: ${{ matrix.document }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
       - name: Checkout PR head (docs/api only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -471,6 +472,16 @@ jobs:
           path: base
           sparse-checkout: docs/api
           sparse-checkout-cone-mode: false
+
+      - name: Log in to Docker Hub (authenticated pulls)
+        # Docker Hub's unauthenticated pull limit is shared by the runner's egress address and fails the
+        # PostgreSQL container tests and the oasdiff image pull at random (#842). With a read-only access token
+        # the pulls count against the account instead. Skipped when the secret is absent (forks, template).
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Classify the document
         id: classify
@@ -755,6 +766,8 @@ jobs:
   test-linux-core: 
     name: "Stage 1: Linux Tests (.NET 5.0-10.0) + Coverage Gate"
     runs-on:  ubuntu-latest
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     needs: detect-projects
     if: github.repository != 'Chris-Wolfgang/repo-template' && needs.detect-projects.outputs.has-projects == 'true'
     
@@ -852,6 +865,16 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
         with:
           dotnet-version: 10.0.x
+
+      - name: Log in to Docker Hub (authenticated pulls)
+        # Docker Hub's unauthenticated pull limit is shared by the runner's egress address and fails the
+        # PostgreSQL container tests and the oasdiff image pull at random (#842). With a read-only access token
+        # the pulls count against the account instead. Skipped when the secret is absent (forks, template).
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Restore .NET workloads
         # Some projects (MAUI / MauiHybrid / Android / iOS / WPF) declare workloads via

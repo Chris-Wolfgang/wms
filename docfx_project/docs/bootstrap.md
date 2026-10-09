@@ -5,7 +5,7 @@ because the API cannot do its normal work until it has happened, or because it m
 
 | Step | Why it happens outside the API | Who runs it |
 |------|-------------------------------|-------------|
-| Create the database and apply its migrations | Applying migrations needs database rights the server's own service account never has. With a database configured, the server refuses to start while its schema is behind or ahead of its version, and names the migrations | `wms-migrate`, run by the installer or an operator (see [Database migrations](migrate.md)); single-server bundled installs can let the server apply them at startup (`Wms:Database:AutoMigrate`) |
+| Create the database and apply its migrations | Applying migrations needs database rights the server's own service account never has. With a database configured, the server refuses to start while its schema is behind or ahead of its version, and names the migrations | `wms-migrate`, run by the installer or an operator (see [Database migrations](migrate.md)); the server never applies them itself |
 | Configure the identity provider and the first administrator | Nobody can call the API before someone can sign in | The installer and configuration, then Entra ID or the built-in user store |
 | Install the license | Licensing decides which workspaces and features are available, so the first license is loaded before the first request | The installer, or the console's Configure workspace on first run |
 | TLS certificate and reverse proxy | Transport is set up around the server process, not by it | Host or container configuration |

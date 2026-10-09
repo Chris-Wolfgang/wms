@@ -1,23 +1,17 @@
 # Database migrations
 
 The database schema is created, upgraded, scripted and rolled back by `wms-migrate`, a separate executable
-installed next to the server. By default it runs as a separate step with an account that may change the schema
-(the DBA's rights), and the server's own service account never needs those rights. The exception is a bundled
-install that sets `Wms:Database:AutoMigrate` to `true`: the server then applies pending migrations itself at
-startup, so its account needs schema rights.
+installed next to the server. It runs as a separate step with an account that may change the schema (the
+DBA's rights); the server's own service account never has those rights and never changes the schema.
 
 The server checks the schema every time it starts. When a database is configured it refuses to start, and
 says why, while the schema is behind its build (it names the pending migrations), ahead of its build (it names
 the migrations it does not know), or the database cannot be reached.
 
-## Two ways to apply migrations
+## Applying migrations
 
-| Mode | Setting | Who changes the schema |
-|------|---------|------------------------|
-| Separate step (default) | `Wms:Database:AutoMigrate` off | You run `wms-migrate` before starting the upgraded server. |
-| Bundled install | `Wms:Database:AutoMigrate=true` | The server applies pending migrations when it starts. Use it only when the server process is the only thing that uses its own database. |
-
-With either mode the server never downgrades a schema and never touches a schema that a newer version has
+You run `wms-migrate` before starting the upgraded server, in the container stack's `migrate` role or from the
+Windows install. The server never downgrades a schema and never touches a schema that a newer version has
 migrated.
 
 ## Connecting

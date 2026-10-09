@@ -42,15 +42,6 @@ public sealed class DatabaseOptions
 
 
     /// <summary>
-    /// Apply pending migrations at startup instead of refusing to start (E4.4). Off by default; documented for
-    /// bundled installs only, where the API process is the only thing that ever touches the schema. Everyone
-    /// else runs <c>wms-migrate</c> as a separate step with the DBA's rights.
-    /// </summary>
-    public bool AutoMigrate { get; set; }
-
-
-
-    /// <summary>
     /// The parsed provider, or null when <see cref="Provider"/> is not one of the accepted names. Names only:
     /// a numeric value such as <c>1</c> is rejected, though <see cref="Enum.TryParse{TEnum}(string?, bool, out TEnum)"/>
     /// would accept it.

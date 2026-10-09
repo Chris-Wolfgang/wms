@@ -251,7 +251,7 @@ go through `Gs1.TryParse`. Domain may reference `System.Text.RegularExpressions`
 
 [docs/MIGRATE.md](MIGRATE.md) is the operator's contract. In code: `MigrationRunner`
 (`Wolfgang.Wms.Infrastructure.Database`) is the one place migrations are applied, reverted or scripted; the
-API never migrates unless `Wms:Database:AutoMigrate` is on (bundled installs only) and refuses to start on a
+API never migrates (its service account has no schema rights) and refuses to start on a
 schema that is behind, ahead or unreachable (`SchemaStartupCheck`). Every migration has a working `Down`; a
 downgrade that drops tables, columns, schemas or rows needs `--confirm-data-loss`. The migrations history
 table lives in schema `wms`, never `dbo`/`public`.

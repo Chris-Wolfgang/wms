@@ -11,10 +11,10 @@ using Testcontainers.PostgreSql;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E2.2 / E2.3 / E4.4 / E4.6 against real engines in containers: on each supported provider the API refuses to
-/// start on an unmigrated database (naming the pending migration), starts with <c>AutoMigrate</c> and then
-/// reports the schema up to date, and refuses to start, even with <c>AutoMigrate</c>, once a newer build has
-/// migrated the database (naming the unknown migration). The SQL Server 2025 container runs as Express (<c>MSSQL_PID</c>), the free edition
+/// E2.2 / E2.3 / E4.4 / E4.6 against real engines: on each supported provider the API refuses to start on an
+/// unmigrated database (naming the pending migration and <c>wms-migrate</c>), starts once the tool has applied
+/// the schema and reports it up to date, and refuses to start once a newer build has migrated the database
+/// (naming the unknown migration). The API never migrates itself. The SQL Server 2025 container runs as Express (<c>MSSQL_PID</c>), the free edition
 /// customers start on.
 /// </summary>
 public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<Program>>
@@ -73,22 +73,21 @@ public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<P
             Assert.Equal(TestcontainersStates.Running, container.State);
         }
 
-        using var unmigrated = Host(provider, connectionString, trustServerCertificate, autoMigrate: false);
+        using var unmigrated = Host(provider, connectionString, trustServerCertificate);
         var refused = Assert.Throws<InvalidOperationException>(() => unmigrated.CreateClient());
         Assert.Contains("pending migrations", refused.Message, StringComparison.Ordinal);
         Assert.Contains("_Initial", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("Run wms-migrate", refused.Message, StringComparison.Ordinal);
 
-        using var host = Host(provider, connectionString, trustServerCertificate, autoMigrate: true);
+        await TestMigrations.ApplyAsync(provider, connectionString);
+
+        using var host = Host(provider, connectionString, trustServerCertificate);
         using var client = host.CreateClient();
         var status = await SchemaAsync(client);
 
         Assert.EndsWith("_Initial", status.RootElement.GetProperty("expected").GetString(), StringComparison.Ordinal);
         Assert.Equal(status.RootElement.GetProperty("expected").GetString(), status.RootElement.GetProperty("current").GetString());
         Assert.True(status.RootElement.GetProperty("upToDate").GetBoolean());
-
-        using var migrated = Host(provider, connectionString, trustServerCertificate, autoMigrate: false);
-        using var migratedClient = migrated.CreateClient();
-        Assert.True((await SchemaAsync(migratedClient)).RootElement.GetProperty("upToDate").GetBoolean());
 
         await AssertRefusesASchemaAheadOfTheBuildAsync(provider, connectionString, trustServerCertificate);
     }
@@ -99,26 +98,22 @@ public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<P
     {
         await FutureMigration.RecordAsync(provider, connectionString);
 
-        foreach (var autoMigrate in new[] { false, true })
-        {
-            using var ahead = Host(provider, connectionString, trustServerCertificate, autoMigrate);
-            var refused = Assert.Throws<InvalidOperationException>(() => ahead.CreateClient());
+        using var ahead = Host(provider, connectionString, trustServerCertificate);
+        var refused = Assert.Throws<InvalidOperationException>(() => ahead.CreateClient());
 
-            Assert.Contains("The database schema is newer than this build", refused.Message, StringComparison.Ordinal);
-            Assert.Contains(FutureMigration.Id, refused.Message, StringComparison.Ordinal);
-            Assert.Contains("Upgrade the application, or restore the backup taken before the upgrade.", refused.Message, StringComparison.Ordinal);
-        }
+        Assert.Contains("The database schema is newer than this build", refused.Message, StringComparison.Ordinal);
+        Assert.Contains(FutureMigration.Id, refused.Message, StringComparison.Ordinal);
+        Assert.Contains("Upgrade the application, or restore the backup taken before the upgrade.", refused.Message, StringComparison.Ordinal);
     }
 
 
 
-    private WebApplicationFactory<Program> Host(string provider, string connectionString, bool trustServerCertificate, bool autoMigrate)
+    private WebApplicationFactory<Program> Host(string provider, string connectionString, bool trustServerCertificate)
     {
         return _factory.WithWebHostBuilder(builder => builder
             .UseSetting("Wms:Database:Provider", provider)
             .UseSetting("Wms:Database:ConnectionString", connectionString)
-            .UseSetting("Wms:Database:TrustServerCertificate", trustServerCertificate ? "true" : "false")
-            .UseSetting("Wms:Database:AutoMigrate", autoMigrate ? "true" : "false"));
+            .UseSetting("Wms:Database:TrustServerCertificate", trustServerCertificate ? "true" : "false"));
     }
 
 

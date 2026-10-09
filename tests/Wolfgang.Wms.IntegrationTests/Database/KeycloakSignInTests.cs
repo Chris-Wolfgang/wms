@@ -49,15 +49,34 @@ public sealed partial class KeycloakSignInTests
 
 
 
-    [DockerFact]
-    public async Task Keycloak_signs_a_realm_user_in_with_mapped_roles_and_an_unmapped_user_without()
+    [DockerFact]   // Keycloak is a container, so Docker serves this one either way
+    public async Task SqlServer_keycloak_signs_a_realm_user_in_with_mapped_roles_and_an_unmapped_user_without()
     {
-        await using var database = new PostgreSqlBuilder("postgres:16").Build();
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertKeycloakSignInAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
+    }
+
+
+
+    [DockerFact]
+    public async Task PostgreSql_keycloak_signs_a_realm_user_in_with_mapped_roles_and_an_unmapped_user_without()
+    {
+        await using var container = new PostgreSqlBuilder("postgres:16").Build();
+        await container.StartAsync();
+
+        await AssertKeycloakSignInAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    private static async Task AssertKeycloakSignInAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
         await using var keycloak = Keycloak();
-        await Task.WhenAll(database.StartAsync(), keycloak.StartAsync());
+        await keycloak.StartAsync();
         var authority = $"http://{keycloak.Hostname}:{keycloak.GetMappedPublicPort(8080)}/realms/{Realm}";
 
-        await using var app = await StartHostAsync(database.GetConnectionString());
+        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));
 
@@ -296,14 +315,15 @@ public sealed partial class KeycloakSignInTests
 
 
 
-    private static async Task<WebApplication> StartHostAsync(string connectionString)
+    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["Wms:Database:Provider"] = "PostgreSql",
+            ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
+            ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
             ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();

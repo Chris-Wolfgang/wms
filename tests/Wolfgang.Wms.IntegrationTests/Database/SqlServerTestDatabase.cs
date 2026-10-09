@@ -12,7 +12,8 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 /// A throw-away SQL Server database for one test (E13.1): a container when Docker is available, or a fresh
 /// database on the instance <see cref="EnvironmentVariable"/> names (SQL Server Express LocalDB on the
 /// Windows job, a developer's local Express) when it is set — the variable wins, so the Windows install
-/// path is exercised where containers are not. Dropped on dispose either way.
+/// path is exercised where containers are not. Dropped on dispose either way, with the runtime login
+/// <see cref="TestLogins"/> may have created for it (server-scoped, so it would outlive the database).
 /// </summary>
 [ExcludeFromCodeCoverage]   // the instance path runs only where WMS_TEST_SQLSERVER is set, the container path only where Docker is; no one machine covers both
 public sealed class SqlServerTestDatabase : IAsyncDisposable
@@ -115,5 +116,11 @@ public sealed class SqlServerTestDatabase : IAsyncDisposable
         await using var drop = connection.CreateCommand();
         drop.CommandText = string.Format(CultureInfo.InvariantCulture, "IF DB_ID('{0}') IS NOT NULL BEGIN ALTER DATABASE [{0}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{0}]; END", _name);
         await drop.ExecuteNonQueryAsync();
+
+        // the runtime login's sessions died with the database; the login itself is server-scoped
+        var login = TestLogins.RuntimeLoginName(_name!);
+        await using var dropLogin = connection.CreateCommand();
+        dropLogin.CommandText = string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'{0}') BEGIN DECLARE @kill nvarchar(max) = N''; SELECT @kill += N'KILL ' + CAST(session_id AS nvarchar(10)) + N';' FROM sys.dm_exec_sessions WHERE login_name = N'{0}'; EXEC(@kill); DROP LOGIN [{0}]; END", login);
+        await dropLogin.ExecuteNonQueryAsync();
     }
 }

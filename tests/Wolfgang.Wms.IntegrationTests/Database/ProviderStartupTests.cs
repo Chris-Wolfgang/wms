@@ -14,7 +14,8 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 /// E2.2 / E2.3 / E4.4 / E4.6 against real engines: on each supported provider the API refuses to start on an
 /// unmigrated database (naming the pending migration and <c>wms-migrate</c>), starts once the tool has applied
 /// the schema and reports it up to date, and refuses to start once a newer build has migrated the database
-/// (naming the unknown migration). The API never migrates itself. The SQL Server 2025 container runs as Express (<c>MSSQL_PID</c>), the free edition
+/// (naming the unknown migration). The API never migrates itself: every host here connects with a runtime
+/// login that holds data rights only (<see cref="TestLogins"/>), while the tool runs with the test's own. The SQL Server 2025 container runs as Express (<c>MSSQL_PID</c>), the free edition
 /// customers start on.
 /// </summary>
 public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<Program>>
@@ -73,15 +74,19 @@ public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<P
             Assert.Equal(TestcontainersStates.Running, container.State);
         }
 
-        using var unmigrated = Host(provider, connectionString, trustServerCertificate);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
+        using var unmigrated = Host(provider, runtime, trustServerCertificate);
         var refused = Assert.Throws<InvalidOperationException>(() => unmigrated.CreateClient());
         Assert.Contains("pending migrations", refused.Message, StringComparison.Ordinal);
         Assert.Contains("_Initial", refused.Message, StringComparison.Ordinal);
         Assert.Contains("Run wms-migrate", refused.Message, StringComparison.Ordinal);
 
         await TestMigrations.ApplyAsync(provider, connectionString);
+        await TestLogins.GrantDataAsync(provider, connectionString, runtime);
+        await TestLogins.AssertCannotChangeSchemaAsync(provider, runtime);
 
-        using var host = Host(provider, connectionString, trustServerCertificate);
+        using var host = Host(provider, runtime, trustServerCertificate);
         using var client = host.CreateClient();
         var status = await SchemaAsync(client);
 
@@ -89,16 +94,16 @@ public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<P
         Assert.Equal(status.RootElement.GetProperty("expected").GetString(), status.RootElement.GetProperty("current").GetString());
         Assert.True(status.RootElement.GetProperty("upToDate").GetBoolean());
 
-        await AssertRefusesASchemaAheadOfTheBuildAsync(provider, connectionString, trustServerCertificate);
+        await AssertRefusesASchemaAheadOfTheBuildAsync(provider, connectionString, runtime, trustServerCertificate);
     }
 
 
 
-    private async Task AssertRefusesASchemaAheadOfTheBuildAsync(string provider, string connectionString, bool trustServerCertificate)
+    private async Task AssertRefusesASchemaAheadOfTheBuildAsync(string provider, string connectionString, string runtime, bool trustServerCertificate)
     {
         await FutureMigration.RecordAsync(provider, connectionString);
 
-        using var ahead = Host(provider, connectionString, trustServerCertificate);
+        using var ahead = Host(provider, runtime, trustServerCertificate);
         var refused = Assert.Throws<InvalidOperationException>(() => ahead.CreateClient());
 
         Assert.Contains("The database schema is newer than this build", refused.Message, StringComparison.Ordinal);

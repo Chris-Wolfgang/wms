@@ -19,18 +19,36 @@ using Wolfgang.Wms.Infrastructure.Secrets;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E12.1 and E12.6 against PostgreSQL: readiness reports the database check with the schema version; two
+/// E12.1 and E12.6 on each provider: readiness reports the database check with the schema version; two
 /// instances contend for a lock — the second is refused while the first holds and renews, takes over once
 /// the lease has expired without renewal, and the first's release frees it at once.
 /// </summary>
 public sealed class LeaderLockTests
 {
+    [SqlServerFact]
+    public async Task SqlServer_readiness_reports_the_database_and_one_instance_leads_at_a_time()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertLeaderLockAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
+    }
+
+
+
     [DockerFact]
-    public async Task Readiness_reports_the_database_and_one_instance_leads_at_a_time()
+    public async Task PostgreSql_readiness_reports_the_database_and_one_instance_leads_at_a_time()
     {
         await using var container = new PostgreSqlBuilder("postgres:16").Build();
         await container.StartAsync();
-        await using var app = await StartHostAsync(container.GetConnectionString());
+
+        await AssertLeaderLockAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    private static async Task AssertLeaderLockAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
         using var client = app.GetTestClient();
         var first = app.Services.GetRequiredService<ILeaderLock>();
         var second = new EfLeaderLock(app.Services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, NullLogger<EfLeaderLock>.Instance);
@@ -79,14 +97,15 @@ public sealed class LeaderLockTests
 
 
 
-    private static async Task<WebApplication> StartHostAsync(string connectionString)
+    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["Wms:Database:Provider"] = "PostgreSql",
+            ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
+            ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
             ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsHealth();

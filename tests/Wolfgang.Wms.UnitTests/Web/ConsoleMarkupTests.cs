@@ -32,6 +32,7 @@ public sealed class ConsoleMarkupTests : IDisposable
     {
         _context.Services.AddSingleton<IStringLocalizerFactory, MarkingLocalizerFactory>();
         _context.Services.AddSingleton(typeof(IStringLocalizer<>), typeof(StringLocalizer<>));
+        _context.Services.AddLogging();
         _context.JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
@@ -165,7 +166,7 @@ public sealed class ConsoleMarkupTests : IDisposable
         var role = cut.Find(".workspace-error").GetAttribute("role");
         var title = cut.Find(".workspace-error h2").TextContent;
         cut.Find(".workspace-error button").Click();
-        var recovered = cut.Find(".screen").TextContent;
+        var recovered = cut.WaitForElement(".screen").TextContent;   // the recovered screen appears on a re-render; do not assume it is synchronous
 
         Assert.Equal("alert", role);
         Assert.Equal("⟦layout.error.title⟧", title);

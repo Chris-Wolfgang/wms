@@ -1,6 +1,8 @@
 @inherits LayoutComponentBase
+@using Microsoft.Extensions.Logging
 @inject IWorkspaceAccess Access
 @inject IStringLocalizer<ConsoleText> L
+@inject ILogger<WorkspaceLayout> Logger
 
 <PageTitle>@L[Workspace.TitleKey]</PageTitle>
 
@@ -68,7 +70,9 @@
     // Every workspace takes tethered-scanner input here; the screen that registered with the cascading
     // ScanDispatcher handles it, and a scan no screen takes is reported instead of silently dropped (E82.4). A
     // screen whose handler throws is reported the same way: an exception leaving this handler would end the
-    // circuit, and with it the scanner, the screen and any form in progress.
+    // circuit, and with it the scanner, the screen and any form in progress. The failure goes to the log with the
+    // workspace and the exception, so it is not invisible beyond the message; the scanned value is shown to the
+    // user but not logged (a scan is whatever a label carries).
     private async Task OnScanAsync(string scan)
     {
         _failedScan = null;
@@ -78,6 +82,7 @@
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            LogScanFailed(Logger, Workspace.Name, exception);
             _unusedScan = null;
             _failedScan = scan;
         }

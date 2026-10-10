@@ -219,26 +219,24 @@ if (-not $SkipTests -and -not $SkipCoverage -and $failed.Count -eq 0) {
         Write-Host "No coverage files found — skipping"
     }
     else {
-        # Install ReportGenerator if not present
-        $rgPath = Get-Command reportgenerator -ErrorAction SilentlyContinue
-        if (-not $rgPath) {
-            Write-Host "Installing ReportGenerator..."
-            # Same pin as .github/workflows/pr.yaml, so a local report matches CI's.
-            dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.11
-            # Ensure global tools dir is on PATH for this session. The .NET
-            # installer normally adds it to the user's profile, but a fresh
-            # shell or a pwsh-invoked-from-script session may not have it yet.
-            $globalToolsDir = if ($IsWindows -or $env:OS -eq 'Windows_NT') {
-                Join-Path $env:USERPROFILE '.dotnet\tools'
-            } else {
-                Join-Path $HOME '.dotnet/tools'
-            }
-            if (Test-Path $globalToolsDir -PathType Container) {
-                $sep = [IO.Path]::PathSeparator
-                $pathSegments = $env:PATH -split [regex]::Escape($sep)
-                if ($pathSegments -notcontains $globalToolsDir) {
-                    $env:PATH = "$globalToolsDir$sep$env:PATH"
-                }
+        # Bring ReportGenerator to the pin .github/workflows/pr.yaml uses, whatever is installed: `update`
+        # installs it when absent and moves an existing one up or down, so a local report is parsed by the
+        # same version CI uses.
+        Write-Host "Pinning ReportGenerator to 5.5.11..."
+        dotnet tool update -g dotnet-reportgenerator-globaltool --version 5.5.11
+        # Ensure global tools dir is on PATH for this session. The .NET
+        # installer normally adds it to the user's profile, but a fresh
+        # shell or a pwsh-invoked-from-script session may not have it yet.
+        $globalToolsDir = if ($IsWindows -or $env:OS -eq 'Windows_NT') {
+            Join-Path $env:USERPROFILE '.dotnet\tools'
+        } else {
+            Join-Path $HOME '.dotnet/tools'
+        }
+        if (Test-Path $globalToolsDir -PathType Container) {
+            $sep = [IO.Path]::PathSeparator
+            $pathSegments = $env:PATH -split [regex]::Escape($sep)
+            if ($pathSegments -notcontains $globalToolsDir) {
+                $env:PATH = "$globalToolsDir$sep$env:PATH"
             }
         }
 
@@ -327,12 +325,12 @@ if (-not $SkipTests -and -not $SkipCoverage -and $failed.Count -eq 0) {
 if (-not $SkipSecurity) {
     Write-Step "Step 4: DevSkim Security Scan"
 
-    $devskim = Get-Command devskim -ErrorAction SilentlyContinue
-    if (-not $devskim) {
-        Write-Host "Installing DevSkim CLI..."
-        dotnet tool install --global Microsoft.CST.DevSkim.CLI --version 1.0.100   # same pin as pr.yaml
-    }
+    # Same pin as pr.yaml, enforced whatever is installed (`update` installs when absent).
+    Write-Host "Pinning DevSkim CLI to 1.0.100..."
+    dotnet tool update --global Microsoft.CST.DevSkim.CLI --version 1.0.100
 
+    # A results file from an interrupted earlier run must never be read as this run's scan.
+    Remove-Item "devskim-results.txt" -ErrorAction SilentlyContinue
     devskim analyze `
         --source-code . `
         --file-format text `
@@ -340,10 +338,19 @@ if (-not $SkipSecurity) {
         --ignore-rule-ids DS176209,DS162092 `
         --ignore-globs "**/.git/**,**/bin/**,**/obj/**,**/api/**,**/CoverageReport/**,**/TestResults/**,**/.github/license-audit/**" `
         --skip-git-ignored-files
+    $devskimExit = $LASTEXITCODE
     # The exclusions above MUST stay identical to the DevSkim step in .github/workflows/pr.yaml
     # (the reasons are there), or a local run disagrees with CI, which is what this script exists to prevent.
 
-    if (Test-Path "devskim-results.txt") {
+    if ($devskimExit -ne 0) {
+        # Mirror pr.yaml, where a non-zero exit fails the DevSkim step: a scan that did not complete is a failure,
+        # not a clean result, whatever the file says.
+        if (Test-Path "devskim-results.txt") { Get-Content "devskim-results.txt" -Raw | Write-Host }
+        Write-Fail "DevSkim did not complete successfully (exit code $devskimExit)"
+        $failed += "DevSkim"
+        Remove-Item "devskim-results.txt" -ErrorAction SilentlyContinue
+    }
+    elseif (Test-Path "devskim-results.txt") {
         $results = Get-Content "devskim-results.txt" -Raw
         # Same gate as pr.yaml: every finding line ("<file>:<line>:<col>:<line>:<col> [Severity] DSnnnnnn")
         # fails, whatever its severity; a false positive is excluded as narrowly as it can be -

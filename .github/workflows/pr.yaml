@@ -525,7 +525,15 @@ jobs:
           # external $refs by default; the action switched that off, and so does every call here, because the
           # revision is the PR's document (an external $ref would make the runner fetch a URL or file of the
           # PR author's choosing). oasdiff needs the "=false" form for a false boolean.
-          "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --format githubactions --allow-external-refs=false || true
+          # Exit 1 means breaking changes were found (annotated above, gated below for a frozen document); anything
+          # higher is a load, parse or internal error, and the comparison did not happen: fail here, so the
+          # comment step reports an incomplete comparison instead of a clean one.
+          rc=0
+          "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --format githubactions --allow-external-refs=false || rc=$?
+          if [ "$rc" -ge 2 ]; then
+            echo "::error::oasdiff breaking failed with exit code $rc"
+            exit "$rc"
+          fi
           if [ "$FROZEN" = true ]; then
             "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --fail-on ERR --allow-external-refs=false
           fi

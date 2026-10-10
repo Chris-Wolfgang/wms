@@ -1,26 +1,33 @@
 # Wolfgang.Wms
 
-Warehouse management system (Wolfgang.Wms): picking module
+Warehouse management system (Wolfgang.Wms): an installed server with a web console and a handheld app. The picking module is the first one, and is in progress; `main` holds the hosts, the data layer, the API primitives and the console and handheld shells it is built on.
 
-[![NuGet](https://img.shields.io/nuget/v/Wolfgang.Wms.svg?logo=nuget&label=NuGet)](https://www.nuget.org/packages/Wolfgang.Wms/)
-[![Downloads](https://img.shields.io/nuget/dt/Wolfgang.Wms.svg?logo=nuget&label=downloads)](https://www.nuget.org/packages/Wolfgang.Wms/)
 [![PR build](https://img.shields.io/github/actions/workflow/status/Chris-Wolfgang/wms/pr.yaml?event=pull_request_target&label=PR%20build&logo=github)](https://github.com/Chris-Wolfgang/wms/actions/workflows/pr.yaml)
 [![release](https://img.shields.io/github/actions/workflow/status/Chris-Wolfgang/wms/release.yaml?event=release&label=release&logo=github)](https://github.com/Chris-Wolfgang/wms/actions/workflows/release.yaml)
 [![License: TBD](https://img.shields.io/badge/License-TBD-blue.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-Multi--Targeted-purple.svg)](https://dotnet.microsoft.com/)
+[![.NET 10](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?logo=github)](https://github.com/Chris-Wolfgang/wms)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Chris-Wolfgang/wms/badge)](https://scorecard.dev/viewer/?uri=github.com/Chris-Wolfgang/wms)
 [![Coverage](https://img.shields.io/endpoint?url=https://Chris-Wolfgang.github.io/wms/versions/latest/coverage/badge.json&logo=github)](https://Chris-Wolfgang.github.io/wms/versions/latest/coverage/)
 
 ---
 
-## 📦 Installation
+## 📦 Getting it running
 
-```bash
-dotnet add package Wolfgang.Wms
-```
+Wolfgang.Wms is an application you install, not a library you reference. An install is a database, the API, the
+web console and, on the floor, the handheld app (today the console shows the workspace shells and the handheld
+its landing page; the picking screens arrive with the picking module):
 
-**NuGet Package:** Coming soon to NuGet.org
+1. **Create the database** on SQL Server 2022+ (Express included) or PostgreSQL 16+ and point the API at it with
+   `Wms:Database:Provider` / `Wms:Database:ConnectionString` ([docs/CONFIGURATION.md](docs/CONFIGURATION.md)).
+2. **Apply the schema with `wms-migrate`** using the DBA's rights; the API's own service account never changes the
+   schema and refuses to start while it is behind or ahead ([docs/MIGRATE.md](docs/MIGRATE.md)).
+3. **Start the API** and check `GET /api/v0/system/schema` reports the schema up to date
+   ([docs/BOOTSTRAP.md](docs/BOOTSTRAP.md)); then open the console.
+
+The package meant for others to reference is `Wolfgang.Wms.Client`, the generated API client for devices and
+integrations, published with each release (#983 makes the release pack only it). The server is not a package: today it is built from source (the Quick Start below), the worker
+image and the Windows install arrive with E14/E15, and a downloadable bundle lands before v1.0 (#847).
 
 ---
 
@@ -41,24 +48,53 @@ This project is **not yet licensed**. All rights reserved pending license select
 
 ## 🚀 Quick Start
 
-{{QUICK_START_EXAMPLE}}
+The shortest path on a development machine, with a database already created:
+
+```bash
+# the schema, with the DBA's connection string (SqlServer or PostgreSql)
+dotnet run --project src/Wolfgang.Wms.Migrate -- --provider SqlServer --connection-string "<connection string>"
+dotnet run --project src/Wolfgang.Wms.Migrate -- --status --provider SqlServer --connection-string "<connection string>"
+
+# the API (reads Wms:Database from appsettings or the environment); GET /api/v0/system/schema says upToDate
+dotnet run --project src/Wolfgang.Wms.Api
+
+# the console; / lists the workspaces you can enter
+dotnet run --project src/Wolfgang.Wms.Web
+```
+
+`pwsh ./scripts/build-pr.ps1` runs the Windows stage of the PR gate locally (build, tests, coverage, DevSkim,
+gitleaks); the Linux coverage gate, InspectCode, the OpenAPI diff and the AOT smoke run only in CI. The SQL Server
+integration tests use a local instance when `WMS_TEST_SQLSERVER` names one (Express LocalDB works) and containers
+otherwise.
 
 ---
 
 ## ✨ Features
 
-{{FEATURES_TABLE}}
+What `main` implements today is the foundation; the picking module, the screens, licensing, identity and the
+settings that make it operational are in progress on the open pull-request stack.
 
-**Examples:**
-{{FEATURE_EXAMPLES}}
+| Area | On `main` today | Arrives with |
+|------|-----------------|--------------|
+| Modular monolith | One API, one database, one deployable; a module contract for endpoints and typed keys (ADR 0001), with the schema module as its only registration | the picking module, the first business module |
+| Console | A Blazor Server console with five workspace shells (Configure, Supervise, Resolve, Report, Insights) behind an access gate, and a scan listener that takes tethered-scanner input on every screen; access is a placeholder that opens the free-tier workspaces | license-backed and permission-backed access (E79, E11), the workspace screens |
+| Handheld | An Android (.NET MAUI) app with a landing page and a device-version policy hook that accepts every version | the picking screens and the server-published minimum version (E12) |
+| Two database engines | SQL Server 2022+ (Express included) and PostgreSQL 16+ from one model, with per-provider migrations and a conventions test that proves the schemas match | nothing further |
+| `wms-migrate` | The one way the schema is created, upgraded, scripted or rolled back; data-losing downgrades need confirmation; the API never migrates | a downloadable bundle (#847) |
+| API | Versioned root (`/api/v0`) with one endpoint, the schema status; the OpenAPI document committed and diffed on every PR; a generated Kiota client; the primitives every module endpoint will use: keyset paging, ETags and `If-Match` concurrency, idempotency keys, problem details with stable error codes | the module endpoints that consume them |
+| Your identifiers | Domain rules for customer-supplied identifiers: mask and regex formats and GS1 structural validation | the intake endpoints and screens that apply them to labels |
+| Read models | The per-instance cache invalidated by row version and the ETag derived from the same version (ADR 0003) | the first read model and its endpoint |
 
 ---
 
-## 🎯 Supported Frameworks
+## 🎯 Runtime and databases
 
-{{TARGET_FRAMEWORKS}}
-
-See the [NuGet package page](https://www.nuget.org/packages/Wolfgang.Wms/) for the authoritative per-TFM compatibility matrix.
+| Component | Runs on |
+|-----------|---------|
+| API, console, worker, `wms-migrate` | .NET 10 runtime, Windows or Linux |
+| Handheld app | Android (`net10.0-android`) |
+| Database | SQL Server 2022 or later (Express included), or PostgreSQL 16 or later |
+| `Wolfgang.Wms.Client` (NuGet) | .NET 10 |
 
 ---
 
@@ -171,10 +207,10 @@ docfx build --serve
 
 ## 🔐 Verify a Release
 
-Every package published from this repository carries a [SLSA build-provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds): a signed statement, recorded on GitHub, that the exact `.nupkg` bytes were produced by this repository's release workflow at a given commit. Verify a downloaded package with the GitHub CLI:
+The `Wolfgang.Wms.Client` package published from this repository carries a [SLSA build-provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds): a signed statement, recorded on GitHub, that the exact `.nupkg` bytes were produced by this repository's release workflow at a given commit. Verify a downloaded package with the GitHub CLI:
 
 ```bash
-gh attestation verify Wolfgang.Wms.X.Y.Z.nupkg \
+gh attestation verify Wolfgang.Wms.Client.X.Y.Z.nupkg \
   --repo Chris-Wolfgang/wms \
   --signer-workflow Chris-Wolfgang/wms/.github/workflows/release.yaml
 ```
@@ -207,4 +243,5 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## 🙏 Acknowledgments
 
-{{ACKNOWLEDGMENTS}}
+Built on .NET, ASP.NET Core and Blazor, Entity Framework Core, Kiota, Serilog and Testcontainers; the full list of
+third-party components and their licenses is in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

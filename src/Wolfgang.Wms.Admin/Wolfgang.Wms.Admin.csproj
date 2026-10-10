@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>wms-admin</AssemblyName>
+    <RootNamespace>Wolfgang.Wms.Admin</RootNamespace>
+    <!-- E9.3: the host-side tool that opens or closes the break-glass gate over the host-only channel. It
+         opens the file key ring like wms-migrate does, so it publishes JIT next to it; the trim/AOT analyzers
+         are off like Infrastructure's. Core comes through Infrastructure: a tool is not a module (ADR 0001). -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <IsTrimmable>false</IsTrimmable>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wolfgang.Wms.Infrastructure\Wolfgang.Wms.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

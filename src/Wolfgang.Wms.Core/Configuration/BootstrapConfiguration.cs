@@ -30,6 +30,8 @@ public static class BootstrapConfiguration
         "Wms:Auth:ForceLocal",              // E11.0: emergency override, local sign-in only
         "Wms:Hosting:AllowHttp",            // E12.5: plain HTTP from any address (a lab)
         "Wms:Worker:Role",                  // E14.2: worker or ingest (the migrate role is the tool, not the host)
+        "Wms:Admin:ChannelName",            // E9.3: the host-only pipe wms-admin talks to
+        "Wms:Admin:Enabled",                // E9.3: false turns that channel off
     ];
 
 

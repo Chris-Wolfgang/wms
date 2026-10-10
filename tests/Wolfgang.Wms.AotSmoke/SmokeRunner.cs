@@ -28,6 +28,7 @@ internal static class SmokeRunner
         ("Licensing: signed key round-trips through JSON and ECDSA", Sync(LicensingSmoke.SignedKeyRoundTrips)),
         ("Licensing: altered or foreign keys refused", Sync(LicensingSmoke.AlteredKeyIsRefused)),
         ("Licensing: embedded vendor key loads", Sync(LicensingSmoke.VendorKeyLoads)),
+        ("AdminChannel: sealed request and response round-trip", Sync(AdminChannelSmoke.SealedRequestAndResponseRoundTrip)),
     ];
 
 

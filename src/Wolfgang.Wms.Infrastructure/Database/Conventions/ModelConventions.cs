@@ -73,7 +73,9 @@ public static class ModelConventions
     /// the owned rows with their owner, the database never cascades), and on SQL Server stores timestamps as UTC
     /// <c>datetime2(3)</c>. An owned type with a table of its own gets a snake_case table name; one that shares
     /// its owner's table leaves that table and the owner's key column alone, and its other columns keep EF's
-    /// navigation prefix (<c>ShipTo.Street</c> → <c>ship_to_street</c>). Schemas are not assigned here: each
+    /// navigation prefix (<c>ShipTo.Street</c> → <c>ship_to_street</c>). A table is named after its CLR type,
+    /// or after the name an explicit <c>ToTable(name, schema)</c> gives it (either way snake_cased); the
+    /// <c>DbSet</c> property name EF would use by default is ignored. Schemas are not assigned here: each
     /// module configures its own (<c>ToTable(name, schema)</c>), and <see cref="Verify"/> rejects a table
     /// without one.
     /// </summary>
@@ -94,7 +96,9 @@ public static class ModelConventions
             var sharesOwnerTable = ownership is not null && SharesTable(entity, ownership.PrincipalEntityType);
             if (ownership is null)
             {
-                entity.SetTableName(SnakeCase.Of(entity.ClrType.Name));
+                // Only a name set by ToTable counts; EF's convention-sourced default is the DbSet property name.
+                var explicitName = ((IConventionEntityType)entity).GetTableNameConfigurationSource() == ConfigurationSource.Explicit ? entity.GetTableName() : null;
+                entity.SetTableName(SnakeCase.Of(explicitName ?? entity.ClrType.Name));
             }
             else if (!sharesOwnerTable)
             {

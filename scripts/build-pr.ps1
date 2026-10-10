@@ -330,7 +330,7 @@ if (-not $SkipSecurity) {
     $devskim = Get-Command devskim -ErrorAction SilentlyContinue
     if (-not $devskim) {
         Write-Host "Installing DevSkim CLI..."
-        dotnet tool install --global Microsoft.CST.DevSkim.CLI
+        dotnet tool install --global Microsoft.CST.DevSkim.CLI --version 1.0.100   # same pin as pr.yaml
     }
 
     devskim analyze `

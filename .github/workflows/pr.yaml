@@ -1991,7 +1991,7 @@ jobs:
           echo "✅ Configuration files secured - using versions from main branch"
 
       - name: Install DevSkim CLI
-        run: dotnet tool install --global Microsoft.CST.DevSkim.CLI
+        run: dotnet tool install --global Microsoft.CST.DevSkim.CLI --version 1.0.100   # pinned by hand (Dependabot cannot bump a run: step); keep scripts/build-pr.ps1 in step
 
       - name: Run DevSkim security scan
         run: |

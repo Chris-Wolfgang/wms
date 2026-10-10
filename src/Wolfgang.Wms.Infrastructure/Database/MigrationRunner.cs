@@ -2,6 +2,7 @@
 
 using System.Data.Common;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -356,15 +357,27 @@ public sealed class MigrationRunner
             reasons.Add("scale " + oldScale.ToString(CultureInfo.InvariantCulture) + " -> " + scale.ToString(CultureInfo.InvariantCulture));
         }
 
-        var storeTypeChanged = (old.ColumnType is null) != (alter.ColumnType is null)
-            || (old.ColumnType is not null && !string.Equals(old.ColumnType, alter.ColumnType, StringComparison.OrdinalIgnoreCase));
+        // Store types are compared with whitespace and case ignored ("decimal(9, 3)" and "DECIMAL(9,3)" are one
+        // type), so formatting never produces a step that demands --confirm-data-loss; the message shows them
+        // as written, trimmed.
+        var oldStoreType = old.ColumnType?.Trim();
+        var newStoreType = alter.ColumnType?.Trim();
+        var storeTypeChanged = (oldStoreType is null) != (newStoreType is null)
+            || (oldStoreType is not null && !string.Equals(StoreTypeKey(oldStoreType), StoreTypeKey(newStoreType), StringComparison.OrdinalIgnoreCase));
         var clrTypeChanged = old.ClrType is not null && alter.ClrType is not null && old.ClrType != alter.ClrType;
         if (storeTypeChanged || clrTypeChanged)
         {
-            reasons.Add("type " + (old.ColumnType ?? "inferred for " + old.ClrType?.Name) + " -> " + (alter.ColumnType ?? "inferred for " + alter.ClrType?.Name));
+            reasons.Add("type " + (oldStoreType ?? "inferred for " + old.ClrType?.Name) + " -> " + (newStoreType ?? "inferred for " + alter.ClrType?.Name));
         }
 
         return string.Join(", ", reasons);
+    }
+
+
+
+    private static string? StoreTypeKey(string? columnType)
+    {
+        return columnType is null ? null : Regex.Replace(columnType, @"\s+", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1));
     }
 
 

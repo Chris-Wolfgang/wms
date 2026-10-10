@@ -498,6 +498,7 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<string>("code", "tote", maxLength: 100, schema: "picking", oldMaxLength: 50);   // widening keeps every value
             migrationBuilder.AlterColumn<string>("note", "tote", nullable: true, schema: "picking", oldNullable: false);
             migrationBuilder.AlterColumn<decimal>("weight", "tote", precision: 18, scale: 4, schema: "picking", oldPrecision: 9, oldScale: 2);
+            migrationBuilder.AlterColumn<decimal>("weight", "tote", type: "decimal(9, 3)", schema: "picking", oldType: "decimal(9,3)");   // same store type, different spacing
         }
     }
 }

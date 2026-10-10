@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -94,7 +95,10 @@ public sealed class MigrationRunnerTests
         Assert.Contains(idempotentMarker, script, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(historyTable, script, StringComparison.Ordinal);
         Assert.Contains("_Initial", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("_Initial", delta.Replace("-- Downgrade", string.Empty, StringComparison.Ordinal).Split('\n').Where(l => l.Contains("INSERT", StringComparison.OrdinalIgnoreCase)).DefaultIfEmpty(string.Empty).First(), StringComparison.Ordinal);
+        var historyInsert = new Regex(@"INSERT\s+INTO\s+" + Regex.Escape(historyTable), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        Assert.Matches(historyInsert, script);        // the upgrade records each migration it applies
+        Assert.DoesNotMatch(historyInsert, delta);    // Initial -> Initial applies nothing, so it writes no history row
+        Assert.DoesNotContain("_Initial", delta, StringComparison.Ordinal);
     }
 
 

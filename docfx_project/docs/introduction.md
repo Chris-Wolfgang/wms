@@ -2,8 +2,8 @@
 
 Wolfgang.Wms is a warehouse management system built as a modular monolith: one API, one database and one deployable,
 with the picking module first. It is an application you install (a database, the API, the web console and the
-handheld app), not a library you reference; the only NuGet package it publishes is `Wolfgang.Wms.Client`, the
-generated API client for devices and integrations.
+handheld app), not a library you reference. The package meant for others to reference is `Wolfgang.Wms.Client`,
+the generated API client for devices and integrations.
 
 ## What is in it today
 

@@ -37,6 +37,16 @@ public static class ModelConventions
 
 
     /// <summary>
+    /// The longest identifier allowed on either provider: PostgreSQL's limit (63 bytes), applied to SQL Server
+    /// (128) as well, so a convention-built name is never truncated on one engine and kept on the other.
+    /// PostgreSQL truncates a longer name with a NOTICE, and two names that share their first 63 characters
+    /// collide there only; the verifier reports the length instead.
+    /// </summary>
+    public const int MaxIdentifierLength = 63;
+
+
+
+    /// <summary>
     /// The engines' default schemas; no WMS table may land in them (E3.1).
     /// </summary>
     public static IReadOnlyList<string> DefaultSchemas { get; } = ["dbo", "public"];
@@ -134,6 +144,7 @@ public static class ModelConventions
                 violations.Add($"{table}: table name is not snake_case.");
             }
 
+            VerifyLength(table, "table", table, violations);
             VerifyKeys(entity, storeObject, violations);
             VerifyRowVersion(entity, table, violations);
             foreach (var property in entity.GetProperties())
@@ -331,6 +342,8 @@ public static class ModelConventions
             violations.Add($"{table}.{column}: column name is not snake_case.");
         }
 
+        VerifyLength(table, "column", column, violations);
+
         if (type == typeof(Guid))
         {
             violations.Add($"{table}.{column}: GUID columns are not allowed; identifiers are server-assigned long.");
@@ -405,6 +418,18 @@ public static class ModelConventions
         if (name is null || !name.StartsWith(prefix, StringComparison.Ordinal) || !SnakeCase.Is(name))
         {
             violations.Add($"{table}: {kind} name '{name}' must start with '{prefix}' and be snake_case.");
+        }
+
+        VerifyLength(table, kind, name, violations);
+    }
+
+
+
+    private static void VerifyLength(string table, string kind, string? name, List<string> violations)
+    {
+        if (name is not null && name.Length > MaxIdentifierLength)
+        {
+            violations.Add($"{table}: {kind} name '{name}' is {name.Length} characters; identifiers are at most {MaxIdentifierLength} on both providers (PostgreSQL truncates longer ones silently). Give it a shorter explicit name.");
         }
     }
 

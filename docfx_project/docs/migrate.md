@@ -57,11 +57,16 @@ data that a migration changed.
 
 | Code | Meaning |
 |------|---------|
-| `0` | Done, or nothing to do. |
-| `1` | A migration failed; the output names it. Migrations before it were applied. |
-| `2` | Usage or configuration error, such as an unknown flag, a missing setting or a malformed connection string. |
+| `0` | Done, or nothing to do; with `--status`, the schema is up to date. |
+| `1` | A migration failed (the output names it; migrations before it were applied), or the tool failed before one could run (the message is in the output). |
+| `2` | Usage or configuration error, such as an unknown flag, a missing setting, a malformed connection string or an `--output` path that cannot be written. |
 | `3` | The downgrade loses data and needs `--confirm-data-loss`. Nothing was changed or written. |
-| `4` | Nothing was applied: the database cannot be reached, or its schema is newer than this version. Upgrade the software, or restore the backup taken before the upgrade. |
+| `4` | Nothing was applied, or with `--status` nothing could be: the database cannot be reached, its schema is newer than this version (upgrade the software, or restore the backup taken before the upgrade), or its migrations history is inconsistent (the output names the migrations; repair the history table from the backup). |
+| `5` | `--status` only: the schema is behind this version; the pending migrations are listed. Run the tool. |
+| `130` | Cancelled with Ctrl+C. A migration in flight is rolled back by the database. |
+
+`wms-migrate --status && <start the server>` therefore starts the server only on an up-to-date schema. Against a
+server it cannot reach, `--status` reports `Pending: unknown` rather than listing every shipped migration.
 
 ## Examples
 

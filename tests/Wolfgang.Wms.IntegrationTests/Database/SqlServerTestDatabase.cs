@@ -9,10 +9,11 @@ using Testcontainers.MsSql;
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// A throw-away SQL Server database for one test (E13.1): a container when Docker is available, or a fresh
-/// database on the instance <see cref="EnvironmentVariable"/> names (SQL Server Express LocalDB on the
+/// A throw-away SQL Server database for one test (E13.1): a fresh database in a container when Docker is
+/// available, or on the instance <see cref="EnvironmentVariable"/> names (SQL Server Express LocalDB on the
 /// Windows job, a developer's local Express) when it is set — the variable wins, so the Windows install
-/// path is exercised where containers are not. Dropped on dispose either way, with the runtime login
+/// path is exercised where containers are not. Either way the test gets a database of its own, never
+/// <c>master</c>: the schema, the history table and the runtime login's grants land where an install puts them. Dropped on dispose either way, with the runtime login
 /// <see cref="TestLogins"/> may have created for it (server-scoped, so it would outlive the database).
 /// </summary>
 [ExcludeFromCodeCoverage]   // the instance path runs only where WMS_TEST_SQLSERVER is set, the container path only where Docker is; no one machine covers both
@@ -54,13 +55,6 @@ public sealed class SqlServerTestDatabase : IAsyncDisposable
 
 
     /// <summary>
-    /// True when the database is served by a container (else by the named instance).
-    /// </summary>
-    public bool IsContainer => _container is not null;
-
-
-
-    /// <summary>
     /// True while the database is available.
     /// </summary>
     public bool Running => _container is null || _container.State == TestcontainersStates.Running;
@@ -75,29 +69,46 @@ public sealed class SqlServerTestDatabase : IAsyncDisposable
 
 
     /// <summary>
-    /// Starts the database: a new one on the configured instance, else a container of <paramref name="image"/>.
+    /// Starts the database: a new one on the configured instance, else a new one in a container of
+    /// <paramref name="image"/> (whose connection string points at <c>master</c>, which no test should use).
+    /// Nothing started is left behind on failure: a container whose database could not be created is disposed
+    /// before the exception leaves (CI runs without the Ryuk reaper, #843, so nothing else would).
+    /// <paramref name="name"/> overrides the generated database name; tests use it to force a failure.
     /// </summary>
-    public static async Task<SqlServerTestDatabase> StartAsync(string image = DefaultImage, CancellationToken cancellationToken = default)
+    public static async Task<SqlServerTestDatabase> StartAsync(string image = DefaultImage, CancellationToken cancellationToken = default, string? name = null)
     {
+        name ??= "wms_test_" + Guid.NewGuid().ToString("N")[..12];
         var instance = Environment.GetEnvironmentVariable(EnvironmentVariable);
         if (!string.IsNullOrWhiteSpace(instance))
         {
-            var name = "wms_test_" + Guid.NewGuid().ToString("N")[..12];
-            await using (var connection = new SqlConnection(instance))
-            {
-                await connection.OpenAsync(cancellationToken);
-                await using var create = connection.CreateCommand();
-                create.CommandText = "CREATE DATABASE [" + name + "]";
-                await create.ExecuteNonQueryAsync(cancellationToken);
-            }
-
-            var builder = new SqlConnectionStringBuilder(instance) { InitialCatalog = name };
-            return new SqlServerTestDatabase(builder.ConnectionString, container: null, instance, name);
+            await CreateAsync(instance, name, cancellationToken);
+            return new SqlServerTestDatabase(new SqlConnectionStringBuilder(instance) { InitialCatalog = name }.ConnectionString, container: null, instance, name);
         }
 
         var container = new MsSqlBuilder(image).Build();
         await container.StartAsync(cancellationToken);
-        return new SqlServerTestDatabase(container.GetConnectionString(), container, instance: null, name: null);
+        try
+        {
+            await CreateAsync(container.GetConnectionString(), name, cancellationToken);
+        }
+        catch
+        {
+            await container.DisposeAsync();   // no owner yet; without this the engine keeps running
+            throw;
+        }
+
+        return new SqlServerTestDatabase(new SqlConnectionStringBuilder(container.GetConnectionString()) { InitialCatalog = name }.ConnectionString, container, instance: null, name);
+    }
+
+
+
+    private static async Task CreateAsync(string server, string name, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(server);
+        await connection.OpenAsync(cancellationToken);
+        await using var create = connection.CreateCommand();
+        create.CommandText = "CREATE DATABASE [" + name + "]";
+        await create.ExecuteNonQueryAsync(cancellationToken);
     }
 
 

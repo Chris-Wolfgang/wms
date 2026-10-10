@@ -100,7 +100,7 @@ public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<P
 
 
 
-    private async Task AssertRefusesASchemaAheadOfTheBuildAsync(string provider, string connectionString, string runtime, bool trustServerCertificate)
+    private static async Task AssertRefusesASchemaAheadOfTheBuildAsync(string provider, string connectionString, string runtime, bool trustServerCertificate)
     {
         await FutureMigration.RecordAsync(provider, connectionString);
 

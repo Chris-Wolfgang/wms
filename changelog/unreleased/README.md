@@ -65,8 +65,10 @@ highest-ranked fragment kind present:
 
 | Current | `breaking` | `feature` | `fix` / `docs` / `internal` |
 |---------|-----------|-----------|------------------------------|
-| `0.x`   | minor     | minor     | patch                        |
+| `0.x`   | minor     | patch     | patch                        |
 | `>= 1.0` | major    | minor     | patch                        |
 
-Patch releases are lean (fixes only): any new public surface is a minor. Pre-1.0 the minor version is also
-the compatibility line, so a breaking change lands on the same minor bump as a feature.
+Below 1.0 a minor marks a compatibility change (E85.4): a `breaking` fragment bumps the minor, and `feature`,
+`fix`, `docs` and `internal` fragments are patches, so each build phase closes as a 0.x minor and the minor
+number tells a customer when something they rely on changed. From 1.0 a breaking change is a major and a
+feature a minor; patch releases are lean (fixes only). `scripts/changelog.ps1 bump` prints the result.

@@ -203,6 +203,8 @@ public sealed class EfSettingsTests
 
     private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate)
     {
+        // The API never migrates (E4.4): apply the schema the way an operator does, then start the host.
+        await TestMigrations.ApplyAsync(provider, connectionString);
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
@@ -210,7 +212,6 @@ public sealed class EfSettingsTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();
         builder.Services.AddWmsProblemDetails();

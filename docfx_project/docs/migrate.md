@@ -4,6 +4,10 @@ The database schema is created, upgraded, scripted and rolled back by `wms-migra
 installed next to the server. It runs as a separate step with an account that may change the schema (the
 DBA's rights); the server's own service account never has those rights and never changes the schema.
 
+You get it with the server: the worker container image carries it and runs it as the `migrate` role, and the
+Windows install publishes it next to the worker (see the Windows install guide). Releases
+do not yet attach a downloadable build; one is planned before v1.0.
+
 The server checks the schema every time it starts. When a database is configured it refuses to start, and
 says why, while the schema is behind its build (it names the pending migrations), ahead of its build (it names
 the migrations it does not know), or the database cannot be reached.

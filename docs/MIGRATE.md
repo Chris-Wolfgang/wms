@@ -10,6 +10,11 @@ installer that passes the verb still works. The API never migrates: its service 
 The operator-facing page is [docfx_project/docs/migrate.md](../docfx_project/docs/migrate.md) (published with
 the documentation site); keep the two in step.
 
+Where the executable comes from: the worker container image carries it at `/app/migrate` and runs it as the
+`migrate` role (E14), and the Windows install publishes it next to the worker with `dotnet publish` from a
+checkout (the Windows install guide, E15; both pages arrive with that story). A release attaches no runnable build yet; a
+downloadable bundle lands before v1.0 (#847).
+
 ## Command surface
 
 Declarative: you name a target, never a direction; the tool states the direction it took.

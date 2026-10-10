@@ -36,6 +36,13 @@ Every error the API answers with (E82.3): `application/problem+json` whose `code
 | `license.key_not_found` | 404 | error | No installed key has the id '{0}'. | [license-key-not-found](../troubleshooting.md#license-key-not-found) |
 | `license.key_rejected` | 400 | error | The key was refused: {0}. | [license-key-rejected](../troubleshooting.md#license-key-rejected) |
 | `license.limit_reached` | 403 | warning | {0} | [license-limit-reached](../troubleshooting.md#license-limit-reached) |
+| `locations.barcode_taken` | 409 | error | {0} | [locations-barcode-taken](../troubleshooting.md#locations-barcode-taken) |
+| `locations.code_taken` | 409 | error | {0} | [locations-code-taken](../troubleshooting.md#locations-code-taken) |
+| `locations.invalid` | 400 | error | {0} | [locations-invalid](../troubleshooting.md#locations-invalid) |
+| `locations.not_found` | 404 | warning | The location does not exist. | [locations-not-found](../troubleshooting.md#locations-not-found) |
+| `locations.site_not_found` | 404 | warning | The site does not exist. | [locations-site-not-found](../troubleshooting.md#locations-site-not-found) |
+| `locations.unavailable` | 503 | warning | Locations are unavailable until the database is configured. | [locations-unavailable](../troubleshooting.md#locations-unavailable) |
+| `locations.zone_not_found` | 400 | error | {0} | [locations-zone-not-found](../troubleshooting.md#locations-zone-not-found) |
 | `logging.elevation_rejected` | 400 | error | The elevation was refused: {0}. | [logging-elevation-rejected](../troubleshooting.md#logging-elevation-rejected) |
 | `organization.already_exists` | 409 | error | The organization already exists; edit it instead of creating another. | [organization-already-exists](../troubleshooting.md#organization-already-exists) |
 | `organization.invalid` | 400 | error | {0} | [organization-invalid](../troubleshooting.md#organization-invalid) |

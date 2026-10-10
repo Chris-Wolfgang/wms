@@ -8,6 +8,7 @@ Every module the API host registers (E1.10) and what it contributes: settings, p
 |---|---|---|---|---|---|---|
 | `auth` | 7 | 1 | 0 | 0 | 0 | 14 |
 | `license` | 7 | 2 | 23 | 0 | 0 | 4 |
+| `locations` | 0 | 2 | 0 | 0 | 0 | 7 |
 | `logging` | 4 | 1 | 0 | 0 | 0 | 1 |
 | `oidc` | 9 | 0 | 0 | 0 | 0 | 0 |
 | `organization` | 0 | 2 | 0 | 0 | 0 | 4 |

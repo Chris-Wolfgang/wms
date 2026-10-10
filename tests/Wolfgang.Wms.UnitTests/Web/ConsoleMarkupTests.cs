@@ -32,6 +32,7 @@ public sealed class ConsoleMarkupTests : IDisposable
     {
         _context.Services.AddSingleton<IStringLocalizerFactory, MarkingLocalizerFactory>();
         _context.Services.AddSingleton(typeof(IStringLocalizer<>), typeof(StringLocalizer<>));
+        _context.Services.AddLogging();
         _context.JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
@@ -146,6 +147,33 @@ public sealed class ConsoleMarkupTests : IDisposable
 
         Assert.Equal("⟦layout.loading⟧", AllNodes(nodes).OfType<IElement>().Single(e => e.ClassList.Contains("workspace-loading")).TextContent);
         Assert.Empty(Literals(nodes));
+    }
+
+
+
+    [Fact]
+    public void Workspace_layout_contains_a_failing_screen_and_renders_it_again_on_retry()
+    {
+        _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.Allowed));
+        var attempts = new FailingScreen.Counter();
+
+        var cut = _context.Render<global::Wolfgang.Wms.Web.Configure.ConfigureLayout>(parameters => parameters.Add(layout => layout.Body, builder =>
+        {
+            builder.OpenComponent<FailingScreen>(0);
+            builder.AddComponentParameter(1, nameof(FailingScreen.Attempts), attempts);
+            builder.CloseComponent();
+        }));
+        var role = cut.Find(".workspace-error").GetAttribute("role");
+        var title = cut.Find(".workspace-error h2").TextContent;
+        cut.Find(".workspace-error button").Click();
+        var recovered = cut.WaitForElement(".screen").TextContent;   // the recovered screen appears on a re-render; do not assume it is synchronous
+
+        Assert.Equal("alert", role);
+        Assert.Equal("⟦layout.error.title⟧", title);
+        Assert.Equal("⟦screen.ok⟧", recovered);
+        Assert.True(attempts.Count >= 2, "the screen rendered again after Retry");   // the boundary and the click each re-render
+        Assert.Empty(Literals(cut.Nodes));
+        Assert.Contains("workspace-header", cut.Markup, StringComparison.Ordinal);   // the chrome survived the screen's failure
     }
 
 

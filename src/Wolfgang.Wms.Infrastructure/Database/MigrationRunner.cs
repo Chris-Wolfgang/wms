@@ -43,7 +43,11 @@ public sealed class MigrationRunner
     /// <summary>
     /// Applied and pending migrations and what this build expects (E4.3). A database that does not exist on
     /// the server is reported as unreachable: the DBA creates the database, the tool only ever fills it, so a
-    /// typo in its name cannot end in a stray database created and migrated under the DBA's login.
+    /// typo in its name cannot end in a stray database created and migrated under the DBA's login. The
+    /// existence check opens the target database itself and maps the provider's "cannot open" error (EF's
+    /// <c>IRelationalDatabaseCreator.ExistsAsync</c> on both providers), so it needs no access to
+    /// <c>master</c> or <c>postgres</c>; on SQL Server a login that may not open an existing database gets the
+    /// same error as a missing one, and the message says so.
     /// </summary>
     public async Task<MigrationStatus> StatusAsync(CancellationToken cancellationToken)
     {
@@ -55,7 +59,7 @@ public sealed class MigrationRunner
             {
                 return new MigrationStatus(Reachable: false, Applied: [], Pending: shipped, Expected: Last(shipped))
                 {
-                    Error = $"database '{_context.Database.GetDbConnection().Database}' does not exist on the server; create it first (the DBA's step; wms-migrate never creates a database), then run wms-migrate.",
+                    Error = $"database '{_context.Database.GetDbConnection().Database}' does not exist on the server, or this login cannot open it; create it or grant the login access first (the DBA's step; wms-migrate never creates a database), then run wms-migrate.",
                 };
             }
 

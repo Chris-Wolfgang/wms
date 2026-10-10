@@ -736,6 +736,12 @@ jobs:
         uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
         with:
           sarif_file: inspect.sarif
+          # Under pull_request_target the action's defaults are github.ref / github.sha, which are main and
+          # main's commit, so every PR's findings landed on the default branch's alert list (and fed the nightly
+          # alert-to-issue triage) while the PR itself was never annotated. The analysis ran on the PR head
+          # checked out above, so that is what it is recorded against.
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          sha: ${{ github.event.pull_request.head.sha }}
 
       - name: Gate on error-severity findings
         run: |

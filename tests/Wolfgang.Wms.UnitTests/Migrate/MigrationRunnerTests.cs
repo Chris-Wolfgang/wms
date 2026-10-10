@@ -168,13 +168,16 @@ public sealed class MigrationRunnerTests
 
 
     [Fact]
-    public async Task Status_against_an_unreachable_server_reports_it_and_the_default_configuration_is_read_from_the_working_directory()
+    public async Task Status_against_an_unreachable_server_reports_it_and_an_empty_configuration_is_a_usage_error()
     {
         var output = new StringWriter();
         var error = new StringWriter();
 
         var status = await MigrateProgram.RunAsync(["--status"], output, error, Configuration("SqlServer", UnreachableSqlServer), CancellationToken.None);
-        var fromWorkingDirectory = await MigrateProgram.RunAsync(["--status"], output, error, configuration: null, CancellationToken.None);
+        // An explicit empty configuration, never `null`: null makes the tool read appsettings.json in the working
+        // directory and the process environment, and a developer box or runner that has Wms__Database__* set would
+        // either fail this assertion or connect to whatever database it names.
+        var fromWorkingDirectory = await MigrateProgram.RunAsync(["--status"], output, error, new ConfigurationBuilder().Build(), CancellationToken.None);
 
         Assert.Equal(MigrateProgram.ExitOk, status);
         Assert.Contains("Reachable: no: ", output.ToString(), StringComparison.Ordinal);

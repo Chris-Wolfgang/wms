@@ -13,7 +13,7 @@ two in step.
 
 | Key | Story |
 |-----|-------|
-| `Wms:Database:Provider`, `ConnectionString`, `AutoMigrate`, `TrustServerCertificate` | E2, below |
+| `Wms:Database:Provider`, `ConnectionString`, `TrustServerCertificate` | E2, below |
 | `Wms:DataProtection:KeyRingPath` | E8.1 (reserved until it lands) |
 | `Wms:Bootstrap:AdminUserName` | E9.1 (reserved until it lands) |
 | `Urls`, `Kestrel:*`, `AllowedHosts` | ASP.NET Core hosting |

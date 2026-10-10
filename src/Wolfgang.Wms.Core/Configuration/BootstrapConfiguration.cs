@@ -23,7 +23,6 @@ public static class BootstrapConfiguration
         "Urls",
         "Wms:Database:Provider",
         "Wms:Database:ConnectionString",
-        "Wms:Database:AutoMigrate",
         "Wms:Database:TrustServerCertificate",
         "Wms:DataProtection:KeyRingPath",   // E8.1
         "Wms:Bootstrap:AdminUserName",      // E9.1

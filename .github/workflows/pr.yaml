@@ -1149,7 +1149,11 @@ jobs:
               # ..."), which is how ETL-FixedWidth ran zero tests on two TFMs for
               # weeks with a green CI. Fail the TFM unless the summary reports a
               # non-zero total (vstest prints "Total: N" at minimal and "Total tests: N" at normal verbosity, MTP prints "total: N").
-              test_log=$(mktemp)
+              # Written under TestResults, kept when the run fails (removed below when it passes), so the
+              # rate-limit diagnostic at the end of the job can read what dotnet test printed; the console
+              # logger is the only one, so nothing else records the failure.
+              mkdir -p TestResults
+              test_log="TestResults/console-$(basename "$test_proj" .csproj)-$fw.log"
               dotnet test "$test_proj" \
                 --configuration Release \
                 --framework "$fw" \

@@ -25,6 +25,7 @@ using Wolfgang.Wms.Core.Sites;
 using Wolfgang.Wms.Core.Zones;
 using Wolfgang.Wms.Core.Locations;
 using Wolfgang.Wms.Core.Imports;
+using Wolfgang.Wms.Core.Copies;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +75,7 @@ builder.Services.AddWmsSitesModule();   // E16.1: the warehouses, the operationa
 builder.Services.AddWmsZonesModule();   // E16.2: the zones within each site
 builder.Services.AddWmsLocationsModule();   // E17.1: the bins within each zone
 builder.Services.AddWmsImportsModule();   // E16.6: the master data import contract
+builder.Services.AddWmsCopiesModule();   // E16.5: copy a site, a zone, a location or a range of locations
 
 // E6.5: appsettings holds bootstrap keys only; anything else is named in a startup warning and ignored.
 builder.Services.AddWmsBootstrapConfigurationCheck();

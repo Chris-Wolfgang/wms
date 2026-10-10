@@ -29,6 +29,11 @@ Every error the API answers with (E82.3): `application/problem+json` whose `code
 | `auth.user_not_found` | 404 | error | User {0} does not exist. | [auth-user-not-found](../troubleshooting.md#auth-user-not-found) |
 | `concurrency.precondition_failed` | 412 | warning | The record changed since you read it; reload and try again. | [concurrency-precondition-failed](../troubleshooting.md#concurrency-precondition-failed) |
 | `concurrency.precondition_required` | 428 | error | Send If-Match with the ETag you read. | [concurrency-precondition-required](../troubleshooting.md#concurrency-precondition-required) |
+| `copies.barcode_taken` | 409 | error | {0} | [copies-barcode-taken](../troubleshooting.md#copies-barcode-taken) |
+| `copies.code_taken` | 409 | error | {0} | [copies-code-taken](../troubleshooting.md#copies-code-taken) |
+| `copies.invalid` | 400 | error | {0} | [copies-invalid](../troubleshooting.md#copies-invalid) |
+| `copies.not_found` | 404 | warning | {0} | [copies-not-found](../troubleshooting.md#copies-not-found) |
+| `copies.unavailable` | 503 | warning | Copies are unavailable until the database is configured. | [copies-unavailable](../troubleshooting.md#copies-unavailable) |
 | `device.version_invalid` | 400 | error | '{0}' is not an app version. | [device-version-invalid](../troubleshooting.md#device-version-invalid) |
 | `device.version_missing` | 400 | error | The device did not send its app version. | [device-version-missing](../troubleshooting.md#device-version-missing) |
 | `device.version_too_old` | 426 | warning | App version {0} is below the minimum {1}; update the app. | [device-version-too-old](../troubleshooting.md#device-version-too-old) |

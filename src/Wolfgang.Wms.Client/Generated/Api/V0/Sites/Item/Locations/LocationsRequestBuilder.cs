@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
+using Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Locations.CopyRange;
 using Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Locations.Item;
 using Wolfgang.Wms.Client.Generated.Models;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Locations
@@ -18,6 +19,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Locations
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class LocationsRequestBuilder : BaseRequestBuilder
     {
+        /// <summary>The copyRange property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Locations.CopyRange.CopyRangeRequestBuilder CopyRange
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Locations.CopyRange.CopyRangeRequestBuilder(PathParameters, RequestAdapter);
+        }
         /// <summary>Gets an item from the Wolfgang.Wms.Client.Generated.api.v0.sites.item.locations.item collection</summary>
         /// <param name="position">Unique identifier of the item</param>
         /// <returns>A <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Locations.Item.WithLocationItemRequestBuilder"/></returns>

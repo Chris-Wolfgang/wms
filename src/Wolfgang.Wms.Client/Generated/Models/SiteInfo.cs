@@ -23,6 +23,8 @@ namespace Wolfgang.Wms.Client.Generated.Models
 #else
         public string Code { get; set; }
 #endif
+        /// <summary>The id of the row this one was copied from (E16.5); null when created outright.</summary>
+        public long? CopiedFromId { get; set; }
         /// <summary>The entity tag a client sends back in `If-Match`.</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
@@ -89,6 +91,7 @@ namespace Wolfgang.Wms.Client.Generated.Models
             return new Dictionary<string, Action<IParseNode>>
             {
                 { "code", n => { Code = n.GetStringValue(); } },
+                { "copiedFromId", n => { CopiedFromId = n.GetLongValue(); } },
                 { "etag", n => { Etag = n.GetStringValue(); } },
                 { "id", n => { Id = n.GetLongValue(); } },
                 { "isActive", n => { IsActive = n.GetBoolValue(); } },
@@ -107,6 +110,7 @@ namespace Wolfgang.Wms.Client.Generated.Models
         {
             if(ReferenceEquals(writer, null)) throw new ArgumentNullException(nameof(writer));
             writer.WriteStringValue("code", Code);
+            writer.WriteLongValue("copiedFromId", CopiedFromId);
             writer.WriteStringValue("etag", Etag);
             writer.WriteLongValue("id", Id);
             writer.WriteBoolValue("isActive", IsActive);

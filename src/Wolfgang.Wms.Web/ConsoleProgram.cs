@@ -31,6 +31,9 @@ public static class ConsoleProgram
         // Workspace entry gate: free tier until the license (E79) and identity (E11) endpoints replace it.
         builder.Services.AddSingleton<IWorkspaceAccess, FreeTierWorkspaceAccess>();
 
+        // E9.3: the break-glass banner; the placeholder until the console has its API client (then ApiLocalLoginNotice).
+        builder.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();
+
         // Every user-visible string comes from ConsoleText.resx (E82.4), in the request's culture.
         builder.Services.AddConsoleLocalization();
 

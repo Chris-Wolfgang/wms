@@ -92,8 +92,9 @@ public sealed class MigrateToolTests
         var status = await RunAsync(configuration, ["--status", .. extra]);
         var apply = await RunAsync(configuration, extra);
 
-        Assert.Equal(MigrateProgram.ExitOk, status.Code);
+        Assert.Equal(MigrateProgram.ExitRefused, status.Code);
         Assert.Contains("Reachable: no: database '" + missing + "' does not exist on the server", status.Output, StringComparison.Ordinal);
+        Assert.Contains("Pending: unknown (the database cannot be queried", status.Output, StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitRefused, apply.Code);
         Assert.Contains("does not exist on the server", apply.Error, StringComparison.Ordinal);
     }
@@ -121,13 +122,14 @@ public sealed class MigrateToolTests
         var latest = await RunAsync(configuration, extra);
         var finalStatus = await RunAsync(configuration, ["--status", .. extra]);
 
-        Assert.Equal(MigrateProgram.ExitOk, empty.Code);
+        Assert.Equal(MigrateProgram.ExitSchemaBehind, empty.Code);   // reachable, nothing applied: an installer's cue to run the tool
         Assert.Contains("Reachable: yes", empty.Output, StringComparison.Ordinal);
         Assert.Contains("Applied (0)", empty.Output, StringComparison.Ordinal);
         Assert.Matches(@"Pending \([1-9]\d*\)", empty.Output);
         Assert.Equal(MigrateProgram.ExitOk, up.Code);
         Assert.Contains("Direction: Up", up.Output, StringComparison.Ordinal);
         Assert.Contains("_Initial", up.Output, StringComparison.Ordinal);
+        Assert.Equal(MigrateProgram.ExitOk, status.Code);
         Assert.Contains("Schema is up to date.", status.Output, StringComparison.Ordinal);
         Assert.Contains("Pending (0)", status.Output, StringComparison.Ordinal);
         Assert.Contains("Direction: None", again.Output, StringComparison.Ordinal);
@@ -137,6 +139,7 @@ public sealed class MigrateToolTests
         Assert.Equal(MigrateProgram.ExitOk, down.Code);
         Assert.Contains("Direction: Down", down.Output, StringComparison.Ordinal);
         Assert.Matches(@"Reverted \([1-9]\d*\)", down.Output);
+        Assert.Equal(MigrateProgram.ExitSchemaBehind, statusAfterDown.Code);
         Assert.Contains("Applied (0)", statusAfterDown.Output, StringComparison.Ordinal);
         Assert.Contains("Schema is not up to date.", statusAfterDown.Output, StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitOk, backUp.Code);
@@ -159,6 +162,7 @@ public sealed class MigrateToolTests
         var apply = await RunAsync(configuration, extra);
         var down = await RunAsync(configuration, ["--to", "0", "--confirm-data-loss", .. extra]);
 
+        Assert.Equal(MigrateProgram.ExitRefused, status.Code);
         Assert.Contains("Unknown to this build (1):", status.Output, StringComparison.Ordinal);
         Assert.Contains(FutureMigration.Id, status.Output, StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitRefused, apply.Code);

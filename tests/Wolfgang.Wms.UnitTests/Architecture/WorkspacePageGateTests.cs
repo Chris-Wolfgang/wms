@@ -19,10 +19,41 @@ public sealed class WorkspacePageGateTests
     [Fact]
     public void Every_routable_workspace_component_renders_under_a_WorkspaceLayout()
     {
-        var types = WorkspaceAssemblies.All.SelectMany(a => a.GetTypes()).ToArray();
+        var types = WorkspaceAssemblies.All.SelectMany(TypesOf).ToArray();
 
         Assert.NotEmpty(RoutableComponentsIn(types));
         Assert.Empty(UngatedPagesIn(types));
+    }
+
+
+
+    [Fact]
+    public void A_workspace_assembly_whose_types_cannot_be_loaded_fails_the_scan_naming_the_loader_errors()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() => TypesOf(new UnloadableAssembly()).ToArray());
+
+        Assert.Equal("Types of 'Unloadable' could not be loaded, so its pages cannot be checked: the handler is missing", exception.Message);
+        Assert.IsType<ReflectionTypeLoadException>(exception.InnerException);
+    }
+
+
+
+    /// <summary>
+    /// Every type of the assembly. A <see cref="ReflectionTypeLoadException"/> is not swallowed into the loadable
+    /// subset (a page that failed to load would then escape the scan) but reported with the loader errors, so the
+    /// failure says which assembly and why instead of surfacing as an unexplained exception.
+    /// </summary>
+    private static IEnumerable<Type> TypesOf(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException exception)
+        {
+            var reasons = string.Join("; ", exception.LoaderExceptions.Select(e => e?.Message).Where(m => m is not null));
+            throw new InvalidOperationException($"Types of '{assembly.GetName().Name}' could not be loaded, so its pages cannot be checked: {reasons}", exception);
+        }
     }
 
 
@@ -86,5 +117,20 @@ public sealed class WorkspacePageGateTests
 
     private sealed class OpenLayout : LayoutComponentBase
     {
+    }
+
+
+
+    private sealed class UnloadableAssembly : Assembly
+    {
+        public override AssemblyName GetName()
+        {
+            return new AssemblyName("Unloadable");
+        }
+
+        public override Type[] GetTypes()
+        {
+            throw new ReflectionTypeLoadException([typeof(GatedSample), null], [new FileNotFoundException("the handler is missing")]);
+        }
     }
 }

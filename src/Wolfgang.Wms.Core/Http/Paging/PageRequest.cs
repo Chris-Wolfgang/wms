@@ -117,7 +117,7 @@ public sealed record PageRequest
             return false;
         }
 
-        query = new PageQuery(Before is not null ? PageDirection.Backward : PageDirection.Forward, cursor, sort, EffectiveSize);
+        query = new PageQuery(Before is not null ? PageDirection.Backward : PageDirection.Forward, cursor, sort, EffectiveSize, IdFrom, IdTo);
         return true;
     }
 

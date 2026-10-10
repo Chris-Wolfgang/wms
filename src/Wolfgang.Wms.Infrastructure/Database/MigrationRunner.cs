@@ -436,13 +436,15 @@ public sealed class MigrationRunner
     /// A store type split into its family and facets: <c>nvarchar(50)</c> (length), <c>nvarchar(max)</c>
     /// (unbounded), <c>decimal(9, 3)</c> (precision, scale), <c>decimal(18)</c> (precision 18, scale 0, as both
     /// providers read it), <c>int</c> (none). <see cref="Family"/> is lower-case with whitespace removed, and
-    /// <c>numeric</c> / <c>dec</c> read as <c>decimal</c>; <see cref="Text"/> is the type as written, trimmed.
+    /// <c>numeric</c> / <c>dec</c> read as <c>decimal</c>, and a qualifier after the facet (<c>timestamp(3) with
+    /// time zone</c>) is part of it. A quoted or bracketed identifier (a user-defined type) is kept as written,
+    /// since its case and spaces are the name. <see cref="Text"/> is the type as written, trimmed.
     /// <see cref="Facetless"/> marks a length or decimal family written without its facets (the provider's
     /// default applies), <see cref="Unbounded"/> an explicit <c>max</c>.
     /// </summary>
     private sealed record StoreType(string? Text, string? Family, int? Length, int? Precision, int? Scale, bool Facetless = false, bool Unbounded = false)
     {
-        private static readonly Regex Shape = new(@"^(?<family>[^(]+?)\s*(\((?<facets>[^)]*)\))?$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        private static readonly Regex Shape = new(@"^(?<family>[^(]+?)\s*(\((?<facets>[^)]*)\)(?<qualifier>.*))?$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
         public static bool IsDecimal(string family)
         {
@@ -463,8 +465,15 @@ public sealed class MigrationRunner
 
             var text = columnType.Trim();
             var match = Shape.Match(text);
-            var family = Regex.Replace(match.Success ? match.Groups["family"].Value : text, @"\s+", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1)).ToLowerInvariant();
-            family = IsDecimal(family) ? "decimal" : family;   // numeric and dec are aliases of decimal on both providers: not a type change
+            var family = match.Success ? match.Groups["family"].Value + match.Groups["qualifier"].Value : text;
+            if (family.IndexOfAny(['"', '[', '`']) < 0)
+            {
+                // A keyword type: case and spacing are formatting. A quoted or bracketed name is an identifier
+                // whose case and spaces distinguish types ("Order State" and "OrderState" are two), kept as is.
+                family = Regex.Replace(family, @"\s+", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1)).ToLowerInvariant();
+                family = IsDecimal(family) ? "decimal" : family;   // numeric and dec are aliases of decimal on both providers: not a type change
+            }
+
             var facets = match.Success && match.Groups["facets"].Success
                 ? match.Groups["facets"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
                 : [];

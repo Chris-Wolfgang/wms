@@ -76,6 +76,8 @@ public sealed class MigrationRunnerTests
                 "narrow column picking.tote.memo (max length 50 -> provider default)",
                 "narrow column picking.tote.fee (precision 18 -> provider default)",
                 "narrow column picking.tote.total (precision 9 -> provider default)",
+                "narrow column picking.tote.seen (max length 6 -> 3)",
+                "narrow column picking.tote.state (type \"Order State\" -> \"OrderState\")",
                 "raw SQL, not inspected: SELECT 1",
                 "raw SQL, not inspected: DELETE FROM picking.tote WHERE created < now() - interval '1 year'; TRUNCATE pic...",
             ],
@@ -495,6 +497,8 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<string>("memo", "tote", type: "varchar", schema: "picking", oldType: "varchar(50)");   // SQL Server reads a bare varchar as varchar(1)
             migrationBuilder.AlterColumn<decimal>("fee", "tote", type: "decimal", schema: "picking", oldType: "decimal(18,2)");   // SQL Server reads a bare decimal as decimal(18,0)
             migrationBuilder.AlterColumn<decimal>("total", "tote", type: "numeric", schema: "picking", oldType: "numeric(9,2)");   // unbounded on PostgreSQL, numeric(18,0) on SQL Server: the provider decides, so confirm
+            migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "timestamp(3) with time zone", schema: "picking", oldType: "timestamp(6) with time zone");   // the qualifier after the facet is part of the type; fewer fractional digits
+            migrationBuilder.AlterColumn<string>("state", "tote", type: "\"OrderState\"", schema: "picking", oldType: "\"Order State\"");   // two user-defined types whose names differ by a space
             migrationBuilder.Sql("SELECT 1");
             migrationBuilder.Sql("DELETE FROM picking.tote\r\n  WHERE created < now() - interval '1 year';\n\tTRUNCATE picking.container_history;");
         }
@@ -521,6 +525,9 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<decimal>("total", "tote", type: "decimal(18,4)", schema: "picking", oldType: "decimal(9)");   // decimal(9) is 9 integral digits; decimal(18,4) keeps 14
             migrationBuilder.AlterColumn<string>("remark", "tote", type: "nvarchar(max)", schema: "picking", oldType: "nvarchar(50)");   // an explicit max is unbounded on both providers
             migrationBuilder.AlterColumn<string>("memo", "tote", type: "varchar", schema: "picking", oldType: "varchar");   // no facet on either side: nothing dropped
+            migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "timestamp(6) with time zone", schema: "picking", oldType: "timestamp(3) with time zone");   // same type, more fractional digits
+            migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "TIMESTAMP(3) WITH TIME ZONE", schema: "picking", oldType: "timestamp(3) with time zone");   // keyword case is formatting
+            migrationBuilder.AlterColumn<string>("state", "tote", type: "\"OrderState\"", schema: "picking", oldType: "\"OrderState\"");   // the same user-defined type
             migrationBuilder.AlterColumn<decimal>("total", "tote", type: "numeric(18,4)", schema: "picking", oldType: "decimal(9,2)");   // numeric is decimal on both providers: a widening, not a conversion
         }
     }

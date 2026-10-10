@@ -341,33 +341,49 @@ public sealed class MigrationRunner
     private static string Narrowing(AlterColumnOperation alter)
     {
         var old = alter.OldColumn;
-        var reasons = new List<string>(4);
-        if (alter.MaxLength is { } length && (old.MaxLength is null || old.MaxLength > length))
+        var reasons = new List<string>(5);
+        var oldType = StoreType.Parse(old.ColumnType);
+        var newType = StoreType.Parse(alter.ColumnType);
+
+        // Facets come from the operation when it carries them, else from the store type ("nvarchar(50)",
+        // "decimal(9,3)"), which is how EF scaffolds an AlterColumn; "max" and an absent facet mean unbounded.
+        var oldLength = old.MaxLength ?? oldType.Length;
+        var newLength = alter.MaxLength ?? newType.Length;
+        if (newLength is { } length && (oldLength is null || oldLength > length))
         {
-            reasons.Add("max length " + (old.MaxLength?.ToString(CultureInfo.InvariantCulture) ?? "unbounded") + " -> " + length.ToString(CultureInfo.InvariantCulture));
+            reasons.Add("max length " + (oldLength?.ToString(CultureInfo.InvariantCulture) ?? "unbounded") + " -> " + length.ToString(CultureInfo.InvariantCulture));
         }
 
-        if (alter.Precision is { } precision && old.Precision is { } oldPrecision && oldPrecision > precision)
+        var oldPrecision = old.Precision ?? oldType.Precision;
+        var newPrecision = alter.Precision ?? newType.Precision;
+        var oldScale = old.Scale ?? oldType.Scale;
+        var newScale = alter.Scale ?? newType.Scale;
+        if (newPrecision is { } precision && oldPrecision is { } fromPrecision && fromPrecision > precision)
         {
-            reasons.Add("precision " + oldPrecision.ToString(CultureInfo.InvariantCulture) + " -> " + precision.ToString(CultureInfo.InvariantCulture));
+            reasons.Add("precision " + fromPrecision.ToString(CultureInfo.InvariantCulture) + " -> " + precision.ToString(CultureInfo.InvariantCulture));
         }
 
-        if (alter.Scale is { } scale && old.Scale is { } oldScale && oldScale > scale)
+        if (newScale is { } scale && oldScale is { } fromScale && fromScale > scale)
         {
-            reasons.Add("scale " + oldScale.ToString(CultureInfo.InvariantCulture) + " -> " + scale.ToString(CultureInfo.InvariantCulture));
+            reasons.Add("scale " + fromScale.ToString(CultureInfo.InvariantCulture) + " -> " + scale.ToString(CultureInfo.InvariantCulture));
         }
 
-        // Store types are compared with whitespace and case ignored ("decimal(9, 3)" and "DECIMAL(9,3)" are one
-        // type), so formatting never produces a step that demands --confirm-data-loss; the message shows them
-        // as written, trimmed.
-        var oldStoreType = old.ColumnType?.Trim();
-        var newStoreType = alter.ColumnType?.Trim();
-        var storeTypeChanged = (oldStoreType is null) != (newStoreType is null)
-            || (oldStoreType is not null && !string.Equals(StoreTypeKey(oldStoreType), StoreTypeKey(newStoreType), StringComparison.OrdinalIgnoreCase));
+        // A scale that grows inside the same precision takes the room from the integral digits: decimal(18,2) ->
+        // decimal(18,4) keeps 14 of 16, and a large existing value no longer fits.
+        if (newPrecision is { } p && newScale is { } s && oldPrecision is { } fp && oldScale is { } fs && p - s < fp - fs)
+        {
+            reasons.Add("integral digits " + (fp - fs).ToString(CultureInfo.InvariantCulture) + " -> " + (p - s).ToString(CultureInfo.InvariantCulture));
+        }
+
+        // Only the type family is a type change; its facets were compared above, so "nvarchar(50)" ->
+        // "nvarchar(100)" is a widening, not a conversion. Case and whitespace do not count; the message shows
+        // the types as written.
+        var familyChanged = (oldType.Family is null) != (newType.Family is null)
+            || (oldType.Family is not null && !string.Equals(oldType.Family, newType.Family, StringComparison.Ordinal));
         var clrTypeChanged = old.ClrType is not null && alter.ClrType is not null && old.ClrType != alter.ClrType;
-        if (storeTypeChanged || clrTypeChanged)
+        if (familyChanged || clrTypeChanged)
         {
-            reasons.Add("type " + (oldStoreType ?? "inferred for " + old.ClrType?.Name) + " -> " + (newStoreType ?? "inferred for " + alter.ClrType?.Name));
+            reasons.Add("type " + (oldType.Text ?? "inferred for " + old.ClrType?.Name) + " -> " + (newType.Text ?? "inferred for " + alter.ClrType?.Name));
         }
 
         return string.Join(", ", reasons);
@@ -375,9 +391,36 @@ public sealed class MigrationRunner
 
 
 
-    private static string? StoreTypeKey(string? columnType)
+    /// <summary>
+    /// A store type split into its family and facets: <c>nvarchar(50)</c> (length), <c>nvarchar(max)</c>
+    /// (unbounded), <c>decimal(9, 3)</c> (precision, scale), <c>int</c> (none). <see cref="Family"/> is
+    /// lower-case with whitespace removed; <see cref="Text"/> is the type as written, trimmed.
+    /// </summary>
+    private sealed record StoreType(string? Text, string? Family, int? Length, int? Precision, int? Scale)
     {
-        return columnType is null ? null : Regex.Replace(columnType, @"\s+", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1));
+        private static readonly Regex Shape = new(@"^(?<family>[^(]+?)\s*(\((?<facets>[^)]*)\))?$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+        public static StoreType Parse(string? columnType)
+        {
+            if (string.IsNullOrWhiteSpace(columnType))
+            {
+                return new StoreType(Text: null, Family: null, Length: null, Precision: null, Scale: null);
+            }
+
+            var text = columnType.Trim();
+            var match = Shape.Match(text);
+            var family = Regex.Replace(match.Success ? match.Groups["family"].Value : text, @"\s+", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1)).ToLowerInvariant();
+            var facets = match.Success && match.Groups["facets"].Success
+                ? match.Groups["facets"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                : [];
+            var numbers = facets.Select(facet => int.TryParse(facet, NumberStyles.None, CultureInfo.InvariantCulture, out var number) ? number : (int?)null).ToArray();
+            return numbers switch
+            {
+                [{ } one] => new StoreType(text, family, Length: one, Precision: null, Scale: null),
+                [{ } precision, { } scale] => new StoreType(text, family, Length: null, precision, scale),
+                _ => new StoreType(text, family, Length: null, Precision: null, Scale: null),   // int, nvarchar(max), facets this code does not read
+            };
+        }
     }
 
 

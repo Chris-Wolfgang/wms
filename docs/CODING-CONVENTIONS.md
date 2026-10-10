@@ -89,6 +89,10 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
   hidden endpoints return 404; a ship-dark flag names the release that removes it.
 - Error codes carry HTTP status, message template, docs anchor and severity; `const` strings only where an
   attribute or `switch` requires one.
+- A message template uses positional placeholders only (`{0}`, `{1}`, with an optional `,alignment` or
+  `:format`, exactly as `string.Format` reads them) and `{{` / `}}` for literal braces; a named `{tote}` or a
+  stray brace is refused when the `ErrorCode` is constructed, so a bad template fails at startup instead of
+  turning the error response into a 500 the first time an argument is passed.
 - Modules contribute their keys through `ModuleDescriptor.With…()` so the host can enumerate them.
 
 ## Data access (E1.11, ADR 0002)

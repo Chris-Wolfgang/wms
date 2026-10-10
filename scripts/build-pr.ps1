@@ -223,8 +223,8 @@ if (-not $SkipTests -and -not $SkipCoverage -and $failed.Count -eq 0) {
         $rgPath = Get-Command reportgenerator -ErrorAction SilentlyContinue
         if (-not $rgPath) {
             Write-Host "Installing ReportGenerator..."
-            dotnet tool update -g dotnet-reportgenerator-globaltool 2>$null
-            if ($LASTEXITCODE -ne 0) { dotnet tool install -g dotnet-reportgenerator-globaltool }
+            # Same pin as .github/workflows/pr.yaml, so a local report matches CI's.
+            dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.11
             # Ensure global tools dir is on PATH for this session. The .NET
             # installer normally adds it to the user's profile, but a fresh
             # shell or a pwsh-invoked-from-script session may not have it yet.
@@ -330,30 +330,39 @@ if (-not $SkipSecurity) {
     $devskim = Get-Command devskim -ErrorAction SilentlyContinue
     if (-not $devskim) {
         Write-Host "Installing DevSkim CLI..."
-        dotnet tool install --global Microsoft.CST.DevSkim.CLI
+        dotnet tool install --global Microsoft.CST.DevSkim.CLI --version 1.0.100   # same pin as pr.yaml
     }
 
     devskim analyze `
         --source-code . `
         --file-format text `
         --output-file devskim-results.txt `
-        --ignore-rule-ids DS176209 `
-        --ignore-globs "**/api/**,**/CoverageReport/**,**/TestResults/**"
+        --ignore-rule-ids DS176209,DS162092 `
+        --ignore-globs "**/.git/**,**/bin/**,**/obj/**,**/api/**,**/CoverageReport/**,**/TestResults/**,**/.github/license-audit/**" `
+        --skip-git-ignored-files
+    # The exclusions above MUST stay identical to the DevSkim step in .github/workflows/pr.yaml
+    # (the reasons are there), or a local run disagrees with CI, which is what this script exists to prevent.
 
     if (Test-Path "devskim-results.txt") {
         $results = Get-Content "devskim-results.txt" -Raw
-        if ($results -and $results -match '(?i)(error|critical|high)') {
+        # Same gate as pr.yaml: every finding line ("<file>:<line>:<col>:<line>:<col> [Severity] DSnnnnnn")
+        # fails, whatever its severity; a false positive is excluded as narrowly as it can be -
+        # by rule id, by glob, or inline on the line - never by lowering the bar.
+        $findings = @($results -split "`n" | Where-Object { $_ -match '^.+:\d+:\d+:\d+:\d+ \[[A-Za-z]+\] DS\d+' })
+        if ($findings.Count -gt 0) {
             Write-Host $results
-            Write-Fail "DevSkim found security issues"
+            Write-Fail "DevSkim reported $($findings.Count) finding(s) - every finding fails this gate"
             $failed += "DevSkim"
         }
         else {
-            Write-Pass "No critical security issues found"
+            Write-Pass "No DevSkim findings"
         }
         Remove-Item "devskim-results.txt" -ErrorAction SilentlyContinue
     }
     else {
-        Write-Pass "No security issues found"
+        # analyze always writes the file; its absence means the scan did not run.
+        Write-Fail "DevSkim wrote no results file - the scan did not run"
+        $failed += "DevSkim"
     }
 }
 

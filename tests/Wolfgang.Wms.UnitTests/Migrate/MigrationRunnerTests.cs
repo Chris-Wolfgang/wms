@@ -94,7 +94,8 @@ public sealed class MigrationRunnerTests
         Assert.Contains(idempotentMarker, script, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(historyTable, script, StringComparison.Ordinal);
         Assert.Contains("_Initial", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("_Initial", delta.Replace("-- Downgrade", string.Empty, StringComparison.Ordinal).Split('\n').Where(l => l.Contains("INSERT", StringComparison.OrdinalIgnoreCase)).DefaultIfEmpty(string.Empty).First(), StringComparison.Ordinal);
+        Assert.DoesNotContain("INSERT", delta, StringComparison.OrdinalIgnoreCase);   // Initial -> Initial applies nothing, so it writes no history row
+        Assert.DoesNotContain("_Initial", delta, StringComparison.Ordinal);
     }
 
 

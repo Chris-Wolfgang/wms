@@ -172,18 +172,22 @@ public sealed class MigrationRunnerTests
     {
         var output = new StringWriter();
         var error = new StringWriter();
+        var emptyConfigurationOutput = new StringWriter();
+        var emptyConfigurationError = new StringWriter();
 
         var status = await MigrateProgram.RunAsync(["--status"], output, error, Configuration("SqlServer", UnreachableSqlServer), CancellationToken.None);
         // An explicit empty configuration, never `null`: null makes the tool read appsettings.json in the working
         // directory and the process environment, and a developer box or runner that has Wms__Database__* set would
         // either fail this assertion or connect to whatever database it names.
-        var fromWorkingDirectory = await MigrateProgram.RunAsync(["--status"], output, error, new ConfigurationBuilder().Build(), CancellationToken.None);
+        var emptyConfiguration = await MigrateProgram.RunAsync(["--status"], emptyConfigurationOutput, emptyConfigurationError, new ConfigurationBuilder().Build(), CancellationToken.None);
 
         Assert.Equal(MigrateProgram.ExitOk, status);
         Assert.Contains("Reachable: no: ", output.ToString(), StringComparison.Ordinal);
         Assert.Matches(@"Pending \([1-9]\d*\)", output.ToString());
         Assert.Contains("Schema is not up to date.", output.ToString(), StringComparison.Ordinal);
-        Assert.Equal(MigrateProgram.ExitUsage, fromWorkingDirectory);
+        Assert.Equal(MigrateProgram.ExitUsage, emptyConfiguration);
+        Assert.Contains("Wms:Database:Provider", emptyConfigurationError.ToString(), StringComparison.Ordinal);
+        Assert.Equal(string.Empty, emptyConfigurationOutput.ToString());
     }
 
 

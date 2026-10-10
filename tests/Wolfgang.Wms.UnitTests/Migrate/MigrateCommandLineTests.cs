@@ -73,6 +73,7 @@ public sealed class MigrateCommandLineTests
         Assert.True(MigrateCommandLine.Parse(["--help"]).Help);
         Assert.True(MigrateCommandLine.Parse(["--to", "0", "--confirm-data-loss"]).ConfirmDataLoss);
         Assert.Contains("--confirm-data-loss", MigrateCommandLine.Usage, StringComparison.Ordinal);
+        Assert.Contains("schemas or sequences, deletes or updates rows, narrows a column,", MigrateCommandLine.Usage, StringComparison.Ordinal);   // the help names every data-losing category the gate checks
         Assert.Throws<ArgumentNullException>(() => MigrateCommandLine.Parse(null!));
     }
 

@@ -514,6 +514,7 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<string>("title", "tote", unicode: true, schema: "picking", oldUnicode: false);   // varchar -> nvarchar keeps every character
             migrationBuilder.AlterColumn<decimal>("total", "tote", type: "decimal(18,4)", schema: "picking", oldType: "decimal(9)");   // decimal(9) is 9 integral digits; decimal(18,4) keeps 14
             migrationBuilder.AlterColumn<decimal>("total", "tote", type: "numeric", schema: "picking", oldType: "numeric(9,2)");   // unbounding keeps every value
+            migrationBuilder.AlterColumn<decimal>("total", "tote", type: "numeric(18,4)", schema: "picking", oldType: "decimal(9,2)");   // numeric is decimal on both providers: a widening, not a conversion
         }
     }
 }

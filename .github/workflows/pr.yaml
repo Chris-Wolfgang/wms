@@ -716,7 +716,10 @@ jobs:
           dotnet build "$SLN" -c Release --no-restore
 
       - name: Install JetBrains.ReSharper.GlobalTools
-        run: dotnet tool install -g JetBrains.ReSharper.GlobalTools
+        # Pinned: a new ReSharper major changes the rule set and the noise floor overnight, failing
+        # unrelated PRs; the error-severity gate is only as stable as this version. Bump deliberately
+        # (Dependabot cannot bump a run: step) and re-baseline the findings in the same PR.
+        run: dotnet tool install -g JetBrains.ReSharper.GlobalTools --version 2026.2.3.1
 
       - name: Run InspectCode
         env:
@@ -1123,7 +1126,7 @@ jobs:
 
       - name: Install ReportGenerator
         if: steps.check-coverage.outputs.has-coverage == 'true'
-        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.11   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; keep scripts/build-pr.ps1 in step
 
       - name: Generate coverage report
         if: steps.check-coverage.outputs.has-coverage == 'true'
@@ -1747,7 +1750,7 @@ jobs:
 
       - name: Install ReportGenerator
         if: steps.check-coverage.outputs.has-coverage == 'true'
-        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.11   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; keep scripts/build-pr.ps1 in step
 
       - name: Generate coverage report
         if: steps.check-coverage.outputs.has-coverage == 'true'

@@ -1,6 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Microsoft.EntityFrameworkCore;
+using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Sites;
 using Wolfgang.Wms.Domain.Keys;
 using Wolfgang.Wms.Domain.Settings;
@@ -79,13 +80,14 @@ public sealed class SitesUnitTests
         var store = new NoSites();
         var releases = new NoOpenReleases();
 
-        var list = await Assert.ThrowsAsync<SiteException>(() => store.ListAsync(CancellationToken.None));
+        var list = await Assert.ThrowsAsync<SiteException>(() => store.ListAsync(SiteScope.Everywhere, CancellationToken.None));
         var find = await Assert.ThrowsAsync<SiteException>(() => store.FindAsync(1, CancellationToken.None));
         var create = await Assert.ThrowsAsync<SiteException>(() => store.CreateAsync(Valid, "admin", CancellationToken.None));
         var update = await Assert.ThrowsAsync<SiteException>(() => store.UpdateAsync(1, Valid, "admin", CancellationToken.None));
 
         Assert.All([list, find, create, update], e => Assert.Equal(SiteErrorCodes.Unavailable, e.Code));
         Assert.Equal(0, await releases.CountOpenAsync(1, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => store.ListAsync(null!, CancellationToken.None));
         await Assert.ThrowsAsync<ArgumentNullException>(() => store.CreateAsync(null!, "admin", CancellationToken.None));
         await Assert.ThrowsAsync<ArgumentException>(() => store.UpdateAsync(1, Valid, " ", CancellationToken.None));
         Assert.Equal(SiteErrorCodes.Unavailable, new SiteException().Code);

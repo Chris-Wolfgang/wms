@@ -72,7 +72,8 @@ lookarounds), so a bad pattern cannot stall intake or a scan; a timeout counts a
 
 ## Format tester (E3.9, planned)
 
-Not on `main` yet: the API's only endpoint is `GET /api/v0/system/schema` (`docs/api/openapi-v0.json`), and the
+Not on `main` yet: the API's only versioned endpoint is `GET /api/v0/system/schema` (`docs/api/openapi-v0.json`;
+the host also answers `GET /` with a banner, #885), and the
 customer page says the tester arrives in a later release. E3.9 will add `POST /api/v0/validation/test`, which
 takes a format (mask or regex) and any number of values and returns the compiled regular expression and
 pass/fail per value, so the Validation settings page, the CLI and customer tools share one tester. The page

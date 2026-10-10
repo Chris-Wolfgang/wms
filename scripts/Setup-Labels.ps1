@@ -12,6 +12,7 @@
     - enhancement, feature-request — applied by the feature-request issue form
     - dependencies             (blue)   — applied automatically by Dependabot to every update PR
     - no-changelog             (yellow) — waives the changelog-fragment PR check for src/ changes with no user-visible effect
+    - no-docs                  (yellow) — waives the feature-needs-docs part of the same check (E85.10); the reason goes in the PR description
     - maintenance              (steel)  — kind label, applied to the per-repo parent Maintenance issue
     - maintenance-task         (steel)  — kind label, applied to every Maintenance sub-issue
     - maintenance - security   (red)    — category: scans, finding fixes, dependency vuln audit

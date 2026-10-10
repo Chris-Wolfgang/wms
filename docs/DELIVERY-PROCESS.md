@@ -7,7 +7,7 @@ this page is the map, [CONTRIBUTING.md](../CONTRIBUTING.md) is the human summary
 | Gate | Trigger | Skill | Workflow |
 |------|---------|-------|----------|
 | PR gate (E85.1) | every pull request | `pr-gate` | `pr.yaml` |
-| Main gate (E85.2) | squash-merge to `main` | — | arrives with E83 (today no workflow runs on a merge) |
+| Main gate (E85.2) | squash-merge to `main` | — | arrives with E83 (today no release-pipeline run follows a merge) |
 | Prerelease gate (E85.3) | tag `vX.Y.Z-rc.N` | `prerelease-review` | `release.yaml` prerelease |
 | Release gate (E85.4) | tag `vX.Y.Z` | `release` | `release.yaml` release mode |
 | Hotfix gate (E85.5) | fix on `release/N.x` | `hotfix` | same `pr.yaml` / `release.yaml` |
@@ -46,9 +46,11 @@ migration-drift check is the Stage 1 step over `scripts/Check-Migrations.ps1`; t
 
 ## Main gate (E85.2)
 
-**Arrives with E83.** Today nothing runs on a merge to `main`: `release.yaml` is triggered only by a published
-GitHub release (`on: release: types: [published]`), and the docs site is deployed by `docfx.yaml` under
-`versions/<tag>/` and `versions/latest/`. The planned gate: a squash-merge to `main` runs `release.yaml` in
+**Arrives with E83.** Today no release-pipeline run follows a merge to `main`: `release.yaml` is triggered only
+by a published GitHub release (`on: release: types: [published]`), and the docs site is deployed by `docfx.yaml`
+under `versions/<tag>/` and `versions/latest/`. What a push to `main` does run is the per-push analysis (CodeQL,
+Semgrep, actionlint and zizmor, the SBOM, SourceLink and license audits, the benchmarks): checks on the merged
+code, not a build of the product. The planned gate: a squash-merge to `main` runs `release.yaml` in
 **dev mode**, the same build, images, installers, SBOM and simulator smoke load as a release, with dev-identity
 signing, docs published as a dev version and MinVer-height versions (`0.x.y-alpha.0.N`). Dev mode changes only
 the publish destination, the signing identity and the version suffix; the pipeline is the release pipeline,

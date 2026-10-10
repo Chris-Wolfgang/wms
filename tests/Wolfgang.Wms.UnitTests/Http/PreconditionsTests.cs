@@ -38,6 +38,33 @@ public sealed class PreconditionsTests
 
 
     [Fact]
+    public void A_weak_If_Match_is_412_because_If_Match_uses_the_strong_comparison()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers.IfMatch = "W/" + Current.Value;
+
+        var problem = Assert.IsType<ProblemHttpResult>(Preconditions.RequireIfMatch(context.Request, Current));
+
+        Assert.Equal(StatusCodes.Status412PreconditionFailed, problem.StatusCode);
+    }
+
+
+
+    [Fact]
+    public void A_wildcard_If_Match_is_428_because_it_proves_nothing_about_what_the_client_read()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers.IfMatch = "*";
+
+        var problem = Assert.IsType<ProblemHttpResult>(Preconditions.RequireIfMatch(context.Request, Current));
+
+        Assert.Equal(StatusCodes.Status428PreconditionRequired, problem.StatusCode);
+        Assert.Equal("concurrency.precondition_required", problem.ProblemDetails.Extensions[ApiProblems.CodeExtension]);
+    }
+
+
+
+    [Fact]
     public void A_missing_If_Match_is_428_with_the_precondition_required_code()
     {
         var context = new DefaultHttpContext();

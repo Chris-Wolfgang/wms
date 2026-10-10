@@ -68,6 +68,26 @@ public sealed class EntityTagTests
 
 
 
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("   ", false)]
+    [InlineData("*", true)]
+    [InlineData("\"1a2b\"", true)]
+    [InlineData("W/\"1a2b\"", false)]
+    [InlineData("\"other\", \"1a2b\"", true)]
+    [InlineData("\"other\",W/\"1a2b\" ", false)]
+    [InlineData("\"other\"", false)]
+    [InlineData("1a2b", false)]
+    public void IsStronglyMatchedBy_applies_strong_comparison_so_a_weak_entry_never_matches(string? header, bool expected)
+    {
+        var tag = EntityTag.FromRowVersion(0x1A2B);
+
+        Assert.Equal(expected, tag.IsStronglyMatchedBy(header));
+    }
+
+
+
     [Fact]
     public void Tags_with_the_same_version_are_equal()
     {

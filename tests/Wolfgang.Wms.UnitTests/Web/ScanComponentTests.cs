@@ -171,6 +171,22 @@ public sealed class ScanComponentTests : IDisposable
 
 
     [Fact]
+    public async Task WorkspaceLayout_lets_a_cancelled_scan_handler_propagate_instead_of_reporting_it()
+    {
+        _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.Allowed));
+        var layout = _context.Render<TestLayout>(p => p.Add(x => x.Body, Screen<CancellingScreen>()));
+
+        await Scan(layout, "TOTE-0017");
+
+        Assert.True(layout.FindComponent<CancellingScreen>().Instance.Invoked);
+        Assert.Empty(layout.FindAll(".scan-feedback"));                  // a cancellation is not a failed handler, so nothing is reported
+        Assert.False(_context.Renderer.UnhandledException.IsCompleted);   // and the renderer saw a cancelled task, not an error
+        Assert.NotEmpty(layout.FindAll("input.scan-listener"));
+    }
+
+
+
+    [Fact]
     public void WorkspaceLayout_renders_no_scan_field_when_the_workspace_is_denied()
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.NotPermitted));
@@ -304,6 +320,35 @@ public sealed class ScanComponentTests : IDisposable
 
                 Received.Add(scan);
                 return Task.CompletedTask;
+            });
+        }
+    }
+
+
+
+    /// <summary>
+    /// A screen whose scan listener is cancelled: the layout must let that through rather than report it.
+    /// </summary>
+    private sealed class CancellingScreen : ComponentBase, IDisposable
+    {
+        private IDisposable? _registration;
+
+        [CascadingParameter]
+        public ScanDispatcher? Scans { get; set; }
+
+        public bool Invoked { get; private set; }
+
+        public void Dispose()
+        {
+            _registration?.Dispose();
+        }
+
+        protected override void OnInitialized()
+        {
+            _registration = Scans!.Listen(_ =>
+            {
+                Invoked = true;
+                throw new OperationCanceledException();
             });
         }
     }

@@ -47,5 +47,5 @@ the artifacts and SBOM. Do not create the GitHub release from a session.
 
 ## 6. After
 
-Verify the release run: artifacts present, docs published under `/vX.Y/`, images signed. Post-release, bump
+Verify the release run: artifacts present, docs published under `versions/vX.Y.Z/` and `versions/latest/`, images signed. Post-release, bump
 any baseline the repo keeps (coverage floors, API compat baseline) in a follow-up PR.

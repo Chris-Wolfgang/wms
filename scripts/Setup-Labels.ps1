@@ -101,6 +101,8 @@ $labels = @(
 
     # Changelog fragments — waives the changelog-check job for PRs with no user-visible effect
     @{ name = "no-changelog";             color = "e4e669"; description = "PR touches src/ but needs no changelog fragment" },
+    # E85.10 - waives the feature-needs-docs part of the same job, with a reason in the PR description
+    @{ name = "no-docs";                  color = "e4e669"; description = "PR adds a feature/breaking fragment but needs no documentation change" },
 
     # Maintenance framework — kind labels (neutral steel: the meta is colorless)
     @{ name = "maintenance";              color = "9aa7b3"; description = "Per-repo parent Maintenance issue (living improvement menu)" },

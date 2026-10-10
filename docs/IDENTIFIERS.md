@@ -70,11 +70,13 @@ evaluated with `RegexOptions.NonBacktracking` where the pattern allows it (linea
 backtracking) and with a 100 ms match timeout on the backtracking engine otherwise (backreferences,
 lookarounds), so a bad pattern cannot stall intake or a scan; a timeout counts as no match.
 
-## Format tester (E3.9)
+## Format tester (E3.9, planned)
 
-`POST /api/v0/validation/test` takes a format (mask or regex) and any number of values and returns the
-compiled regular expression and pass/fail per value, so the Validation settings page, the CLI and customer
-tools share one tester. The page adds live results as the user types, "load recent values" from the field's
+Not on `main` yet: the API's only endpoint is `GET /api/v0/system/schema` (`docs/api/openapi-v0.json`), and the
+customer page says the tester arrives in a later release. E3.9 will add `POST /api/v0/validation/test`, which
+takes a format (mask or regex) and any number of values and returns the compiled regular expression and
+pass/fail per value, so the Validation settings page, the CLI and customer tools share one tester. The page
+will add live results as the user types, "load recent values" from the field's
 last N real values, and "Run regression" over every existing value (server-side, streamed, cancellable;
 counts always shown next to percentages, percentages truncated, never rounded up; failing sample of 50
 downloadable as CSV; a save with failures asks for confirmation and stores the regression result in the

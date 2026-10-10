@@ -109,6 +109,55 @@ public sealed class ContainerLine
 
 
 /// <summary>
+/// A module that names a table explicitly (<c>ToTable("PickTask", "picking")</c> on a class called
+/// <see cref="WorkItem"/>) through a DbSet whose property name is a third spelling: the explicit name wins,
+/// snake_cased, and the DbSet name is never used.
+/// </summary>
+internal sealed class ExplicitNamesDbContext : DbContext
+{
+    public ExplicitNamesDbContext(DbContextOptions<ExplicitNamesDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<WorkItem> OpenWork => Set<WorkItem>();
+
+    public DbSet<Bin> Bins => Set<Bin>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        ModelConventions.Configure(configurationBuilder);
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<WorkItem>().ToTable("PickTask", "picking");
+        modelBuilder.Entity<Bin>().ToTable("Bin", "layout");
+        ModelConventions.Apply(modelBuilder, Database.ProviderName);
+    }
+}
+
+
+
+internal sealed class WorkItem
+{
+    public long Id { get; set; }
+
+    public string Code { get; set; } = "";
+}
+
+
+
+internal sealed class Bin
+{
+    public long Id { get; set; }
+
+    public string Code { get; set; } = "";
+}
+
+
+
+/// <summary>
 /// A compliant model whose convention-built index name runs past PostgreSQL's 63 characters (E3.2): the one
 /// violation the verifier must report on both providers before a migration is generated.
 /// </summary>

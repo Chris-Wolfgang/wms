@@ -24,7 +24,7 @@ hand-written SQL needs no quoting tricks:
 
 | Object | Name | Example |
 |--------|------|---------|
-| table | singular CLR name | `container`, `zone_group` |
+| table | singular CLR name, or the name given to `ToTable(name, schema)`; never the `DbSet` property name | `container`, `zone_group` |
 | primary key column | `id` | `container.id` |
 | attribute column | unprefixed in its own table | `container.type` |
 | foreign key column | `<principal table>_id` | `container.zone_group_id` |

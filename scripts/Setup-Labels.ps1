@@ -12,6 +12,7 @@
     - enhancement, feature-request — applied by the feature-request issue form
     - dependencies             (blue)   — applied automatically by Dependabot to every update PR
     - no-changelog             (yellow) — waives the changelog-fragment PR check for src/ changes with no user-visible effect
+    - no-docs                  (yellow) — waives the feature-needs-docs part of the same check (E85.10); the reason goes in the PR description
     - maintenance              (steel)  — kind label, applied to the per-repo parent Maintenance issue
     - maintenance-task         (steel)  — kind label, applied to every Maintenance sub-issue
     - maintenance - security   (red)    — category: scans, finding fixes, dependency vuln audit
@@ -101,6 +102,8 @@ $labels = @(
 
     # Changelog fragments — waives the changelog-check job for PRs with no user-visible effect
     @{ name = "no-changelog";             color = "e4e669"; description = "PR touches src/ but needs no changelog fragment" },
+    # E85.10 - waives the feature-needs-docs part of the same job, with a reason in the PR description
+    @{ name = "no-docs";                  color = "e4e669"; description = "PR adds a feature/breaking fragment but needs no documentation change" },
 
     # Maintenance framework — kind labels (neutral steel: the meta is colorless)
     @{ name = "maintenance";              color = "9aa7b3"; description = "Per-repo parent Maintenance issue (living improvement menu)" },

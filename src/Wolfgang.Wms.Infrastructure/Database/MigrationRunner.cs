@@ -71,9 +71,10 @@ public sealed class MigrationRunner
 
     /// <summary>
     /// Moves the schema to <paramref name="target"/> (a migration id, name, timestamp prefix, <see cref="Empty"/>,
-    /// or null for the latest), one migration at a time. A downgrade whose reverted migrations drop tables,
-    /// columns, schemas or rows, or run raw SQL, runs only with <paramref name="confirmDataLoss"/>. Nothing runs
-    /// when the database is unreachable or its schema is newer than this build (<see cref="Refusal"/>).
+    /// or null for the latest), one migration at a time. A downgrade whose reverted migrations lose data (see
+    /// <see cref="DestructiveOperationsIn"/>: dropped tables, columns, schemas or sequences, deleted or updated
+    /// rows, a narrowed column, raw SQL) runs only with <paramref name="confirmDataLoss"/>. Nothing runs when the
+    /// database is unreachable or its schema is newer than this build (<see cref="Refusal"/>).
     /// </summary>
     /// <exception cref="ArgumentException"><paramref name="target"/> names no shipped migration, or more than one.</exception>
     public async Task<MigrationResult> ApplyAsync(string? target, bool confirmDataLoss, CancellationToken cancellationToken)
@@ -196,7 +197,7 @@ public sealed class MigrationRunner
     /// The Down operations of a migration that may lose data: dropped tables, columns, schemas and sequences
     /// (a sequence's current value is state: the row-version sequence is every client's sync watermark),
     /// deleted or updated rows, a column narrowed to a smaller length, precision or scale, to fewer integral digits
-    /// (a larger scale inside the same precision), to a bounded precision from an unbounded one, to non-unicode
+    /// (the scale grows by more than the precision), to a bounded precision from an unbounded one, to non-unicode
     /// text or to another type,
     /// and raw SQL (<see cref="MigrationBuilder.Sql"/>), which is not inspected and so is treated as data-losing.
     /// </summary>
@@ -420,8 +421,8 @@ public sealed class MigrationRunner
     /// <summary>
     /// A store type split into its family and facets: <c>nvarchar(50)</c> (length), <c>nvarchar(max)</c>
     /// (unbounded), <c>decimal(9, 3)</c> (precision, scale), <c>decimal(18)</c> (precision 18, scale 0, as both
-    /// providers read it), <c>int</c> (none). <see cref="Family"/> is lower-case with whitespace removed;
-    /// <see cref="Text"/> is the type as written, trimmed.
+    /// providers read it), <c>int</c> (none). <see cref="Family"/> is lower-case with whitespace removed, and
+    /// <c>numeric</c> / <c>dec</c> read as <c>decimal</c>; <see cref="Text"/> is the type as written, trimmed.
     /// </summary>
     private sealed record StoreType(string? Text, string? Family, int? Length, int? Precision, int? Scale)
     {
@@ -442,6 +443,7 @@ public sealed class MigrationRunner
             var text = columnType.Trim();
             var match = Shape.Match(text);
             var family = Regex.Replace(match.Success ? match.Groups["family"].Value : text, @"\s+", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1)).ToLowerInvariant();
+            family = IsDecimal(family) ? "decimal" : family;   // numeric and dec are aliases of decimal on both providers: not a type change
             var facets = match.Success && match.Groups["facets"].Success
                 ? match.Groups["facets"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
                 : [];

@@ -1205,11 +1205,18 @@ jobs:
           # else branch; the no-match status is the expected case here.
           hits=$( (grep -rlE "toomanyrequests|pull rate limit|429 Too Many Requests" TestResults 2>/dev/null || true) | wc -l)
           if [ "$hits" -gt 0 ]; then
-            echo "::warning::Docker Hub pull rate limit hit in $hits test result file(s): an infrastructure failure, not a product one (#842). Re-run the job, or add the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets so the pulls are authenticated."
+            # The remedy depends on whether the pulls were authenticated: without the secrets it is the shared
+            # unauthenticated limit; with them it is the account's own quota, and adding secrets is no remedy.
+            if [ -n "$DOCKERHUB_USERNAME" ]; then
+              remedy="The pulls were authenticated as $DOCKERHUB_USERNAME, so this is that account's pull quota. Re-run the job later, or raise the account's quota."
+            else
+              remedy="The pulls were unauthenticated, so this is the limit Docker Hub shares across the runner's egress address. Re-run the job, or add the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets so the pulls are authenticated."
+            fi
+            echo "::warning::Docker Hub pull rate limit hit in $hits file(s) under TestResults: an infrastructure failure, not a product one (#842). $remedy"
             {
               echo "### Docker Hub pull rate limit (#842)"
               echo ""
-              echo "$hits test result file(s) carry \`toomanyrequests\`: the failure is Docker Hub's unauthenticated pull limit, not the product. Re-run the job, or add the \`DOCKERHUB_USERNAME\` / \`DOCKERHUB_TOKEN\` secrets so the pulls are authenticated."
+              echo "$hits file(s) under \`TestResults\` carry \`toomanyrequests\`: the failure is Docker Hub's pull limit, not the product. $remedy"
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No Docker Hub rate-limit message in TestResults."

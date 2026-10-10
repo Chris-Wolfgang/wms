@@ -2,6 +2,7 @@
 
 using System.Data.Common;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -70,9 +71,10 @@ public sealed class MigrationRunner
 
     /// <summary>
     /// Moves the schema to <paramref name="target"/> (a migration id, name, timestamp prefix, <see cref="Empty"/>,
-    /// or null for the latest), one migration at a time. A downgrade whose reverted migrations drop tables,
-    /// columns, schemas or rows, or run raw SQL, runs only with <paramref name="confirmDataLoss"/>. Nothing runs
-    /// when the database is unreachable or its schema is newer than this build (<see cref="Refusal"/>).
+    /// or null for the latest), one migration at a time. A downgrade whose reverted migrations lose data (see
+    /// <see cref="DestructiveOperationsIn"/>: dropped tables, columns, schemas or sequences, a restarted sequence,
+    /// deleted or updated rows, a narrowed column, raw SQL) runs only with <paramref name="confirmDataLoss"/>. Nothing runs when the
+    /// database is unreachable or its schema is newer than this build (<see cref="Refusal"/>).
     /// </summary>
     /// <exception cref="ArgumentException"><paramref name="target"/> names no shipped migration, or more than one.</exception>
     public async Task<MigrationResult> ApplyAsync(string? target, bool confirmDataLoss, CancellationToken cancellationToken)
@@ -192,7 +194,14 @@ public sealed class MigrationRunner
 
 
     /// <summary>
-    /// The Down operations of a migration that may lose data: dropped tables, columns and schemas, deleted rows,
+    /// The Down operations of a migration that may lose data: dropped tables, columns, schemas and sequences, a
+    /// restarted sequence (a sequence's current value is state: the row-version sequence is every client's sync
+    /// watermark, and a restart discards it as surely as a drop),
+    /// deleted or updated rows, a column narrowed to a smaller length, precision or scale, to fewer integral digits
+    /// (the scale grows by more than the precision does, so precision minus scale shrinks), to a bounded precision
+    /// from an unbounded one, to non-unicode
+    /// text, to a type written without its length or precision (the provider's default applies) or to another
+    /// type,
     /// and raw SQL (<see cref="MigrationBuilder.Sql"/>), which is not inspected and so is treated as data-losing.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="migration"/> is null.</exception>
@@ -206,7 +215,11 @@ public sealed class MigrationRunner
                 DropTableOperation drop => "drop table " + Qualified(drop.Schema, drop.Name),
                 DropColumnOperation drop => "drop column " + Qualified(drop.Schema, drop.Table) + "." + drop.Name,
                 DropSchemaOperation drop => "drop schema " + drop.Name,
+                DropSequenceOperation drop => "drop sequence " + Qualified(drop.Schema, drop.Name),
+                RestartSequenceOperation restart => "restart sequence " + Qualified(restart.Schema, restart.Name) + " at " + (restart.StartValue?.ToString(CultureInfo.InvariantCulture) ?? "its start value"),
                 DeleteDataOperation delete => "delete rows from " + Qualified(delete.Schema, delete.Table),
+                UpdateDataOperation update => "update rows in " + Qualified(update.Schema, update.Table),
+                AlterColumnOperation alter when Narrowing(alter) is { Length: > 0 } narrowing => "narrow column " + Qualified(alter.Schema, alter.Table) + "." + alter.Name + " (" + narrowing + ")",
                 SqlOperation sql => "raw SQL, not inspected: " + Summary(sql.Sql),
                 _ => null,
             })
@@ -321,6 +334,218 @@ public sealed class MigrationRunner
     private static string? Last(IReadOnlyList<string> migrations)
     {
         return migrations.Count == 0 ? null : migrations[^1];
+    }
+
+
+
+    /// <summary>
+    /// How the column loses room, as a comma-separated list; empty when it does not. A smaller maximum length,
+    /// precision or scale than before, or another store type or CLR type (a conversion the engine may truncate or
+    /// refuse) count; a store type that is set on one side only counts too, since the other side is the
+    /// provider's inferred type and the migration exists because the two differ. Widening and nullability changes
+    /// keep every value and are not flagged.
+    /// </summary>
+    private static string Narrowing(AlterColumnOperation alter)
+    {
+        var old = alter.OldColumn;
+        var reasons = new List<string>(5);
+        var oldType = StoreType.Parse(old.ColumnType);
+        var newType = StoreType.Parse(alter.ColumnType);
+
+        // Facets come from the operation when it carries them, else from the store type ("nvarchar(50)",
+        // "decimal(9,3)"), which is how EF scaffolds an AlterColumn; "max" and an absent facet mean unbounded.
+        var oldLength = old.MaxLength ?? oldType.Length;
+        var newLength = alter.MaxLength ?? newType.Length;
+        if (newLength is { } length && (oldLength is null || oldLength > length))
+        {
+            reasons.Add("max length " + (oldLength?.ToString(CultureInfo.InvariantCulture) ?? "unbounded") + " -> " + length.ToString(CultureInfo.InvariantCulture));
+        }
+
+        // A type written without the facet it takes gets the provider's default, and the providers disagree:
+        // SQL Server reads "varchar" as varchar(1) and "decimal" as decimal(18,0), PostgreSQL reads both as
+        // unbounded. This code does not know the provider, so a column whose facet is dropped needs confirmation.
+        if (newLength is null && newType.Facetless && StoreType.IsLengthFamily(newType.Family!) && (oldLength is not null || oldType.Unbounded))
+        {
+            reasons.Add("max length " + (oldLength?.ToString(CultureInfo.InvariantCulture) ?? "unbounded") + " -> provider default");
+        }
+
+        NumericNarrowing(alter, old, oldType, newType, reasons);
+
+        // Unicode text made non-unicode (nvarchar -> varchar on SQL Server) loses every character outside the
+        // collation's code page; an old column that does not say is unicode, the providers' default.
+        if (alter.IsUnicode == false && old.IsUnicode != false)
+        {
+            reasons.Add("unicode -> non-unicode");
+        }
+
+        // Only the type family is a type change; its facets were compared above, so "nvarchar(50)" ->
+        // "nvarchar(100)" is a widening, not a conversion. Case and whitespace do not count; the message shows
+        // the types as written.
+        var familyChanged = (oldType.Family is null) != (newType.Family is null)
+            || (oldType.Family is not null && !string.Equals(oldType.Family, newType.Family, StringComparison.Ordinal));
+        var clrTypeChanged = old.ClrType is not null && alter.ClrType is not null && old.ClrType != alter.ClrType;
+        if (familyChanged || clrTypeChanged)
+        {
+            reasons.Add("type " + (oldType.Text ?? "inferred for " + old.ClrType?.Name) + " -> " + (newType.Text ?? "inferred for " + alter.ClrType?.Name));
+        }
+
+        return string.Join(", ", reasons);
+    }
+
+
+
+    /// <summary>
+    /// Adds the precision, scale and integral-digit reasons for <paramref name="alter"/> to <paramref name="reasons"/>.
+    /// </summary>
+    private static void NumericNarrowing(AlterColumnOperation alter, ColumnOperation old, StoreType oldType, StoreType newType, List<string> reasons)
+    {
+        // An old numeric column with no precision known here ("numeric" on PostgreSQL, or facets this
+        // migration does not state) may hold more digits than the bounded new precision, so bounding it counts as
+        // narrowing, as an unbounded length does above. A known non-numeric old family is a type change instead.
+        var oldPrecision = old.Precision ?? oldType.Precision;
+        var newPrecision = alter.Precision ?? newType.Precision;
+        // A decimal with a precision but no scale is decimal(p,0) on both providers, so an omitted scale beside a
+        // known precision is 0 here, as the parser already reads "decimal(18)"; other families have no scale.
+        var oldScale = old.Scale ?? oldType.Scale ?? (oldPrecision is not null && IsDecimalColumn(oldType, old.ClrType) ? 0 : (int?)null);
+        var newScale = alter.Scale ?? newType.Scale ?? (newPrecision is not null && IsDecimalColumn(newType, alter.ClrType) ? 0 : (int?)null);
+        var inferredDecimal = alter.ColumnType is null && alter.ClrType == typeof(decimal);   // no store type written: the provider's default decimal, decimal(18,2) on SQL Server
+        var facetlessDecimal = newType.Facetless && StoreType.IsDecimal(newType.Family!);
+        if (newPrecision is null && (facetlessDecimal || inferredDecimal) && oldPrecision is { } droppedPrecision)
+        {
+            // "decimal" with no facets, or none written at all: decimal(18,0) / decimal(18,2) on SQL Server,
+            // unbounded on PostgreSQL (see Narrowing). The old facets were known, so this may lose digits.
+            reasons.Add("precision " + droppedPrecision.ToString(CultureInfo.InvariantCulture) + " -> provider default");
+        }
+        else if (newPrecision is { } precision && oldPrecision is null && (oldType.Family is null || StoreType.IsDecimal(oldType.Family)))
+        {
+            reasons.Add("precision unbounded -> " + precision.ToString(CultureInfo.InvariantCulture));
+        }
+        else if (newPrecision is { } bounded && oldPrecision is null && oldType.Facetless && string.Equals(oldType.Family, newType.Family, StringComparison.Ordinal))
+        {
+            // A family this code knows (datetime2, timestamp, float, bit...) carries its facetless default from
+            // the parser and is compared above; one it does not know is read conservatively: the provider's
+            // default may be wider than the bound written now, so the step needs confirmation.
+            reasons.Add("precision provider default -> " + bounded.ToString(CultureInfo.InvariantCulture));
+        }
+        else if (newPrecision is null && newType.Facetless && !StoreType.IsDecimal(newType.Family!) && oldPrecision is { } fromBounded && string.Equals(oldType.Family, newType.Family, StringComparison.Ordinal))
+        {
+            reasons.Add("precision " + fromBounded.ToString(CultureInfo.InvariantCulture) + " -> provider default");
+        }
+        else if (newPrecision is { } precision2 && oldPrecision is { } fromPrecision && fromPrecision > precision2)
+        {
+            reasons.Add("precision " + fromPrecision.ToString(CultureInfo.InvariantCulture) + " -> " + precision2.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (newScale is { } scale && oldScale is { } fromScale && fromScale > scale)
+        {
+            reasons.Add("scale " + fromScale.ToString(CultureInfo.InvariantCulture) + " -> " + scale.ToString(CultureInfo.InvariantCulture));
+        }
+
+        // A scale that grows by more than the precision does takes the room from the integral digits (precision
+        // minus scale shrinks): decimal(18,2) -> decimal(18,4) keeps 14 of 16, decimal(9,2) -> decimal(11,5) keeps 6
+        // of 7, and a large existing value no longer fits.
+        if (newPrecision is { } p && newScale is { } s && oldPrecision is { } fp && oldScale is { } fs && p - s < fp - fs)
+        {
+            reasons.Add("integral digits " + (fp - fs).ToString(CultureInfo.InvariantCulture) + " -> " + (p - s).ToString(CultureInfo.InvariantCulture));
+        }
+    }
+
+
+
+    private static bool IsDecimalColumn(StoreType type, Type? clrType)
+    {
+        return type.Family is null ? clrType == typeof(decimal) : StoreType.IsDecimal(type.Family);
+    }
+
+
+
+    /// <summary>
+    /// A store type split into its family and facets: <c>nvarchar(50)</c> (length), <c>nvarchar(max)</c>
+    /// (unbounded), <c>decimal(9, 3)</c> (precision, scale), <c>decimal(18)</c> (precision 18, scale 0, as both
+    /// providers read it), <c>int</c> (none). <see cref="Family"/> is lower-case with whitespace removed, and
+    /// <c>numeric</c> / <c>dec</c> read as <c>decimal</c>, and a qualifier after the facet (<c>timestamp(3) with
+    /// time zone</c>) is part of it. A quoted or bracketed identifier (a user-defined type) is kept as written,
+    /// since its case and spaces are the name. <see cref="Text"/> is the type as written, trimmed.
+    /// A family whose facetless default is known (<see cref="DefaultPrecision"/>: <c>datetime2</c> is
+    /// <c>datetime2(7)</c>, <c>timestamp</c> is <c>timestamp(6)</c>, <c>float</c> is <c>float(53)</c>, <c>bit</c> is
+    /// <c>bit(1)</c>) reads as that bound, so <c>datetime2 -> datetime2(7)</c> is no change and <c>bit(8) -> bit</c>
+    /// a narrowing. <see cref="Facetless"/> marks a length, decimal or unknown facet-bearing family written without
+    /// its facets (the provider's default applies and is not known here), <see cref="Unbounded"/> an explicit
+    /// <c>max</c>.
+    /// </summary>
+    private sealed record StoreType(string? Text, string? Family, int? Length, int? Precision, int? Scale, bool Facetless = false, bool Unbounded = false)
+    {
+        private static readonly Regex Shape = new(@"^(?<family>[^(]+?)\s*(\((?<facets>[^)]*)\)(?<qualifier>.*))?$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+        public static bool IsDecimal(string family)
+        {
+            return family is "decimal" or "numeric" or "dec";
+        }
+
+        public static bool IsLengthFamily(string family)
+        {
+            return family is "char" or "nchar" or "varchar" or "nvarchar" or "binary" or "varbinary" or "character" or "charactervarying" or "bpchar";
+        }
+
+        /// <summary>
+        /// The precision a family has when written without one, where the providers agree or the larger of the two
+        /// (SQL Server <c>time</c> is 7, PostgreSQL <c>time</c> 6: 7 keeps the SQL Server narrowing visible).
+        /// </summary>
+        public static int? DefaultPrecision(string family)
+        {
+            return family switch
+            {
+                "datetime2" or "datetimeoffset" or "time" => 7,
+                "timestamp" or "timestampwithtimezone" or "timestampwithouttimezone" or "timestamptz" or "timewithtimezone" or "timewithouttimezone" or "timetz" or "interval" => 6,
+                "float" or "doubleprecision" => 53,
+                "bit" => 1,
+                _ => null,
+            };
+        }
+
+        public static StoreType Parse(string? columnType)
+        {
+            if (string.IsNullOrWhiteSpace(columnType))
+            {
+                return new StoreType(Text: null, Family: null, Length: null, Precision: null, Scale: null);
+            }
+
+            var text = columnType.Trim();
+            if (text.IndexOfAny(['"', '[', '`']) >= 0)
+            {
+                // A quoted or bracketed name is an identifier and one token: its case, spaces and parentheses are
+                // the name ("Order State" and "OrderState" are two types, so are "Order(TypeA)" and "Order(TypeB)"),
+                // and nothing in it is a facet.
+                return new StoreType(text, text, Length: null, Precision: null, Scale: null);
+            }
+
+            var match = Shape.Match(text);
+            var family = match.Success ? match.Groups["family"].Value + match.Groups["qualifier"].Value : text;
+            // A keyword type: case and spacing are formatting.
+            family = Regex.Replace(family, @"\s+", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1)).ToLowerInvariant();
+            family = IsDecimal(family) ? "decimal" : family;   // numeric and dec are aliases of decimal on both providers: not a type change
+
+            var facets = match.Success && match.Groups["facets"].Success
+                ? match.Groups["facets"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                : [];
+            // A leading sign is allowed: PostgreSQL numeric takes a negative scale (numeric(2,-3) rounds to thousands).
+            var numbers = facets.Select(facet => int.TryParse(facet, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var number) ? number : (int?)null).ToArray();
+            var unbounded = facets is [var only] && string.Equals(only, "max", StringComparison.OrdinalIgnoreCase);
+            if (facets.Length == 0 && DefaultPrecision(family) is { } defaultPrecision)
+            {
+                return new StoreType(text, family, Length: null, Precision: defaultPrecision, Scale: null);
+            }
+
+            var facetless = facets.Length == 0 && !unbounded && family is not ("int" or "bigint" or "smallint" or "tinyint" or "boolean" or "bool" or "uuid" or "uniqueidentifier" or "date" or "text" or "ntext" or "image" or "money" or "smallmoney" or "real" or "float4" or "float8" or "xml" or "json" or "jsonb" or "bytea" or "datetime" or "smalldatetime" or "rowversion" or "timestamp" or "serial" or "bigserial");
+            return numbers switch
+            {
+                [{ } one] when IsDecimal(family) => new StoreType(text, family, Length: null, Precision: one, Scale: 0),
+                [{ } one] when IsLengthFamily(family) => new StoreType(text, family, Length: one, Precision: null, Scale: null),
+                [{ } one] => new StoreType(text, family, Length: null, Precision: one, Scale: null),   // time(3), datetime2(7), float(24): a precision, not a length
+                [{ } precision, { } scale] => new StoreType(text, family, Length: null, precision, scale),
+                _ => new StoreType(text, family, Length: null, Precision: null, Scale: null, facetless, unbounded),   // int, varchar, nvarchar(max), facets this code does not read
+            };
+        }
     }
 
 

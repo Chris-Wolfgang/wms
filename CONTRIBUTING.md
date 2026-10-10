@@ -194,7 +194,7 @@ The complete list, each entry with the reason and the replacement, is [`BannedSy
 ## Build and Test Instructions
 
 ### Prerequisites
-- The .NET 10 SDK: every project targets `net10.0`, and the Android app targets `net10.0-android` (install the `maui-android` workload to build it).
+- The .NET 10 SDK: every project targets `net10.0`, except the Android app, which targets `net10.0-android` only (install the `maui-android` workload to build it).
 - PowerShell 7 (`pwsh`) — every script under `scripts/` is PowerShell (`build-pr.ps1`, `changelog.ps1`, `format.ps1`, `Check-Migrations.ps1`, ...)
 - [gitleaks](https://github.com/gitleaks/gitleaks#installing) for the pre-commit hook (optional locally; CI runs it regardless)
 
@@ -208,7 +208,7 @@ dotnet restore
 dotnet build --configuration Release
 ```
 
-**Note:** Warnings are errors in every configuration (E1.2, `Directory.Build.props`), so a Debug build fails exactly where Release would.
+**Note:** Warnings are errors in every configuration (E1.2, `Directory.Build.props`): a warning fails a Debug build as it fails a Release build. The two configurations can still compile different code where a project is configuration-specific (`MauiProgram.cs` under `#if DEBUG`), so a Release build before a PR remains the check that matters.
 
 ### Run Tests
 

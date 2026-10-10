@@ -91,21 +91,9 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        WmsDbContext context;
-        try
-        {
-            context = CreateContext(options);
-        }
-        catch (ArgumentException exception)
-        {
-            await error.WriteLineAsync($"{DatabaseOptions.SectionName}:ConnectionString is not valid: {exception.Message}").ConfigureAwait(false);
-            return ExitUsage;
-        }
-
-        using (context)
-        {
-            return await RunModeAsync(new MigrationRunner(context), command, output, error, cancellationToken).ConfigureAwait(false);
-        }
+        // Validate above has already parsed the connection string with the provider's builder, so this cannot throw.
+        using var context = CreateContext(options);
+        return await RunModeAsync(new MigrationRunner(context), command, output, error, cancellationToken).ConfigureAwait(false);
     }
 
 

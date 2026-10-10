@@ -1,6 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -99,7 +100,10 @@ public sealed class DatabaseOptions
     /// <summary>
     /// Every problem with the options, each naming the setting; empty when valid. With
     /// <paramref name="connectionStringRequired"/> false a missing connection string is accepted, for work that
-    /// never connects (<c>wms-migrate --script</c>); the provider and certificate rules still apply.
+    /// never connects (<c>wms-migrate --script</c>); the provider and certificate rules still apply. A connection
+    /// string the provider cannot parse is reported here (naming the setting, like every other problem) rather
+    /// than by the first context that is resolved, so <c>ValidateOnStart</c> and <c>wms-migrate</c> stop before
+    /// any work with the reason in front of the operator.
     /// </summary>
     public IReadOnlyList<string> Validate(bool connectionStringRequired)
     {
@@ -116,12 +120,45 @@ public sealed class DatabaseOptions
             errors.Add($"{SectionName}:ConnectionString is required when {SectionName}:Provider is {provider}.");
         }
 
+        if (!string.IsNullOrWhiteSpace(ConnectionString) && ParseProblem(provider.Value, ConnectionString) is { } problem)
+        {
+            errors.Add($"{SectionName}:ConnectionString is not valid: {problem}");
+        }
+
         if (provider != DatabaseProvider.SqlServer && TrustServerCertificate)
         {
             errors.Add($"{SectionName}:TrustServerCertificate applies to SqlServer only; remove it for {provider}.");
         }
 
         return errors;
+    }
+
+
+
+    /// <summary>
+    /// Why the provider's own connection string builder rejects <paramref name="connectionString"/>, or null when
+    /// it parses (or the provider is <see cref="DatabaseProvider.None"/>, which never connects).
+    /// </summary>
+    private static string? ParseProblem(DatabaseProvider provider, string connectionString)
+    {
+        try
+        {
+            switch (provider)
+            {
+                case DatabaseProvider.SqlServer:
+                    _ = new SqlConnectionStringBuilder(connectionString);
+                    break;
+                case DatabaseProvider.PostgreSql:
+                    _ = new NpgsqlConnectionStringBuilder(connectionString);
+                    break;
+            }
+
+            return null;
+        }
+        catch (ArgumentException exception)
+        {
+            return exception.Message;
+        }
     }
 
 

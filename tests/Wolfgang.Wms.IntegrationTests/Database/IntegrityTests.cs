@@ -62,7 +62,10 @@ public sealed class IntegrityTests
 
     private static async Task AssertIntegrityAsync(string provider, string connectionString, bool trustServerCertificate)
     {
-        await using (var first = await StartHostAsync(provider, connectionString, trustServerCertificate))
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
+        await using (var first = await StartHostAsync(provider, runtime, trustServerCertificate))
         {
             using var client = first.GetTestClient();
             var admin = await TestSessions.SignInAsAdministratorAsync(client);
@@ -95,7 +98,7 @@ public sealed class IntegrityTests
             await TamperAsync(first.Services, "DELETE FROM wms.integrity_key");
         }
 
-        await using var second = await StartHostAsync(provider, connectionString, trustServerCertificate);   // the upgrade start: a new key, every row signed once
+        await using var second = await StartHostAsync(provider, runtime, trustServerCertificate);   // the upgrade start: a new key, every row signed once
         using var later = second.GetTestClient();
         await AssertEverythingSignedAsync(second.Services);
         Assert.Equal(0, (await second.Services.GetRequiredService<IntegrityVerificationJob>().RunOnceAsync(CancellationToken.None)).Failed);
@@ -201,7 +204,6 @@ public sealed class IntegrityTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();
         builder.Services.AddWmsProblemDetails();

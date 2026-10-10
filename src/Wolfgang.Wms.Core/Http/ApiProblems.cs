@@ -79,6 +79,8 @@ public static class ApiProblems
     /// <c>Problem(code, arguments: toteCode)</c>, or a lone string lands here instead of in <c>{0}</c>.</param>
     /// <param name="arguments">Values for the message template's positional placeholders (<c>{0}</c>, <c>{1}</c>…).</param>
     /// <exception cref="ArgumentNullException"><paramref name="code"/> is null.</exception>
+    /// <exception cref="FormatException"><paramref name="arguments"/> cannot fill the template: a placeholder is
+    /// missing its value, or a format does not suit the value's type (see <see cref="Title"/>).</exception>
     public static IResult Problem(ErrorCode code, string? detail = null, params object[] arguments)
     {
         ArgumentNullException.ThrowIfNull(code);
@@ -103,8 +105,10 @@ public static class ApiProblems
     /// The code's message template with <paramref name="arguments"/> applied (invariant culture). The template is
     /// always formatted, so <c>{{</c> / <c>}}</c> render as braces even when there is nothing to fill in.
     /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="code"/> or <paramref name="arguments"/> is null.</exception>
     /// <exception cref="FormatException">The template has a placeholder that <paramref name="arguments"/> does not
-    /// fill, exactly as <see cref="string.Format(IFormatProvider, string, object[])"/> reports it.</exception>
+    /// fill, or a format that does not suit the value's type, exactly as
+    /// <see cref="string.Format(IFormatProvider, string, object[])"/> reports it.</exception>
     public static string Title(ErrorCode code, params object[] arguments)
     {
         ArgumentNullException.ThrowIfNull(code);

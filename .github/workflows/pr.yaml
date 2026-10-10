@@ -1464,6 +1464,9 @@ jobs:
           
           # Fetch the main branch
           git fetch "$env:TRUSTED_MAIN_URL" main:main-branch
+          # Without main there is nothing trusted to copy: stop here rather than continue with the PR's own copies
+          # (the bash stages run under -e and stop the same way).
+          if ($LASTEXITCODE -ne 0) { Write-Host "::error::Failed to fetch main - aborting before the trusted-config copy to prevent a silent fall-back to PR-supplied protected config."; exit 1 }
           
           # List of configuration files that should come from trusted main branch
           $configFiles = @(
@@ -1497,7 +1500,9 @@ jobs:
           # .editorconfig overrides analyzer severities for everything beneath it).
           $globPatterns = @("*.editorconfig", "*.globalconfig", "*.ruleset", "*.DotSettings", ".github/workflows/*.yml", ".github/workflows/*.yaml")
           foreach ($pattern in $globPatterns) {
-            $files = git ls-tree -r --name-only main-branch | Select-String -Pattern $pattern.Replace("*", ".*")
+            $listed = git ls-tree -r --name-only main-branch
+            if ($LASTEXITCODE -ne 0) { Write-Host "::error::Failed to list main-branch - aborting the trusted-config copy."; exit 1 }
+            $files = $listed | Select-String -Pattern $pattern.Replace("*", ".*")
             foreach ($file in $files) {
               if ($file) {
                 Write-Host "  ✓ Copying $file from main branch"

@@ -19,6 +19,7 @@ public sealed class VersionedCache<TValue> : IDisposable
     private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private Entry? _entry;
+    private int _generation;   // bumped by Invalidate; a read publishes nothing it learned under an older generation
 
 
 
@@ -78,6 +79,11 @@ public sealed class VersionedCache<TValue> : IDisposable
     /// </summary>
     /// <param name="load">Builds the value from the database; receives the cancellation token.</param>
     /// <param name="cancellationToken">Cancels the stamp probe or the load.</param>
+    /// <remarks>
+    /// An <see cref="Invalidate"/> that lands while a read is probing or loading is honoured: the read still
+    /// returns what it has, but publishes nothing, so the next read probes and reloads. Without that, a probe
+    /// that started before a writer's commit could republish the pre-commit copy over the invalidation.
+    /// </remarks>
     public async Task<TValue> GetAsync(Func<CancellationToken, Task<TValue>> load, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(load);
@@ -87,20 +93,25 @@ public sealed class VersionedCache<TValue> : IDisposable
         {
             var now = _timeProvider.GetUtcNow();
             var entry = _entry;
+            var generation = Volatile.Read(ref _generation);
             if (entry is not null && now - entry.ProbedAt < PollInterval)
             {
                 return entry.Value;
             }
 
             var stamp = await _source.GetStampAsync(_entityTypes, cancellationToken).ConfigureAwait(false);
-            if (entry is not null && entry.Stamp == stamp)
+            if (entry is not null && entry.Stamp == stamp && Volatile.Read(ref _generation) == generation)
             {
                 _entry = entry with { ProbedAt = now };
                 return entry.Value;
             }
 
             var value = await load(cancellationToken).ConfigureAwait(false);
-            _entry = new Entry(stamp, value, now);
+            if (Volatile.Read(ref _generation) == generation)
+            {
+                _entry = new Entry(stamp, value, now);
+            }
+
             return value;
         }
         finally
@@ -112,10 +123,13 @@ public sealed class VersionedCache<TValue> : IDisposable
 
 
     /// <summary>
-    /// Drops the cached value so the next <see cref="GetAsync"/> probes and reloads regardless of the interval.
+    /// Drops the cached value so the next <see cref="GetAsync"/> probes and reloads regardless of the interval,
+    /// including a read that is already in flight: it may still answer with the copy it holds, but it will not
+    /// put that copy back.
     /// </summary>
     public void Invalidate()
     {
+        Interlocked.Increment(ref _generation);
         _entry = null;
     }
 

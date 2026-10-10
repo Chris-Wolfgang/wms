@@ -18,8 +18,10 @@ public sealed class VersionedCache<TValue> : IDisposable
     private readonly IReadOnlyCollection<Type> _entityTypes;
     private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private Entry? _entry;
-    private int _generation;   // bumped by Invalidate; a read publishes nothing it learned under an older generation
+    // The whole state is one immutable object replaced by Invalidate and by a publishing read, so a read captures
+    // the entry and "has anything invalidated since" together and publishes only if the object it captured is
+    // still the current one (Publish). Reads are serialised by _gate; only Invalidate competes with them.
+    private State _state = new(Entry: null);
 
 
 
@@ -69,7 +71,7 @@ public sealed class VersionedCache<TValue> : IDisposable
     /// <summary>
     /// The stamp the cached value was built at, or null when nothing is cached.
     /// </summary>
-    public RowVersionStamp? CachedStamp => _entry?.Stamp;
+    public RowVersionStamp? CachedStamp => Volatile.Read(ref _state).Entry?.Stamp;
 
 
 
@@ -92,26 +94,25 @@ public sealed class VersionedCache<TValue> : IDisposable
         try
         {
             var now = _timeProvider.GetUtcNow();
-            var entry = _entry;
-            var generation = Volatile.Read(ref _generation);
+            var captured = Volatile.Read(ref _state);
+            var entry = captured.Entry;
             if (entry is not null && now - entry.ProbedAt < PollInterval)
             {
                 return entry.Value;
             }
 
             var stamp = await _source.GetStampAsync(_entityTypes, cancellationToken).ConfigureAwait(false);
-            if (entry is not null && entry.Stamp == stamp && Volatile.Read(ref _generation) == generation)
+            if (entry is not null && entry.Stamp == stamp && ReferenceEquals(Volatile.Read(ref _state), captured))
             {
-                _entry = entry with { ProbedAt = now };
+                // Still the state this read captured: nothing was invalidated while the probe was out, so the
+                // unchanged stamp proves the copy current. After an invalidation the stamp may predate the
+                // writer's commit, so the copy is reloaded instead.
+                Publish(captured, entry with { ProbedAt = now });
                 return entry.Value;
             }
 
             var value = await load(cancellationToken).ConfigureAwait(false);
-            if (Volatile.Read(ref _generation) == generation)
-            {
-                _entry = new Entry(stamp, value, now);
-            }
-
+            Publish(captured, new Entry(stamp, value, now));
             return value;
         }
         finally
@@ -129,8 +130,7 @@ public sealed class VersionedCache<TValue> : IDisposable
     /// </summary>
     public void Invalidate()
     {
-        Interlocked.Increment(ref _generation);
-        _entry = null;
+        Volatile.Write(ref _state, new State(Entry: null));
     }
 
 
@@ -143,6 +143,22 @@ public sealed class VersionedCache<TValue> : IDisposable
     {
         _gate.Dispose();
     }
+
+
+
+    /// <summary>
+    /// Makes <paramref name="entry"/> the cached value, unless the state has been replaced (an <see cref="Invalidate"/>)
+    /// since the read captured <paramref name="captured"/>; then the read's knowledge predates a writer's commit and
+    /// is dropped, so the next read probes and reloads.
+    /// </summary>
+    private void Publish(State captured, Entry entry)
+    {
+        Interlocked.CompareExchange(ref _state, new State(entry), captured);
+    }
+
+
+
+    private sealed record State(Entry? Entry);
 
 
 

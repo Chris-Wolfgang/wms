@@ -120,6 +120,49 @@ public sealed class VersionedCacheTests
 
 
     [Fact]
+    public async Task Invalidate_during_the_probe_is_not_undone_by_the_read_that_was_probing()
+    {
+        using var cache = CreateCache();
+        await cache.GetAsync(Load, CancellationToken.None);
+        _clock.Advance(Interval);
+        _source.OnProbe = () => cache.Invalidate();   // a writer commits and invalidates while the probe is out; the stamp it answers predates the commit
+
+        var value = await cache.GetAsync(Load, CancellationToken.None);
+        var stampAfter = cache.CachedStamp;
+        _source.OnProbe = null;
+        var next = await cache.GetAsync(Load, CancellationToken.None);
+
+        Assert.Equal("value 2", value);   // reloaded, not the pre-commit copy republished
+        Assert.Null(stampAfter);          // and nothing published under the stale generation
+        Assert.Equal("value 3", next);    // so the next read probes and loads again
+        Assert.Equal(3, _loads);
+    }
+
+
+
+    [Fact]
+    public async Task Invalidate_during_the_load_leaves_nothing_cached_so_the_next_read_reloads()
+    {
+        using var cache = CreateCache();
+
+        var value = await cache.GetAsync(async token =>
+        {
+            var loaded = await Load(token);
+            cache.Invalidate();   // a writer commits after this load read its rows
+            return loaded;
+        }, CancellationToken.None);
+        var stampAfter = cache.CachedStamp;
+        var next = await cache.GetAsync(Load, CancellationToken.None);
+
+        Assert.Equal("value 1", value);
+        Assert.Null(stampAfter);
+        Assert.Equal("value 2", next);
+        Assert.Equal(2, _loads);
+    }
+
+
+
+    [Fact]
     public async Task GetAsync_when_called_concurrently_shares_one_load()
     {
         using var cache = CreateCache();

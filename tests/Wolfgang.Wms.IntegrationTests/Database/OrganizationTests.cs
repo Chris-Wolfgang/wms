@@ -70,7 +70,10 @@ public sealed class OrganizationTests
 
     private static async Task AssertOrganizationAsync(string provider, string connectionString, bool trustServerCertificate)
     {
-        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
+        await using var app = await StartHostAsync(provider, runtime, trustServerCertificate);
         using var anonymous = app.GetTestClient();
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));
@@ -180,7 +183,6 @@ public sealed class OrganizationTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();
         builder.Services.AddWmsProblemDetails();

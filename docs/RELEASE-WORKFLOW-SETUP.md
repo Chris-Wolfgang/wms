@@ -51,7 +51,6 @@ Ensure the following settings are enabled:
   - "Detect .NET Projects"
   - "Stage 1: Linux Tests (.NET 5.0-10.0) + Coverage Gate"
   - "Stage 2: Windows Tests (.NET 5.0-10.0, Framework 4.6.2-4.8.1)"
-  - "Stage 3: macOS Tests (.NET 6.0-10.0)"
   - "Security Scan (DevSkim)"
   - "Security Scan (CodeQL) (csharp)"
   - "Secrets Scan (gitleaks)"

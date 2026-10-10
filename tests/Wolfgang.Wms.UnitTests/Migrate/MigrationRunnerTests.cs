@@ -183,11 +183,65 @@ public sealed class MigrationRunnerTests
         // either fail this assertion or connect to whatever database it names.
         var fromWorkingDirectory = await MigrateProgram.RunAsync(["--status"], output, error, new ConfigurationBuilder().Build(), CancellationToken.None);
 
-        Assert.Equal(MigrateProgram.ExitOk, status);
+        Assert.Equal(MigrateProgram.ExitRefused, status);   // a script cannot gate on text; unreachable is a refusal here too
         Assert.Contains("Reachable: no: ", output.ToString(), StringComparison.Ordinal);
-        Assert.Matches(@"Pending \([1-9]\d*\)", output.ToString());
+        Assert.Contains("Pending: unknown (the database cannot be queried; this build ships ", output.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotMatch(@"Pending \(\d+\)", output.ToString());   // the tool has not compared anything, so it lists nothing as pending
         Assert.Contains("Schema is not up to date.", output.ToString(), StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitUsage, fromWorkingDirectory);
+    }
+
+
+
+    [Fact]
+    public async Task Cancellation_ends_with_exit_130_and_one_line_not_a_stack_trace()
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var status = await MigrateProgram.RunAsync(["--status"], output, error, Configuration("PostgreSql", TestConnectionStrings.PostgreSql("nowhere")), cancellation.Token);
+        var apply = await MigrateProgram.RunAsync([], output, error, Configuration("SqlServer", UnreachableSqlServer), cancellation.Token);
+
+        Assert.Equal(MigrateProgram.ExitCancelled, status);
+        Assert.Equal(MigrateProgram.ExitCancelled, apply);
+        Assert.Equal("Cancelled." + Environment.NewLine + "Cancelled." + Environment.NewLine, error.ToString());
+    }
+
+
+
+    [Fact]
+    public async Task An_output_path_that_cannot_be_written_is_a_usage_error_naming_the_path()
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var file = Path.Combine(Path.GetTempPath(), "wms-migrate-" + Guid.NewGuid().ToString("N"), "no-such-directory", "script.sql");
+
+        var code = await MigrateProgram.RunAsync(["--script", "--output", file], output, error, Configuration("PostgreSql", TestConnectionStrings.PostgreSql("nowhere")), CancellationToken.None);
+
+        Assert.Equal(MigrateProgram.ExitUsage, code);
+        Assert.StartsWith("Cannot write --output " + file + ": ", error.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("Wrote ", output.ToString(), StringComparison.Ordinal);
+    }
+
+
+
+    [Fact]
+    public async Task A_failure_outside_a_migration_ends_with_exit_1_and_its_message()
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        // No provider configured: EF throws InvalidOperationException before any migration can run.
+        using var context = new WmsDbContext(new DbContextOptionsBuilder<WmsDbContext>().Options);
+        var runner = new MigrationRunner(context);
+
+        var apply = await MigrateProgram.ApplyAsync(runner, MigrateCommandLine.Parse([]), output, error, CancellationToken.None);
+        var script = await MigrateProgram.ScriptAsync(runner, MigrateCommandLine.Parse(["--script"]), output, error, CancellationToken.None);
+
+        Assert.Equal(MigrateProgram.ExitMigrationFailed, apply);
+        Assert.Equal(MigrateProgram.ExitMigrationFailed, script);
+        Assert.StartsWith("wms-migrate failed: No database provider has been configured", error.ToString(), StringComparison.Ordinal);
     }
 
 

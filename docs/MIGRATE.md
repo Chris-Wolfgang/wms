@@ -29,11 +29,18 @@ Declarative: you name a target, never a direction; the tool states the direction
 | `--confirm-data-loss` | required for a downgrade, applied or scripted, whose reverted migrations drop tables, columns, schemas or sequences, delete or update rows, narrow a column (smaller length, precision or scale, or another type), or run raw SQL (`MigrationBuilder.Sql`, which the tool does not inspect and so treats as data-losing) |
 | `--provider`, `--connection-string`, `--trust-server-certificate` | override the configured `Wms:Database` values |
 
-Exit codes: `0` ok, `1` a migration failed (the output names it), `2` usage or configuration error (including a
-malformed connection string), `3` the downgrade (applied or scripted) needs `--confirm-data-loss`, `4` nothing
-was applied because the database cannot be reached, its schema is newer than this build, or its migrations
-history has a gap (a pending migration older than the last applied one: only a hand-edited or partially restored
-`wms.migrations_history` produces it; repair the table from the backup, the tool never guesses).
+Exit codes: `0` ok, `1` a migration failed (the output names it) or the tool failed before one ran (the
+message is in the output: a provider that cannot be loaded, a model EF rejects), `2` usage or configuration
+error (including a malformed connection string and an `--output` path that cannot be written), `3` the
+downgrade (applied or scripted) needs `--confirm-data-loss`, `4` nothing was applied, or with `--status`
+nothing could be, because the database cannot be reached, its schema is newer than this build, or its
+migrations history has a gap (a pending migration older than the last applied one: only a hand-edited or
+partially restored `wms.migrations_history` produces it; repair the table from the backup, the tool never
+guesses), `5` (`--status` only) the schema is behind this build and the pending migrations are listed,
+`130` cancelled with Ctrl+C (a migration in flight is rolled back by the database). So
+`wms-migrate --status && start-api` starts the API only on an up-to-date schema, and `--status` against a
+server it cannot reach says `Pending: unknown` rather than listing every shipped migration as if it had
+compared them.
 
 ## Rules
 

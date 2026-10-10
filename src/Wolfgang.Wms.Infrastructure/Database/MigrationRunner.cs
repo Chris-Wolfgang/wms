@@ -418,6 +418,13 @@ public sealed class MigrationRunner
         {
             reasons.Add("precision unbounded -> " + precision.ToString(CultureInfo.InvariantCulture));
         }
+        else if (newPrecision is { } bounded && oldPrecision is null && oldType.Family is not null && oldType.Length is null && !oldType.Unbounded && string.Equals(oldType.Family, newType.Family, StringComparison.Ordinal))
+        {
+            // The same family written without its precision had the provider's default, which is the largest it
+            // offers (datetime2 is datetime2(7) on SQL Server, timestamp is timestamp(6) on PostgreSQL), so a bound
+            // written now is a narrowing.
+            reasons.Add("precision provider default -> " + bounded.ToString(CultureInfo.InvariantCulture));
+        }
         else if (newPrecision is { } precision2 && oldPrecision is { } fromPrecision && fromPrecision > precision2)
         {
             reasons.Add("precision " + fromPrecision.ToString(CultureInfo.InvariantCulture) + " -> " + precision2.ToString(CultureInfo.InvariantCulture));
@@ -471,15 +478,19 @@ public sealed class MigrationRunner
             }
 
             var text = columnType.Trim();
+            if (text.IndexOfAny(['"', '[', '`']) >= 0)
+            {
+                // A quoted or bracketed name is an identifier and one token: its case, spaces and parentheses are
+                // the name ("Order State" and "OrderState" are two types, so are "Order(TypeA)" and "Order(TypeB)"),
+                // and nothing in it is a facet.
+                return new StoreType(text, text, Length: null, Precision: null, Scale: null);
+            }
+
             var match = Shape.Match(text);
             var family = match.Success ? match.Groups["family"].Value + match.Groups["qualifier"].Value : text;
-            if (family.IndexOfAny(['"', '[', '`']) < 0)
-            {
-                // A keyword type: case and spacing are formatting. A quoted or bracketed name is an identifier
-                // whose case and spaces distinguish types ("Order State" and "OrderState" are two), kept as is.
-                family = Regex.Replace(family, @"\s+", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1)).ToLowerInvariant();
-                family = IsDecimal(family) ? "decimal" : family;   // numeric and dec are aliases of decimal on both providers: not a type change
-            }
+            // A keyword type: case and spacing are formatting.
+            family = Regex.Replace(family, @"\s+", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1)).ToLowerInvariant();
+            family = IsDecimal(family) ? "decimal" : family;   // numeric and dec are aliases of decimal on both providers: not a type change
 
             var facets = match.Success && match.Groups["facets"].Success
                 ? match.Groups["facets"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)

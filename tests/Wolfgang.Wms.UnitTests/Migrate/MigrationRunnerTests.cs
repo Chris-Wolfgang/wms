@@ -80,6 +80,9 @@ public sealed class MigrationRunnerTests
                 "narrow column picking.tote.seen (precision 6 -> 3)",
                 "narrow column picking.tote.state (type \"Order State\" -> \"OrderState\")",
                 "narrow column picking.tote.fee (precision 18 -> provider default)",
+                "narrow column picking.tote.stamp (precision provider default -> 3)",
+                "narrow column picking.tote.seen (precision provider default -> 3)",
+                "narrow column picking.tote.state (type \"Order(TypeA)\" -> \"Order(TypeB)\")",
                 "raw SQL, not inspected: SELECT 1",
                 "raw SQL, not inspected: DELETE FROM picking.tote WHERE created < now() - interval '1 year'; TRUNCATE pic...",
             ],
@@ -503,6 +506,9 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "timestamp(3) with time zone", schema: "picking", oldType: "timestamp(6) with time zone");   // the qualifier after the facet is part of the type; fewer fractional digits
             migrationBuilder.AlterColumn<string>("state", "tote", type: "\"OrderState\"", schema: "picking", oldType: "\"Order State\"");   // two user-defined types whose names differ by a space
             migrationBuilder.AlterColumn<decimal>("fee", "tote", schema: "picking", oldPrecision: 18, oldScale: 4);   // no store type or facets written: the provider's default decimal, decimal(18,2) on SQL Server
+            migrationBuilder.AlterColumn<DateTime>("stamp", "tote", type: "datetime2(3)", schema: "picking", oldType: "datetime2");   // SQL Server's bare datetime2 is datetime2(7)
+            migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "timestamp(3) with time zone", schema: "picking", oldType: "timestamp with time zone");   // PostgreSQL's bare timestamp is timestamp(6)
+            migrationBuilder.AlterColumn<string>("state", "tote", type: "\"Order(TypeB)\"", schema: "picking", oldType: "\"Order(TypeA)\"");   // parentheses inside a quoted name are the name, not facets
             migrationBuilder.Sql("SELECT 1");
             migrationBuilder.Sql("DELETE FROM picking.tote\r\n  WHERE created < now() - interval '1 year';\n\tTRUNCATE picking.container_history;");
         }
@@ -532,6 +538,7 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "timestamp(6) with time zone", schema: "picking", oldType: "timestamp(3) with time zone");   // same type, more fractional digits
             migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "TIMESTAMP(3) WITH TIME ZONE", schema: "picking", oldType: "timestamp(3) with time zone");   // keyword case is formatting
             migrationBuilder.AlterColumn<string>("state", "tote", type: "\"OrderState\"", schema: "picking", oldType: "\"OrderState\"");   // the same user-defined type
+            migrationBuilder.AlterColumn<string>("state", "tote", type: "\"Order(TypeA)\"", schema: "picking", oldType: "\"Order(TypeA)\"");   // the same user-defined type, parentheses and all
             migrationBuilder.AlterColumn<decimal>("total", "tote", type: "numeric(18,4)", schema: "picking", oldType: "decimal(9,2)");   // numeric is decimal on both providers: a widening, not a conversion
         }
     }

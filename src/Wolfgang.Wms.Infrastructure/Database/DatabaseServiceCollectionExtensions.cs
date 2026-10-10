@@ -16,6 +16,7 @@ using Wolfgang.Wms.Infrastructure.Secrets;
 using Microsoft.AspNetCore.Identity;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Identity.BreakGlass;
 using Wolfgang.Wms.Core.Identity.External;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Wolfgang.Wms.Core.Jobs;
@@ -137,6 +138,8 @@ public static class DatabaseServiceCollectionExtensions
         services.AddScoped<IExternalAccounts, EfExternalAccounts>();   // E11.1: provider accounts in core.user
         services.RemoveAll<IGroupRoleMappings>();
         services.AddScoped<IGroupRoleMappings, EfGroupRoleMappings>();   // E11.2: directory groups → roles
+        services.RemoveAll<ILocalLoginGate>();
+        services.AddScoped<ILocalLoginGate, EfLocalLoginGate>();   // E9.3: the stored break-glass gate replaces the always-open placeholder
         services.AddHostedService<BuiltInRolesCheck>();   // E10.2: built-in roles follow the catalog; local administrators hold Administrator
     }
 

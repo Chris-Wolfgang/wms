@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local.Login;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local.Password;
+using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local.Status;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local
 {
     /// <summary>
@@ -25,6 +26,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local.Password.PasswordRequestBuilder Password
         {
             get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local.Password.PasswordRequestBuilder(PathParameters, RequestAdapter);
+        }
+        /// <summary>The status property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local.Status.StatusRequestBuilder Status
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local.Status.StatusRequestBuilder(PathParameters, RequestAdapter);
         }
         /// <summary>
         /// Instantiates a new <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local.LocalRequestBuilder"/> and sets the default values.

@@ -240,6 +240,25 @@ public sealed class ModelConventionsTests
 
 
 
+    [Theory]
+    [InlineData(SqlServer)]
+    [InlineData(PostgreSql)]
+    public void Apply_honours_an_explicit_table_name_and_ignores_the_DbSet_name(string provider)
+    {
+        using var context = new ExplicitNamesDbContext(Options<ExplicitNamesDbContext>(provider));
+
+        var pickTask = context.Model.FindEntityType(typeof(WorkItem))!;
+        var bin = context.Model.FindEntityType(typeof(Bin))!;
+
+        Assert.Equal("pick_task", pickTask.GetTableName());
+        Assert.Equal("picking", pickTask.GetSchema());
+        Assert.Equal("pk_pick_task", pickTask.FindPrimaryKey()!.GetName());
+        Assert.Equal("bin", bin.GetTableName());
+        Assert.Empty(ModelConventions.Verify(context.Model));
+    }
+
+
+
     [Fact]
     public void Members_when_the_argument_is_null_throw()
     {

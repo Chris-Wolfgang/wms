@@ -1225,15 +1225,23 @@ jobs:
           # else branch; the no-match status is the expected case here.
           # Only Docker Hub's own wording ("toomanyrequests: You have reached your ... pull rate limit"): a bare
           # 429 would also match a product test that received one from the API under test.
-          hits=$( (grep -rlE "toomanyrequests|pull rate limit" TestResults 2>/dev/null || true) | wc -l)
+          # Where the message sits says which pull was refused: docker-pull.log is the authenticated pre-pull
+          # (when the secrets exist); anything else is a pull Testcontainers made during the tests, which is
+          # always anonymous, because the credential is logged out before any pull-request code runs.
+          prepull=$( (grep -lE "toomanyrequests|pull rate limit" TestResults/docker-pull.log 2>/dev/null || true) | wc -l)
+          tests=$( (grep -rlE --exclude=docker-pull.log "toomanyrequests|pull rate limit" TestResults 2>/dev/null || true) | wc -l)
+          hits=$((prepull + tests))
           if [ "$hits" -gt 0 ]; then
-            # The remedy depends on whether the pulls were authenticated: without the secrets it is the shared
-            # unauthenticated limit; with them it is the account's own quota, and adding secrets is no remedy.
-            if [ "$DOCKERHUB_AUTH" = true ]; then
-              remedy="The pulls were authenticated as $DOCKERHUB_USERNAME, so this is that account's pull quota. Re-run the job later, or raise the account's quota."
-            else
-              remedy="The pulls were unauthenticated, so this is the limit Docker Hub shares across the runner's egress address. Re-run the job, or add the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets so the pulls are authenticated."
+            remedy=""
+            if [ "$prepull" -gt 0 ]; then
+              remedy="The authenticated pre-pull (as $DOCKERHUB_USERNAME) was refused, so that account's pull quota is exhausted: re-run the job later, or raise the quota."
             fi
+            if [ "$tests" -gt 0 ] && [ "$DOCKERHUB_AUTH" = true ]; then
+              remedy="$remedy A pull made during the tests was refused; those pulls are anonymous, so the image is one the pre-pull did not cache: add it to DOCKERHUB_IMAGES in pr.yaml."
+            elif [ "$tests" -gt 0 ]; then
+              remedy="$remedy A pull made during the tests was refused under the limit Docker Hub shares across the runner's egress address: re-run the job, or add the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets so the pre-pull caches the images first."
+            fi
+            remedy="${remedy# }"
             echo "::warning::Docker Hub pull rate limit hit in $hits file(s) under TestResults: an infrastructure failure, not a product one (#842). $remedy"
             {
               echo "### Docker Hub pull rate limit (#842)"

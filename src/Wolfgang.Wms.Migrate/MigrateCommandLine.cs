@@ -19,8 +19,8 @@ public sealed record MigrateCommandLine
           --status                   list applied and pending migrations and the version this build expects
           --script                   write idempotent SQL from --from (or an empty schema) to --to (or latest);
                                      needs no database connection, so no connection string
-          --to <migration>           target: a migration id, its name, its timestamp prefix, or 0 (empty);
-                                     a name or prefix matching more than one migration is rejected
+          --to <migration>           target: a migration id, its name (any case), its timestamp prefix, or 0
+                                     (empty); a name or prefix matching more than one migration is rejected
           --from <migration>         start of a --script delta
           --output <file>            with --script: write the script to a file instead of standard output
           --confirm-data-loss        allow a downgrade (applied or scripted) that drops tables, columns,
@@ -32,8 +32,8 @@ public sealed record MigrateCommandLine
 
         Configuration is read from appsettings.json in the working directory and Wms__Database__* environment
         variables; flags win. Exit codes: 0 ok, 1 a migration failed (named in the output), 2 usage or
-        configuration error, 3 confirmation required, 4 nothing applied: the database cannot be reached or
-        its schema is newer than this build.
+        configuration error, 3 confirmation required, 4 nothing applied: the database cannot be reached,
+        its schema is newer than this build, or its migrations history has a gap.
         """;
 
 

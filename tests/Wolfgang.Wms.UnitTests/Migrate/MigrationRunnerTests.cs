@@ -25,6 +25,8 @@ public sealed class MigrationRunnerTests
         Assert.Null(MigrationRunner.Resolve(shipped, MigrationRunner.Empty));
         Assert.Equal("20260920025830_Initial", MigrationRunner.Resolve(shipped, "20260920025830_Initial"));
         Assert.Equal("20260920025830_Initial", MigrationRunner.Resolve(shipped, "Initial"));
+        Assert.Equal("20260920025830_Initial", MigrationRunner.Resolve(shipped, "initial"));   // a name, like --provider, is matched in any case
+        Assert.Equal("20261001120000_AddZones", MigrationRunner.Resolve(shipped, "ADDZONES"));
         Assert.Equal("20261001120000_AddZones", MigrationRunner.Resolve(shipped, "20261001"));
         Assert.Throws<ArgumentException>(() => MigrationRunner.Resolve(shipped, "Nope"));
         Assert.Throws<ArgumentNullException>(() => MigrationRunner.Resolve(null!, "x"));
@@ -385,10 +387,16 @@ public sealed class MigrationRunnerTests
             Unknown = ["20991231000000_FromTheFuture"],
         };
         var behind = new MigrationStatus(Reachable: true, Applied: [], Pending: ["20260920025830_Initial"], Expected: "20260920025830_Initial");
+        // RowVersionSequence applied, Initial not: a hand-edited or partially restored history.
+        var gapped = new MigrationStatus(Reachable: true, Applied: ["20260920035312_RowVersionSequence"], Pending: ["20260920025830_Initial"], Expected: "20260920035312_RowVersionSequence");
 
         Assert.Equal("Wms:Database: the database cannot be reached; check the connection string and that the server is up. connection refused", MigrationRunner.Refusal(unreachable));
         Assert.Equal("The database schema is newer than this build (unknown migrations: 20991231000000_FromTheFuture). Upgrade the application, or restore the backup taken before the upgrade.", MigrationRunner.Refusal(newer));
         Assert.Null(MigrationRunner.Refusal(behind));
+        Assert.Equal(["20260920025830_Initial"], gapped.Gaps);
+        Assert.Empty(behind.Gaps);
+        Assert.Empty(unreachable.Gaps);
+        Assert.Equal("The migrations history is inconsistent: 20260920025830_Initial not applied although the later migration 20260920035312_RowVersionSequence is. Nothing is applied in either direction; repair wms.migrations_history from the backup or with the DBA, then run wms-migrate.", MigrationRunner.Refusal(gapped));
         Assert.Throws<ArgumentNullException>(() => MigrationRunner.Refusal(null!));
     }
 

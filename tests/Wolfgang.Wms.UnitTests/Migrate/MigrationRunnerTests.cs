@@ -51,7 +51,7 @@ public sealed class MigrationRunnerTests
 
 
     [Fact]
-    public void Destructive_steps_are_dropped_tables_columns_schemas_and_deleted_rows()
+    public void Destructive_steps_are_dropped_tables_columns_schemas_sequences_rows_changed_and_columns_narrowed()
     {
         var steps = MigrationRunner.DestructiveOperationsIn(new DestructiveSampleMigration());
 
@@ -61,7 +61,12 @@ public sealed class MigrationRunnerTests
                 "drop table picking.container",
                 "drop column picking.zone_group.name",
                 "drop schema layout",
+                "drop sequence wms.row_version_seq",
                 "delete rows from picking.tote",
+                "update rows in picking.tote",
+                "narrow column picking.tote.code (max length 50 -> 20)",
+                "narrow column picking.tote.weight (precision 18 -> 9, scale 4 -> 2)",
+                "narrow column picking.tote.label (type nvarchar(max) -> int)",
                 "raw SQL, not inspected: SELECT 1",
                 "raw SQL, not inspected: DELETE FROM picking.tote WHERE created < now() - interval '1 year'; TRUNCATE pic...",
             ],
@@ -466,7 +471,12 @@ public sealed class MigrationRunnerTests
             migrationBuilder.DropTable("container", "picking");
             migrationBuilder.DropColumn("name", "zone_group", "picking");
             migrationBuilder.DropSchema("layout");
+            migrationBuilder.DropSequence("row_version_seq", "wms");
             migrationBuilder.DeleteData("tote", "id", 1L, "picking");
+            migrationBuilder.UpdateData("tote", "id", 1L, "code", "T-1", "picking");
+            migrationBuilder.AlterColumn<string>("code", "tote", maxLength: 20, schema: "picking", oldMaxLength: 50);
+            migrationBuilder.AlterColumn<decimal>("weight", "tote", precision: 9, scale: 2, schema: "picking", oldPrecision: 18, oldScale: 4);
+            migrationBuilder.AlterColumn<int>("label", "tote", type: "int", schema: "picking", oldClrType: typeof(string), oldType: "nvarchar(max)");
             migrationBuilder.Sql("SELECT 1");
             migrationBuilder.Sql("DELETE FROM picking.tote\r\n  WHERE created < now() - interval '1 year';\n\tTRUNCATE picking.container_history;");
         }
@@ -483,6 +493,9 @@ public sealed class MigrationRunnerTests
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex("ix_tote_code", "tote", "picking");
+            migrationBuilder.AlterColumn<string>("code", "tote", maxLength: 100, schema: "picking", oldMaxLength: 50);   // widening keeps every value
+            migrationBuilder.AlterColumn<string>("note", "tote", nullable: true, schema: "picking", oldNullable: false);
+            migrationBuilder.AlterColumn<decimal>("weight", "tote", precision: 18, scale: 4, schema: "picking", oldPrecision: 9, oldScale: 2);
         }
     }
 }

@@ -45,7 +45,8 @@ You name the version you want; the tool works out whether that is an upgrade or 
 
 ### Downgrades that lose data
 
-A downgrade that drops tables, columns or schemas, deletes rows, or runs custom SQL is refused until you add
+A downgrade that drops tables, columns, schemas or sequences, deletes or updates rows, narrows a column, or runs
+custom SQL is refused until you add
 `--confirm-data-loss`; the tool lists each of those steps first. The same applies to a downgrade script, which
 also lists the steps at its top as `-- DATA LOSS` comments.
 

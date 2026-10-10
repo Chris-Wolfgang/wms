@@ -71,12 +71,7 @@ public sealed class SchemaCatalogTests
     public async Task SqlServer_catalog_matches_the_conventions()
     {
         await using var database = await SqlServerTestDatabase.StartAsync();
-        // A container's connection string points at master, so the model gets a database of its own there; a local
-        // instance already gave the test a database of its own (created per test, dropped after it), and a fixed
-        // name would outlive the test and be found populated on the next run.
-        var connectionString = database.IsContainer
-            ? new SqlConnectionStringBuilder(database.ConnectionString) { InitialCatalog = "wms_catalog" }.ConnectionString
-            : database.ConnectionString;
+        var connectionString = database.ConnectionString;   // a database of its own on either path
         var options = new DbContextOptionsBuilder<CatalogDbContext>()
             .UseSqlServer(connectionString)
             .Options;

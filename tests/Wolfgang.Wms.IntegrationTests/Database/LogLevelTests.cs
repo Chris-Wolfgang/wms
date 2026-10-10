@@ -59,7 +59,10 @@ public sealed class LogLevelTests
 
     private static async Task AssertElevationAsync(string provider, string connectionString, bool trustServerCertificate)
     {
-        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
+        await using var app = await StartHostAsync(provider, runtime, trustServerCertificate);
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));
         var level = app.Services.GetRequiredService<WmsLogLevel>();
@@ -90,7 +93,6 @@ public sealed class LogLevelTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
             ["Wms:Logging:Stdout"] = "false",
         });
         builder.UseWmsSerilog();

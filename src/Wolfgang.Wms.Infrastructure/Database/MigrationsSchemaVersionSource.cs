@@ -2,6 +2,7 @@
 
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Wolfgang.Wms.Core.Schema;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
@@ -10,23 +11,27 @@ namespace Wolfgang.Wms.Infrastructure.Database;
 /// Schema status from the EF migrations history (E82.5, E2): <c>Current</c> is the last applied migration,
 /// <c>Expected</c> the last one this build ships. When the database cannot be reached (not provisioned yet,
 /// wrong credentials, server down) <c>Current</c> is null rather than an error, so the endpoint stays a
-/// bootstrap signal.
+/// bootstrap signal; the reason goes to the log at Warning (the provider's message, which names no secret), so
+/// the bootstrap problems the endpoint exists to surface can be diagnosed from the API log.
 /// </summary>
-public sealed class MigrationsSchemaVersionSource : ISchemaVersionSource
+public sealed partial class MigrationsSchemaVersionSource : ISchemaVersionSource
 {
     private readonly WmsDbContext _context;
+    private readonly ILogger<MigrationsSchemaVersionSource> _logger;
 
 
 
     /// <summary>
     /// Creates the source over the request's context.
     /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
-    public MigrationsSchemaVersionSource(WmsDbContext context)
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    public MigrationsSchemaVersionSource(WmsDbContext context, ILogger<MigrationsSchemaVersionSource> logger)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(logger);
 
         _context = context;
+        _logger = logger;
     }
 
 
@@ -40,11 +45,17 @@ public sealed class MigrationsSchemaVersionSource : ISchemaVersionSource
         {
             current = (await _context.Database.GetAppliedMigrationsAsync(cancellationToken).ConfigureAwait(false)).LastOrDefault();
         }
-        catch (DbException)
+        catch (DbException exception)
         {
+            LogHistoryUnreadable(_logger, exception.Message);
             current = null;
         }
 
         return new SchemaStatus(current, expected);
     }
+
+
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The migrations history could not be read, so the schema endpoint reports no current migration: {Reason}")]
+    private static partial void LogHistoryUnreadable(ILogger logger, string reason);
 }

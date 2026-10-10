@@ -71,4 +71,6 @@ highest-ranked fragment kind present:
 Below 1.0 a minor marks a compatibility change (E85.4): a `breaking` fragment bumps the minor, and `feature`,
 `fix`, `docs` and `internal` fragments are patches, so each build phase closes as a 0.x minor and the minor
 number tells a customer when something they rely on changed. From 1.0 a breaking change is a major and a
-feature a minor; patch releases are lean (fixes only). `scripts/changelog.ps1 bump` prints the result.
+feature a minor; patch releases are lean (fixes only). `scripts/changelog.ps1 bump` shows the derivation on the
+console (`current: 0.2.1  fragments: 3  next: 0.3.0`) and writes the next version number alone to standard
+output, so `$next = ./scripts/changelog.ps1 bump` captures just the version.

@@ -478,18 +478,6 @@ jobs:
           sparse-checkout: docs/api
           sparse-checkout-cone-mode: false
 
-      - name: Install oasdiff
-        shell: bash
-        run: |
-          archive="oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
-          curl -sSfL --retry 3 -o "$RUNNER_TEMP/$archive" "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/$archive"
-          echo "$OASDIFF_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
-          mkdir -p "$RUNNER_TEMP/oasdiff"
-          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/oasdiff" oasdiff
-          # Called by its path below rather than added to GITHUB_PATH (zizmor github-env: a PATH edit in a
-          # pull_request_target job is a code-execution vector, however trusted this one is).
-          "$RUNNER_TEMP/oasdiff/oasdiff" --version
-
       - name: Classify the document
         id: classify
         shell: bash
@@ -506,6 +494,21 @@ jobs:
           echo "state=$state" >> "$GITHUB_OUTPUT"
           echo "frozen=$frozen" >> "$GITHUB_OUTPUT"
           echo "$DOCUMENT: $state (frozen: $frozen)"
+
+      - name: Install oasdiff
+        # After the classification, and only for a changed document, so a download or checksum failure
+        # can never leave the comment step below reporting a comparison that did not happen.
+        if: steps.classify.outputs.state == 'changed'
+        shell: bash
+        run: |
+          archive="oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL --retry 3 -o "$RUNNER_TEMP/$archive" "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/$archive"
+          echo "$OASDIFF_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/oasdiff"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/oasdiff" oasdiff
+          # Called by its path below rather than added to GITHUB_PATH (zizmor github-env: a PATH edit in a
+          # pull_request_target job is a code-execution vector, however trusted this one is).
+          "$RUNNER_TEMP/oasdiff/oasdiff" --version
 
       - name: Breaking changes (fails only for a frozen version)
         id: breaking
@@ -533,7 +536,7 @@ jobs:
           "$RUNNER_TEMP/oasdiff/oasdiff" changelog "base/docs/api/openapi-$DOCUMENT.json" "pr/docs/api/openapi-$DOCUMENT.json" --allow-external-refs=false > changelog.md
 
       - name: Post or update the PR comment
-        if: always() && steps.classify.outputs.state != 'unchanged' && steps.classify.outputs.state != 'absent'
+        if: always() && (steps.classify.outputs.state == 'changed' || steps.classify.outputs.state == 'new')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -891,7 +894,10 @@ jobs:
       - name: Log in to Docker Hub (authenticated pulls)
         # Docker Hub's unauthenticated pull limit is shared by the runner's egress address and fails the
         # PostgreSQL container tests at random (#842). With a read-only access token the pulls count against
-        # the account instead. Skipped when the secret is absent (forks, template).
+        # the account instead. Skipped when the secret is absent (the template). Under pull_request_target the
+        # secret is present for a fork's PR as well, and that is fine: the credential only pulls the images this
+        # workflow names (a fork cannot edit this file, the base branch's copy runs) and is logged out in the
+        # next step, before any pull-request code runs.
         if: env.DOCKERHUB_USERNAME != ''
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
         with:

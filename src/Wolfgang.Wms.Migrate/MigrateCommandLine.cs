@@ -24,7 +24,8 @@ public sealed record MigrateCommandLine
           --from <migration>         start of a --script delta
           --output <file>            with --script: write the script to a file instead of standard output
           --confirm-data-loss        allow a downgrade (applied or scripted) that drops tables, columns,
-                                     schemas or rows, or runs raw SQL
+                                     schemas or sequences, restarts a sequence, deletes or updates rows,
+                                     narrows a column, or runs raw SQL
           --provider <SqlServer|PostgreSql>   overrides Wms:Database:Provider
           --connection-string <cs>   overrides Wms:Database:ConnectionString
           --trust-server-certificate overrides Wms:Database:TrustServerCertificate (SQL Server)

@@ -1,6 +1,6 @@
 # Wolfgang.Wms
 
-Warehouse management system (Wolfgang.Wms): an installed server with a web console and a handheld app, starting with the picking module.
+Warehouse management system (Wolfgang.Wms): an installed server with a web console and a handheld app. The picking module is the first one, and is in progress; `main` holds the hosts, the data layer, the API primitives and the console and handheld shells it is built on.
 
 [![PR build](https://img.shields.io/github/actions/workflow/status/Chris-Wolfgang/wms/pr.yaml?event=pull_request_target&label=PR%20build&logo=github)](https://github.com/Chris-Wolfgang/wms/actions/workflows/pr.yaml)
 [![release](https://img.shields.io/github/actions/workflow/status/Chris-Wolfgang/wms/release.yaml?event=release&label=release&logo=github)](https://github.com/Chris-Wolfgang/wms/actions/workflows/release.yaml)
@@ -15,7 +15,8 @@ Warehouse management system (Wolfgang.Wms): an installed server with a web conso
 ## 📦 Getting it running
 
 Wolfgang.Wms is an application you install, not a library you reference. An install is a database, the API, the
-web console and, on the floor, the handheld app:
+web console and, on the floor, the handheld app (today the console shows the workspace shells and the handheld
+its landing page; the picking screens arrive with the picking module):
 
 1. **Create the database** on SQL Server 2022+ (Express included) or PostgreSQL 16+ and point the API at it with
    `Wms:Database:Provider` / `Wms:Database:ConnectionString` ([docs/CONFIGURATION.md](docs/CONFIGURATION.md)).
@@ -25,7 +26,8 @@ web console and, on the floor, the handheld app:
    ([docs/BOOTSTRAP.md](docs/BOOTSTRAP.md)); then open the console.
 
 The only NuGet package is `Wolfgang.Wms.Client`, the generated API client for devices and integrations, published
-with each release; the server itself ships as published hosts, not packages.
+with each release. The server is not a package: today it is built from source (the Quick Start below), the worker
+image and the Windows install arrive with E14/E15, and a downloadable bundle lands before v1.0 (#847).
 
 ---
 
@@ -60,23 +62,28 @@ dotnet run --project src/Wolfgang.Wms.Api
 dotnet run --project src/Wolfgang.Wms.Web
 ```
 
-A pull request's full gate runs locally with `pwsh ./scripts/build-pr.ps1`; the SQL Server integration tests use
-a local instance when `WMS_TEST_SQLSERVER` names one (Express LocalDB works) and containers otherwise.
+`pwsh ./scripts/build-pr.ps1` runs the Windows stage of the PR gate locally (build, tests, coverage, DevSkim,
+gitleaks); the Linux coverage gate, InspectCode, the OpenAPI diff and the AOT smoke run only in CI. The SQL Server
+integration tests use a local instance when `WMS_TEST_SQLSERVER` names one (Express LocalDB works) and containers
+otherwise.
 
 ---
 
 ## ✨ Features
 
-| Area | What is there today |
-|------|---------------------|
-| Modular monolith | One API, one database, one deployable; modules register endpoints, keys and screens through one contract, and the picking module is the first |
-| Console | A Blazor Server console with five workspaces (Configure, Supervise, Resolve, Report, Insights), each a license feature and a permission; scan-first screens take tethered-scanner input anywhere |
-| Handheld | An Android (.NET MAUI) app for the floor, held to a minimum version the server publishes |
-| Two database engines | SQL Server 2022+ (Express included) and PostgreSQL 16+ from one model, with per-provider migrations and a conventions test that proves the schemas match |
-| `wms-migrate` | The one way the schema is created, upgraded, scripted or rolled back; data-losing downgrades need confirmation; the API never migrates |
-| API | Versioned (`/api/v0`), OpenAPI document committed and diffed on every PR, a generated Kiota client, keyset paging, ETags and `If-Match` concurrency, idempotency keys, problem details with stable error codes |
-| Your identifiers | Customer-supplied identifiers with mask and regex formats and GS1 structural validation, so a bad label is rejected before it reaches a screen |
-| Read models | Per-instance caches invalidated by row version, and ETags derived from the same version, so a hot read costs nothing between polls |
+What `main` implements today is the foundation; the picking module, the screens, licensing, identity and the
+settings that make it operational are in progress on the open pull-request stack.
+
+| Area | On `main` today | Arrives with |
+|------|-----------------|--------------|
+| Modular monolith | One API, one database, one deployable; a module contract for endpoints and typed keys (ADR 0001), with the schema module as its only registration | the picking module, the first business module |
+| Console | A Blazor Server console with five workspace shells (Configure, Supervise, Resolve, Report, Insights) behind an access gate, and a scan listener that takes tethered-scanner input on every screen; access is a placeholder that opens the free-tier workspaces | license-backed and permission-backed access (E79, E11), the workspace screens |
+| Handheld | An Android (.NET MAUI) app with a landing page and a device-version policy hook that accepts every version | the picking screens and the server-published minimum version (E12) |
+| Two database engines | SQL Server 2022+ (Express included) and PostgreSQL 16+ from one model, with per-provider migrations and a conventions test that proves the schemas match | nothing further |
+| `wms-migrate` | The one way the schema is created, upgraded, scripted or rolled back; data-losing downgrades need confirmation; the API never migrates | a downloadable bundle (#847) |
+| API | Versioned root (`/api/v0`) with one endpoint, the schema status; the OpenAPI document committed and diffed on every PR; a generated Kiota client; the primitives every module endpoint will use: keyset paging, ETags and `If-Match` concurrency, idempotency keys, problem details with stable error codes | the module endpoints that consume them |
+| Your identifiers | Domain rules for customer-supplied identifiers: mask and regex formats and GS1 structural validation | the intake endpoints and screens that apply them to labels |
+| Read models | The per-instance cache invalidated by row version and the ETag derived from the same version (ADR 0003) | the first read model and its endpoint |
 
 ---
 

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System;
+using Wolfgang.Wms.Client.Generated.Api.V0.Settings.Item;
 using Wolfgang.Wms.Client.Generated.Api.V0.Settings.Registry;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Settings
 {
@@ -19,6 +20,18 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Settings
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Settings.Registry.RegistryRequestBuilder Registry
         {
             get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Settings.Registry.RegistryRequestBuilder(PathParameters, RequestAdapter);
+        }
+        /// <summary>Gets an item from the Wolfgang.Wms.Client.Generated.api.v0.settings.item collection</summary>
+        /// <param name="position">Unique identifier of the item</param>
+        /// <returns>A <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Settings.Item.WithScopeTypeItemRequestBuilder"/></returns>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Settings.Item.WithScopeTypeItemRequestBuilder this[string position]
+        {
+            get
+            {
+                var urlTplParams = new Dictionary<string, object>(PathParameters);
+                urlTplParams.Add("scopeType", position);
+                return new global::Wolfgang.Wms.Client.Generated.Api.V0.Settings.Item.WithScopeTypeItemRequestBuilder(urlTplParams, RequestAdapter);
+            }
         }
         /// <summary>
         /// Instantiates a new <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Settings.SettingsRequestBuilder"/> and sets the default values.

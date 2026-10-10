@@ -546,7 +546,9 @@ jobs:
 
       - name: Changelog
         # Runs after a failed breaking-changes gate too (the comment should still show what changed), but not
-        # without the binary; the comment step reads this step's outcome.
+        # without the binary; the comment step reads this step's outcome. Unlike the replaced action's changelog
+        # step (review: true by default), this uploads nothing to oasdiff.com and posts no review link: the
+        # changelog below is the whole result, and no spec leaves CI.
         id: changelog
         if: "!cancelled() && steps.classify.outputs.state == 'changed' && steps.install.outcome == 'success'"
         shell: bash

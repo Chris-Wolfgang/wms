@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -40,7 +41,9 @@ public sealed class MigrationRunner
 
 
     /// <summary>
-    /// Applied and pending migrations and what this build expects (E4.3).
+    /// Applied and pending migrations and what this build expects (E4.3). A database that does not exist on
+    /// the server is reported as unreachable: the DBA creates the database, the tool only ever fills it, so a
+    /// typo in its name cannot end in a stray database created and migrated under the DBA's login.
     /// </summary>
     public async Task<MigrationStatus> StatusAsync(CancellationToken cancellationToken)
     {
@@ -48,13 +51,20 @@ public sealed class MigrationRunner
         IReadOnlyList<string> applied;
         try
         {
+            if (!await _context.GetService<IRelationalDatabaseCreator>().ExistsAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return new MigrationStatus(Reachable: false, Applied: [], Pending: shipped, Expected: Last(shipped))
+                {
+                    Error = $"database '{_context.Database.GetDbConnection().Database}' does not exist on the server; create it first (the DBA's step; wms-migrate never creates a database), then run wms-migrate.",
+                };
+            }
+
             applied = (await _context.Database.GetAppliedMigrationsAsync(cancellationToken).ConfigureAwait(false)).ToList();
         }
         catch (DbException exception)
         {
-            // A reachable server with no history table (or no database yet) is not an error: EF's history
-            // repository checks that both exist and returns no applied migrations. Only a failure to talk to the
-            // server lands here.
+            // A reachable server with no history table is not an error: EF's history repository checks that it
+            // exists and returns no applied migrations. Only a failure to talk to the server lands here.
             return new MigrationStatus(Reachable: false, Applied: [], Pending: shipped, Expected: Last(shipped))
             {
                 Error = exception.Message,

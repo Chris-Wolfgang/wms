@@ -31,7 +31,7 @@ public sealed class SettingsRegistryEndpointTests : IClassFixture<WebApplication
     [Fact]
     public async Task Registry_lists_the_settings_modules_declare()
     {
-        using var host = _factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        using var host = _factory.WithTestAuth().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
             services.AddWmsModule
             (
                 ModuleDescriptor
@@ -44,7 +44,7 @@ public sealed class SettingsRegistryEndpointTests : IClassFixture<WebApplication
             )));
         using var client = host.CreateClient();
 
-        using var response = await client.GetAsync(new Uri("/api/v0/settings/registry", UriKind.Relative));
+        using var response = await client.SendAsync(TestAuth.As(HttpMethod.Get, "/api/v0/settings/registry", "settings.read@organization"));
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var entries = document.RootElement.EnumerateArray().ToDictionary(e => e.GetProperty("name").GetString()!, e => e, StringComparer.Ordinal);
 
@@ -64,11 +64,12 @@ public sealed class SettingsRegistryEndpointTests : IClassFixture<WebApplication
     [Fact]
     public async Task Registry_holds_only_the_hosts_own_settings_and_is_read_only_without_other_modules()
     {
-        using var client = _factory.CreateClient();
+        using var host = _factory.WithTestAuth();
+        using var client = host.CreateClient();
 
-        using var response = await client.GetAsync(new Uri("/api/v0/settings/registry", UriKind.Relative));
+        using var response = await client.SendAsync(TestAuth.As(HttpMethod.Get, "/api/v0/settings/registry", "*@organization"));
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        using var post = await client.PostAsync(new Uri("/api/v0/settings/registry", UriKind.Relative), new StringContent("[]"));
+        using var post = await client.SendAsync(TestAuth.As(HttpMethod.Post, "/api/v0/settings/registry", "*@organization", new StringContent("[]")));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.All(document.RootElement.EnumerateArray(), e => Assert.StartsWith("auth.", e.GetProperty("name").GetString(), StringComparison.Ordinal));   // E9: the auth module's settings

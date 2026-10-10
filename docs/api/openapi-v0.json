@@ -1021,6 +1021,106 @@
           }
         }
       }
+    },
+    "/api/v0/organization/public": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "The organization\u0027s name and logo, for the login page; 404 until the first-run wizard created it.",
+        "operationId": "GetOrganizationPublic",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationPublicInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/organization": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "The organization; the ETag is the row\u0027s version; 404 until the first-run wizard created it.",
+        "operationId": "GetOrganization",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates the organization (the first-run wizard\u0027s first step); 409 when it already exists.",
+        "operationId": "CreateOrganization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces the organization\u0027s details; If-Match required.",
+        "operationId": "UpdateOrganization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationInfo"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1803,6 +1903,285 @@
           "Critical",
           "None"
         ]
+      },
+      "OrganizationAddress": {
+        "required": [
+          "line1",
+          "line2",
+          "city",
+          "region",
+          "postalCode",
+          "country"
+        ],
+        "type": "object",
+        "properties": {
+          "line1": {
+            "type": "string",
+            "description": "Street and number."
+          },
+          "line2": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Second line (suite, building); null when none."
+          },
+          "city": {
+            "type": "string",
+            "description": "City or town."
+          },
+          "region": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "State, province or county; null when the country has none."
+          },
+          "postalCode": {
+            "type": "string",
+            "description": "Postal or ZIP code."
+          },
+          "country": {
+            "type": "string",
+            "description": "Country, as written on an envelope."
+          }
+        },
+        "description": "The organisation\u0027s postal address (E16.0), as printed on cards and digests."
+      },
+      "OrganizationContact": {
+        "required": [
+          "name",
+          "email",
+          "phone"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The person or team."
+          },
+          "email": {
+            "type": "string",
+            "description": "Their e-mail address."
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Their phone number; null when none."
+          }
+        },
+        "description": "A named contact of the organisation (E16.0): the primary contact the vendor and the install talk to, and the support contact users are pointed at."
+      },
+      "OrganizationDraft": {
+        "required": [
+          "name",
+          "legalName",
+          "logoDataUrl",
+          "timeZone",
+          "locale",
+          "address",
+          "primaryContact",
+          "supportContact"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name users see: console header, login page, notifications, cards; 1\u2013128 characters."
+          },
+          "legalName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The registered company name; null to use Name."
+          },
+          "logoDataUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The logo as a \u0060data:image/\u2026\u0060 URL, at most 256 KB; null for none."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The default time zone (IANA or Windows id), the one sites inherit."
+          },
+          "locale": {
+            "type": "string",
+            "description": "The default culture name (\u0060en-US\u0060), the one users inherit."
+          },
+          "address": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The postal address; null when not yet known.",
+                "$ref": "#/components/schemas/OrganizationAddress"
+              }
+            ]
+          },
+          "primaryContact": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Who the vendor and the install talk to; null when not yet known.",
+                "$ref": "#/components/schemas/OrganizationContact"
+              }
+            ]
+          },
+          "supportContact": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Who users are pointed at; null to use the primary contact.",
+                "$ref": "#/components/schemas/OrganizationContact"
+              }
+            ]
+          }
+        },
+        "description": "Body of \u0060POST /organization\u0060 (the first-run wizard\u0027s first step) and \u0060PUT /organization\u0060 (E16.0)."
+      },
+      "OrganizationInfo": {
+        "required": [
+          "id",
+          "name",
+          "legalName",
+          "logoDataUrl",
+          "timeZone",
+          "locale",
+          "address",
+          "primaryContact",
+          "supportContact",
+          "updatedAt",
+          "updatedBy",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "legalName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The registered company name; null to use Name."
+          },
+          "logoDataUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The logo as a \u0060data:image/\u2026\u0060 URL; null for none."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The default time zone id."
+          },
+          "locale": {
+            "type": "string",
+            "description": "The default culture name."
+          },
+          "address": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The postal address; null when not yet known.",
+                "$ref": "#/components/schemas/OrganizationAddress"
+              }
+            ]
+          },
+          "primaryContact": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Who the vendor and the install talk to; null when not yet known.",
+                "$ref": "#/components/schemas/OrganizationContact"
+              }
+            ]
+          },
+          "supportContact": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Who users are pointed at; null to use the primary contact.",
+                "$ref": "#/components/schemas/OrganizationContact"
+              }
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When the row was last written (UTC).",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string",
+            "description": "Who last wrote it."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s version (the entity tag on updates).",
+            "format": "int64"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag for \u0060If-Match\u0060."
+          }
+        },
+        "description": "The organisation as the API and the console see it (E16.0): the one row per install that is the top of the settings cascade, the name on the console header, the licensee the keys name, and the install\u0027s name in multi-install monitoring."
+      },
+      "OrganizationPublicInfo": {
+        "required": [
+          "name",
+          "logoDataUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "logoDataUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The logo as a \u0060data:image/\u2026\u0060 URL; null for none."
+          }
+        },
+        "description": "The organisation as the login page shows it before anyone is signed in (E16.0): the name and the logo, nothing that identifies people or places."
       },
       "PermissionDescriptor": {
         "required": [

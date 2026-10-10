@@ -111,7 +111,11 @@ public static class RowVersioning
 
 
     /// <summary>
-    /// The SQL that creates the update trigger for a table on a provider.
+    /// The SQL that creates the update trigger for a table on a provider. On SQL Server the DDL is a nested batch
+    /// (<c>EXEC(N'...')</c>): <c>CREATE [OR ALTER] TRIGGER</c> must be the first statement of its batch, and the
+    /// idempotent script <c>wms-migrate --script</c> generates wraps every command in
+    /// <c>IF NOT EXISTS (...) BEGIN ... END</c>, where a bare <c>CREATE TRIGGER</c> is a syntax error. Applying
+    /// directly runs each command as its own batch, which is why only the script path showed it.
     /// </summary>
     /// <exception cref="ArgumentException">Unknown provider or blank names.</exception>
     public static string UpdateTriggerSql(string? providerName, string schema, string table)
@@ -122,13 +126,14 @@ public static class RowVersioning
         var trigger = TriggerName(table);
         return providerName switch
         {
+            // The body carries no single quote, so nothing needs doubling inside the N'...' literal.
             SqlServer => $"""
-                CREATE OR ALTER TRIGGER [{schema}].[{trigger}] ON [{schema}].[{table}] AFTER UPDATE AS
+                EXEC(N'CREATE OR ALTER TRIGGER [{schema}].[{trigger}] ON [{schema}].[{table}] AFTER UPDATE AS
                 BEGIN
                     SET NOCOUNT ON;
                     UPDATE t SET [{ColumnName}] = NEXT VALUE FOR [{Schema}].[{SequenceName}]
                     FROM [{schema}].[{table}] t INNER JOIN inserted i ON t.[id] = i.[id];
-                END
+                END');
                 """,
             PostgreSql => $"""
                 CREATE OR REPLACE FUNCTION {Schema}.set_row_version() RETURNS trigger LANGUAGE plpgsql AS $$

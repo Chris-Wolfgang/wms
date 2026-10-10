@@ -62,8 +62,11 @@ public sealed class LicenseKeyInstallTests
 
     private static async Task AssertKeysAsync(string provider, string connectionString, bool trustServerCertificate)
     {
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
         using var pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate, Convert.ToBase64String(pair.ExportSubjectPublicKeyInfo()));
+        await using var app = await StartHostAsync(provider, runtime, trustServerCertificate, Convert.ToBase64String(pair.ExportSubjectPublicKeyInfo()));
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));
         var coverage = new[] { new CoveragePeriod(new DateOnly(2026, 1, 1), new DateOnly(2027, 12, 31)) };
@@ -105,7 +108,6 @@ public sealed class LicenseKeyInstallTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
             ["Wms:Logging:Stdout"] = "false",
         });
         builder.UseWmsSerilog();

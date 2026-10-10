@@ -273,6 +273,18 @@ public sealed class PagingTests
 
         Assert.NotNull(query);
         Assert.Null(error);
+        Assert.Equal((idFrom, idTo, true), (query.IdFrom, query.IdTo, query.HasIdRange));
+    }
+
+
+
+    [Fact]
+    public void PageRequest_without_an_id_range_resolves_to_an_unbounded_query()
+    {
+        Assert.True(new PageRequest().TryResolve(Sorting, out var query, out _));
+
+        Assert.NotNull(query);
+        Assert.Equal((null, null, false), (query.IdFrom, query.IdTo, query.HasIdRange));
     }
 
 

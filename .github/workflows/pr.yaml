@@ -1120,7 +1120,7 @@ jobs:
             # Tests ran (the step above refuses to run with no test projects), so no cobertura file means the
             # collector did not run or produced nothing: a gate that cannot measure must fail, not skip (#915).
             echo "has-coverage=false" >> "$GITHUB_OUTPUT"
-            echo "::error::No coverage files found under TestResults although tests ran - the coverage collector did not produce data, so the coverage gate cannot be enforced."
+            echo "::error::No coverage files found under TestResults although tests ran (looked for TestResults/**/coverage.cobertura.xml), so the coverage gate cannot be enforced. Check that every test project references coverlet.collector, that --settings coverlet.runsettings points at the file at the repository root, and that no test host crashed before the collector wrote its report."
             exit 1
           fi
 
@@ -1740,13 +1740,13 @@ jobs:
         id: check-coverage
         run: |
           if (Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml -ErrorAction SilentlyContinue) {
-            echo "has-coverage=true" >> $env:GITHUB_OUTPUT
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "has-coverage=true"
             Write-Host "✅ Coverage files found"
           } else {
             # Tests ran, so no cobertura file means the collector did not run or produced nothing: a gate that
             # cannot measure must fail, not skip (#915).
-            echo "has-coverage=false" >> $env:GITHUB_OUTPUT
-            Write-Host "::error::No coverage files found under TestResults although tests ran - the coverage collector did not produce data, so the coverage gate cannot be enforced."
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "has-coverage=false"
+            Write-Host "::error::No coverage files found under TestResults although tests ran (looked for TestResults/**/coverage.cobertura.xml), so the coverage gate cannot be enforced. Check that every test project references coverlet.collector, that --settings coverlet.runsettings points at the file at the repository root, and that no test host crashed before the collector wrote its report."
             exit 1
           }
         shell: pwsh

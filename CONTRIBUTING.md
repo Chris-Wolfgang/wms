@@ -187,15 +187,15 @@ var now = DateTimeOffset.UtcNow;
 
 **Why?** This ensures all code is **truly asynchronous** and **non-blocking**, providing optimal performance in async contexts.
 
-The complete list (65 symbols, each with the reason and the replacement) is [`BannedSymbols.txt`](BannedSymbols.txt).
+The complete list, each entry with the reason and the replacement, is [`BannedSymbols.txt`](BannedSymbols.txt).
 
 ---
 
 ## Build and Test Instructions
 
 ### Prerequisites
-- Latest .NET SDK recommended (the CI matrix tests .NET Core 3.1, .NET 5.0-10.0 and .NET Framework 4.6.2-4.8.1; the SDK you actually need depends on your project's target frameworks. The template itself contains no csproj.)
-- PowerShell 7 (`pwsh`) — every script under `scripts/` is PowerShell (`build-pr.ps1`, `changelog.ps1`, `format.ps1`, `setup.ps1`, ...)
+- The .NET 10 SDK: every project targets `net10.0`, except the Android app, which targets `net10.0-android` only (install the `maui-android` workload to build it).
+- PowerShell 7 (`pwsh`) — every script under `scripts/` is PowerShell (`build-pr.ps1`, `changelog.ps1`, `format.ps1`, `Check-Migrations.ps1`, ...)
 - [gitleaks](https://github.com/gitleaks/gitleaks#installing) for the pre-commit hook (optional locally; CI runs it regardless)
 
 ### Build the Project
@@ -208,7 +208,7 @@ dotnet restore
 dotnet build --configuration Release
 ```
 
-**Note:** Release builds treat all analyzer warnings as errors (`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`). Debug builds allow warnings to facilitate development.
+**Note:** Warnings are errors in every configuration (E1.2, `Directory.Build.props`): a warning fails a Debug build as it fails a Release build. The two configurations can still compile different code where a project is configuration-specific (`MauiProgram.cs` under `#if DEBUG`), so a Release build before a PR remains the check that matters.
 
 ### Run Tests
 

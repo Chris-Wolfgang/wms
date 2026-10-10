@@ -517,17 +517,20 @@ jobs:
           base="base/docs/api/openapi-$DOCUMENT.json"
           revision="pr/docs/api/openapi-$DOCUMENT.json"
           # Same two calls as the oasdiff-action entrypoint: annotations for every breaking change (never
-          # fails), then the gate, which fails a frozen document on an ERR-level change.
-          "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --format githubactions || true
+          # fails), then the gate, which fails a frozen document on an ERR-level change. The CLI follows
+          # external $refs by default; the action switched that off, and so does every call here, because the
+          # revision is the PR's document (an external $ref would make the runner fetch a URL or file of the
+          # PR author's choosing). oasdiff needs the "=false" form for a false boolean.
+          "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --format githubactions --allow-external-refs=false || true
           if [ "$FROZEN" = true ]; then
-            "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --fail-on ERR
+            "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --fail-on ERR --allow-external-refs=false
           fi
 
       - name: Changelog
         if: steps.classify.outputs.state == 'changed'
         shell: bash
         run: |
-          "$RUNNER_TEMP/oasdiff/oasdiff" changelog "base/docs/api/openapi-$DOCUMENT.json" "pr/docs/api/openapi-$DOCUMENT.json" > changelog.md
+          "$RUNNER_TEMP/oasdiff/oasdiff" changelog "base/docs/api/openapi-$DOCUMENT.json" "pr/docs/api/openapi-$DOCUMENT.json" --allow-external-refs=false > changelog.md
 
       - name: Post or update the PR comment
         if: always() && steps.classify.outputs.state != 'unchanged' && steps.classify.outputs.state != 'absent'
@@ -1170,7 +1173,9 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          hits=$(grep -rlE "toomanyrequests|pull rate limit|429 Too Many Requests" TestResults 2>/dev/null | wc -l)
+          # grep exits 1 when nothing matches, which under the shell's pipefail would end the step before the
+          # else branch; the no-match status is the expected case here.
+          hits=$( (grep -rlE "toomanyrequests|pull rate limit|429 Too Many Requests" TestResults 2>/dev/null || true) | wc -l)
           if [ "$hits" -gt 0 ]; then
             echo "::warning::Docker Hub pull rate limit hit in $hits test result file(s): an infrastructure failure, not a product one (#842). Re-run the job, or add the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets so the pulls are authenticated."
             {

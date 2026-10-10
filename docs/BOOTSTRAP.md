@@ -17,12 +17,22 @@ This is the engineering view. The operator-facing page is `docfx_project/docs/bo
 
 ## What the API says about bootstrap
 
-`GET /api/v0/system/schema` (`Wolfgang.Wms.Core.Schema.SchemaModule`) is read-only and answers even when the
-database has never been migrated:
+`GET /api/v0/system/schema` (`Wolfgang.Wms.Core.Schema.SchemaModule`) is read-only. The API refuses to start
+while a configured database is behind or ahead of its build (`SchemaStartupCheck`), so the two responses a
+running API gives are a migrated database:
 
 ```json
-{ "current": null, "expected": "20260920035312_RowVersionSequence", "upToDate": false }
+{ "current": "20260920035312_RowVersionSequence", "expected": "20260920035312_RowVersionSequence", "upToDate": true }
 ```
+
+and no database at all (`Wms:Database:Provider` = `None`, the not-installed source):
+
+```json
+{ "current": null, "expected": null, "upToDate": false }
+```
+
+`current` can still turn `null` with `expected` set when the database becomes unreachable after startup; the
+reason is in the API log.
 
 - `current`: the last applied migration, or `null` when no database is reachable or none was applied.
 - `expected`: the last migration this build ships for the configured provider (the identifiers differ per
@@ -30,5 +40,6 @@ database has never been migrated:
 - `upToDate`: true when a migration is applied and it is the one this build expects; never true while
   `current` is `null`.
 
-Installers and health checks read it to decide whether to run `wms-migrate`; the API never applies a migration
-itself ([CONFIGURATION.md](CONFIGURATION.md)). With `Wms:Database:Provider` set to `None` the not-installed source reports both identifiers as `null`.
+Health checks read it once the API is up. Whether `wms-migrate` must run is decided before the API starts, from
+`wms-migrate --status` ([MIGRATE.md](MIGRATE.md)); the API never applies a migration itself
+([CONFIGURATION.md](CONFIGURATION.md)).

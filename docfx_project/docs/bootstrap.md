@@ -13,11 +13,18 @@ because the API cannot do its normal work until it has happened, or because it m
 
 ## Checking the database schema
 
-`GET /api/v0/system/schema` is read-only and answers whenever the server is running, including with no database
-configured (`Wms:Database:Provider` set to `None`):
+`GET /api/v0/system/schema` is read-only and answers whenever the server is running. The server does not start
+while a configured database is behind or ahead of its version, so a running server answers either with a
+migrated database:
 
 ```json
-{ "current": null, "expected": "20260920035312_RowVersionSequence", "upToDate": false }
+{ "current": "20260920035312_RowVersionSequence", "expected": "20260920035312_RowVersionSequence", "upToDate": true }
+```
+
+or with no database configured (`Wms:Database:Provider` set to `None`):
+
+```json
+{ "current": null, "expected": null, "upToDate": false }
 ```
 
 | Field | Meaning |
@@ -26,5 +33,5 @@ configured (`Wms:Database:Provider` set to `None`):
 | `expected` | The last migration this version of the product ships for the configured provider (the identifiers differ per provider), or `null` when `Wms:Database:Provider` is `None` |
 | `upToDate` | `true` when a migration is applied and it is the one this version expects; never `true` while `current` is `null`; always present |
 
-Health checks read it. Before the server is started, `wms-migrate --status` reports the same information from
-the database itself.
+Health checks read it once the server is up. Before the server is started, `wms-migrate --status` reports the
+same information from the database itself, and that is where the decision to run `wms-migrate` is made.

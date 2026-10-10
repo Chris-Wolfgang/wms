@@ -29,7 +29,7 @@ public sealed class PagingTests
         Assert.Equal(42, back.Id);
         Assert.False(back.IsEmpty);
         Assert.Equal(encoded, cursor.ToString());
-        Assert.Equal("-created_at|42|2026-09-19T12:00:00Z", Decode(encoded));
+        Assert.Equal("2|-created_at|42|2026-09-19T12:00:00Z", Decode(encoded));
         Assert.DoesNotContain('+', encoded);
         Assert.DoesNotContain('/', encoded);
         Assert.DoesNotContain('=', encoded);
@@ -46,7 +46,7 @@ public sealed class PagingTests
         Assert.Equal(cursor, back);
         Assert.Equal("A|B|C", back.Value);
         Assert.Equal(7, back.Id);
-        Assert.Equal("sku_code|7|A|B|C", Decode(cursor.Encode()));
+        Assert.Equal("2|sku_code|7|A|B|C", Decode(cursor.Encode()));
     }
 
 
@@ -61,7 +61,7 @@ public sealed class PagingTests
         Assert.Null(back.Value);
         Assert.Equal(1234567890123, back.Id);
         Assert.Equal(ById, back.Sort);
-        Assert.Equal("id|1234567890123", Decode(cursor.Encode()));
+        Assert.Equal("2|id|1234567890123", Decode(cursor.Encode()));
         Assert.Equal("id", Cursor.IdField);
     }
 
@@ -102,7 +102,22 @@ public sealed class PagingTests
     [InlineData("created_at|9223372036854775808|v")]
     public void Cursor_TryParse_rejects_a_payload_whose_shape_does_not_match_its_sort(string payload)
     {
-        Assert.False(Cursor.TryParse(Encode(payload), out _));
+        Assert.False(Cursor.TryParse(Encode("2|" + payload), out _));
+    }
+
+
+
+    [Theory]
+    [InlineData("sku|123|7")]            // the earlier sort|value|id layout with a numeric value: would read as id 123, value 7
+    [InlineData("created_at|42|v")]      // the current shape without the layout marker
+    [InlineData("1|created_at|42|v")]    // another layout number
+    [InlineData("2")]
+    [InlineData("2|")]
+    [InlineData("2|id")]
+    public void Cursor_TryParse_refuses_a_cursor_of_another_layout_instead_of_rereading_it(string payload)
+    {
+        Assert.False(Cursor.TryParse(Encode(payload), out var cursor));
+        Assert.True(cursor.IsEmpty);
     }
 
 

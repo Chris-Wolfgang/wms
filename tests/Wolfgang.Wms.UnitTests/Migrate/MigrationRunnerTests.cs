@@ -1,9 +1,9 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Migrate;

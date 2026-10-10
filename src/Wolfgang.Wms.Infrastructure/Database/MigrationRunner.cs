@@ -177,9 +177,13 @@ public sealed class MigrationRunner
 
     /// <summary>
     /// Why nothing may be applied to the database <paramref name="status"/> describes, or null when it may:
-    /// it cannot be reached (so its schema is unknown, and "already at the target" cannot be claimed), or it
-    /// carries migrations this build does not ship (E4.6: a newer schema is never touched by an older build).
-    /// The startup check refuses to start for the same reasons with the same message.
+    /// it cannot be reached (so its schema is unknown, and "already at the target" cannot be claimed), it
+    /// carries migrations this build does not ship (E4.6: a newer schema is never touched by an older build),
+    /// or its history has a gap (<see cref="MigrationStatus.Gaps"/>: a pending migration older than the last
+    /// applied one, which only a hand-edited or partially restored history table produces; the tool positions
+    /// the schema by the last applied migration and would otherwise call such a database up to date while the
+    /// startup check calls it behind). The startup check refuses to start for the same reasons with the same
+    /// message.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="status"/> is null.</exception>
     public static string? Refusal(MigrationStatus status)
@@ -194,6 +198,11 @@ public sealed class MigrationRunner
         if (status.SchemaIsNewer)
         {
             return $"The database schema is newer than this build (unknown migrations: {string.Join(", ", status.Unknown)}). Upgrade the application, or restore the backup taken before the upgrade.";
+        }
+
+        if (status.Gaps.Count > 0)
+        {
+            return $"The migrations history is inconsistent: {string.Join(", ", status.Gaps)} not applied although the later migration {status.Current} is. Nothing is applied in either direction; repair {DatabaseServiceCollectionExtensions.HistorySchema}.{DatabaseServiceCollectionExtensions.HistoryTable} from the backup or with the DBA, then run wms-migrate.";
         }
 
         return null;
@@ -233,9 +242,10 @@ public sealed class MigrationRunner
 
 
     /// <summary>
-    /// The shipped migration matching <paramref name="target"/>: exact id, else name after the timestamp, else
-    /// id prefix; <see cref="Empty"/> resolves to null; null means the latest. A name or prefix matching more
-    /// than one migration is rejected rather than guessed, since the target may be a destructive downgrade.
+    /// The shipped migration matching <paramref name="target"/>: exact id, else name after the timestamp
+    /// (case-insensitive, as <c>dotnet ef database update</c> and <c>--provider</c> are), else id prefix;
+    /// <see cref="Empty"/> resolves to null; null means the latest. A name or prefix matching more than one
+    /// migration is rejected rather than guessed, since the target may be a destructive downgrade.
     /// </summary>
     /// <exception cref="ArgumentException">No shipped migration matches, or more than one does.</exception>
     public static string? Resolve(IReadOnlyList<string> shipped, string? target)
@@ -258,7 +268,7 @@ public sealed class MigrationRunner
         }
 
         var matches = shipped
-            .Where(id => id.EndsWith("_" + target, StringComparison.Ordinal))
+            .Where(id => id.EndsWith("_" + target, StringComparison.OrdinalIgnoreCase))
             .ToList();
         if (matches.Count == 0)
         {

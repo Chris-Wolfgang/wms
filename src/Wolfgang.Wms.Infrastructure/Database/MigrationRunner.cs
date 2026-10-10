@@ -198,7 +198,8 @@ public sealed class MigrationRunner
     /// (a sequence's current value is state: the row-version sequence is every client's sync watermark),
     /// deleted or updated rows, a column narrowed to a smaller length, precision or scale, to fewer integral digits
     /// (the scale grows by more than the precision), to a bounded precision from an unbounded one, to non-unicode
-    /// text or to another type,
+    /// text, to a type written without its length or precision (the provider's default applies) or to another
+    /// type,
     /// and raw SQL (<see cref="MigrationBuilder.Sql"/>), which is not inspected and so is treated as data-losing.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="migration"/> is null.</exception>
@@ -357,6 +358,14 @@ public sealed class MigrationRunner
             reasons.Add("max length " + (oldLength?.ToString(CultureInfo.InvariantCulture) ?? "unbounded") + " -> " + length.ToString(CultureInfo.InvariantCulture));
         }
 
+        // A type written without the facet it takes gets the provider's default, and the providers disagree:
+        // SQL Server reads "varchar" as varchar(1) and "decimal" as decimal(18,0), PostgreSQL reads both as
+        // unbounded. This code does not know the provider, so a column whose facet is dropped needs confirmation.
+        if (newLength is null && newType.Facetless && StoreType.IsLengthFamily(newType.Family!) && (oldLength is not null || oldType.Unbounded))
+        {
+            reasons.Add("max length " + (oldLength?.ToString(CultureInfo.InvariantCulture) ?? "unbounded") + " -> provider default");
+        }
+
         NumericNarrowing(alter, old, oldType, newType, reasons);
 
         // Unicode text made non-unicode (nvarchar -> varchar on SQL Server) loses every character outside the
@@ -394,7 +403,12 @@ public sealed class MigrationRunner
         var newPrecision = alter.Precision ?? newType.Precision;
         var oldScale = old.Scale ?? oldType.Scale;
         var newScale = alter.Scale ?? newType.Scale;
-        if (newPrecision is { } precision && oldPrecision is null && (oldType.Family is null || StoreType.IsDecimal(oldType.Family)))
+        if (newPrecision is null && newType.Facetless && StoreType.IsDecimal(newType.Family!) && oldPrecision is { } droppedPrecision)
+        {
+            // "decimal" with no facets: decimal(18,0) on SQL Server, unbounded on PostgreSQL (see Narrowing).
+            reasons.Add("precision " + droppedPrecision.ToString(CultureInfo.InvariantCulture) + " -> provider default");
+        }
+        else if (newPrecision is { } precision && oldPrecision is null && (oldType.Family is null || StoreType.IsDecimal(oldType.Family)))
         {
             reasons.Add("precision unbounded -> " + precision.ToString(CultureInfo.InvariantCulture));
         }
@@ -423,14 +437,21 @@ public sealed class MigrationRunner
     /// (unbounded), <c>decimal(9, 3)</c> (precision, scale), <c>decimal(18)</c> (precision 18, scale 0, as both
     /// providers read it), <c>int</c> (none). <see cref="Family"/> is lower-case with whitespace removed, and
     /// <c>numeric</c> / <c>dec</c> read as <c>decimal</c>; <see cref="Text"/> is the type as written, trimmed.
+    /// <see cref="Facetless"/> marks a length or decimal family written without its facets (the provider's
+    /// default applies), <see cref="Unbounded"/> an explicit <c>max</c>.
     /// </summary>
-    private sealed record StoreType(string? Text, string? Family, int? Length, int? Precision, int? Scale)
+    private sealed record StoreType(string? Text, string? Family, int? Length, int? Precision, int? Scale, bool Facetless = false, bool Unbounded = false)
     {
         private static readonly Regex Shape = new(@"^(?<family>[^(]+?)\s*(\((?<facets>[^)]*)\))?$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
         public static bool IsDecimal(string family)
         {
             return family is "decimal" or "numeric" or "dec";
+        }
+
+        public static bool IsLengthFamily(string family)
+        {
+            return family is "char" or "nchar" or "varchar" or "nvarchar" or "binary" or "varbinary" or "character" or "charactervarying" or "bpchar";
         }
 
         public static StoreType Parse(string? columnType)
@@ -448,12 +469,14 @@ public sealed class MigrationRunner
                 ? match.Groups["facets"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
                 : [];
             var numbers = facets.Select(facet => int.TryParse(facet, NumberStyles.None, CultureInfo.InvariantCulture, out var number) ? number : (int?)null).ToArray();
+            var facetless = facets.Length == 0 && (IsDecimal(family) || IsLengthFamily(family));
+            var unbounded = facets is [var only] && string.Equals(only, "max", StringComparison.OrdinalIgnoreCase);
             return numbers switch
             {
                 [{ } one] when IsDecimal(family) => new StoreType(text, family, Length: null, Precision: one, Scale: 0),
                 [{ } one] => new StoreType(text, family, Length: one, Precision: null, Scale: null),
                 [{ } precision, { } scale] => new StoreType(text, family, Length: null, precision, scale),
-                _ => new StoreType(text, family, Length: null, Precision: null, Scale: null),   // int, nvarchar(max), facets this code does not read
+                _ => new StoreType(text, family, Length: null, Precision: null, Scale: null, facetless, unbounded),   // int, varchar, nvarchar(max), facets this code does not read
             };
         }
     }

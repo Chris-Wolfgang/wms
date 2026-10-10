@@ -21,12 +21,14 @@ This is the engineering view. The operator-facing page is `docfx_project/docs/bo
 database has never been migrated:
 
 ```json
-{ "current": null, "expected": "20260919120000_Initial", "upToDate": false }
+{ "current": null, "expected": "20260920035312_RowVersionSequence", "upToDate": false }
 ```
 
 - `current`: the last applied migration, or `null` when no database is reachable or none was applied.
-- `expected`: the last migration this build ships, or `null` before the data model exists.
-- `upToDate`: true when they are equal.
+- `expected`: the last migration this build ships for the configured provider (the identifiers differ per
+  provider), or `null` when no provider is configured.
+- `upToDate`: true when a migration is applied and it is the one this build expects; never true while
+  `current` is `null`.
 
 Installers and health checks read it to decide whether to run `wms-migrate`; the API never applies a migration
-itself ([CONFIGURATION.md](CONFIGURATION.md)). Until the data model (E2) exists the placeholder source reports both identifiers as `null`.
+itself ([CONFIGURATION.md](CONFIGURATION.md)). With `Wms:Database:Provider` set to `None` the not-installed source reports both identifiers as `null`.

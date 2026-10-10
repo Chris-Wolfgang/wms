@@ -29,8 +29,11 @@ directory and from `Wms__Database__*` environment variables. Flags override them
 | `--connection-string <cs>` | `Wms:Database:ConnectionString` |
 | `--trust-server-certificate` | `Wms:Database:TrustServerCertificate` (SQL Server only) |
 
-The account needs the right to create schemas in the database; no server-level right is needed. On an empty
-database the first run creates the schema `wms` and the migrations history table `wms.migrations_history`.
+The database itself must already exist: your DBA creates it, and `wms-migrate` never does. A database that is
+not on the server is reported as unreachable (`--status`, and exit code `4` on apply), so a mistyped name cannot
+end in a stray database. The account needs the right to create schemas in the database; no server-level right
+is needed. On an empty database the first run creates the schema `wms` and the migrations history table
+`wms.migrations_history`.
 
 ## Commands
 
@@ -61,7 +64,7 @@ data that a migration changed.
 | `1` | A migration failed; the output names it. Migrations before it were applied. |
 | `2` | Usage or configuration error, such as an unknown flag, a missing setting or a malformed connection string. |
 | `3` | The downgrade loses data and needs `--confirm-data-loss`. Nothing was changed or written. |
-| `4` | Nothing was applied: the database cannot be reached, or its schema is newer than this version. Upgrade the software, or restore the backup taken before the upgrade. |
+| `4` | Nothing was applied: the database cannot be reached (including a database that does not exist yet: ask your DBA to create it), or its schema is newer than this version. Upgrade the software, or restore the backup taken before the upgrade. |
 
 ## Examples
 

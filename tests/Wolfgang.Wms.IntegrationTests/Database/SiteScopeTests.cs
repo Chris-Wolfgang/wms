@@ -59,7 +59,10 @@ public sealed class SiteScopeTests
 
     private static async Task AssertScopeAsync(string provider, string connectionString, bool trustServerCertificate)
     {
-        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
+        await using var app = await StartHostAsync(provider, runtime, trustServerCertificate);
         using var client = app.GetTestClient();
         var a = await CreateSiteAsync(client, "DC-A");
         var b = await CreateSiteAsync(client, "DC-B");
@@ -124,7 +127,6 @@ public sealed class SiteScopeTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();
         builder.Services.AddWmsProblemDetails();

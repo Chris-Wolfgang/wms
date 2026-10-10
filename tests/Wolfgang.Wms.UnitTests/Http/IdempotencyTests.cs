@@ -53,12 +53,12 @@ public sealed class IdempotencyTests
     {
         Assert.Equal
         (
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",   // DevSkim: ignore DS173237 - SHA-256 of the empty input, a published test vector
             IdempotencyRules.Fingerprint(ReadOnlySpan<byte>.Empty)
         );
         Assert.Equal
         (
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",   // DevSkim: ignore DS173237 - SHA-256 of "abc", a published test vector
             IdempotencyRules.Fingerprint(Encoding.UTF8.GetBytes("abc"))
         );
     }

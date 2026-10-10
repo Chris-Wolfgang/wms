@@ -93,7 +93,7 @@ jobs:
         # update scripts/build-pr.ps1 to the same version.
         run: |
           GITLEAKS_VERSION="8.30.1"
-          GITLEAKS_SHA256="551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+          GITLEAKS_SHA256="551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"  # DevSkim: ignore DS173237 - the published checksum of the gitleaks release archive, not a secret
           mkdir -p "$HOME/.local/bin"
           TARBALL="$(mktemp)"
           curl -sSfL -o "$TARBALL" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
@@ -1999,8 +1999,26 @@ jobs:
             --source-code . \
             --file-format text \
             --output-file devskim-results.txt \
-            --ignore-rule-ids DS176209 \
-            --ignore-globs "**/api/**,**/CoverageReport/**,**/TestResults/**"
+            --ignore-rule-ids DS176209,DS162092 \
+            --ignore-globs "**/.git/**,**/bin/**,**/obj/**,**/api/**,**/CoverageReport/**,**/TestResults/**,**/.github/license-audit/**" \
+            --skip-git-ignored-files
+
+          # --ignore-globs replaces DevSkim's default list (**/.git/**, **/bin/**), so those are named
+          # again, with **/obj/**; --skip-git-ignored-files keeps a local run (scripts/build-pr.ps1,
+          # where build output exists) scanning the same files as this checkout.
+          #
+          # DS162092 (ManualReview: "localhost / 127.0.0.1 may be debug code") is excluded by rule id:
+          # every occurrence in this repository is a test connection string, a launch profile, a
+          # design-time factory that is never opened, or a link-checker exclusion, and every new
+          # integration test adds another. The rule cannot be actionable here.
+          #
+          # .github/license-audit/** is excluded by glob: url-license-mappings.json maps the license
+          # URL a package actually publishes (an http:// form, DS137138) to an SPDX id. The URL is a
+          # lookup key; rewriting it breaks the mapping.
+          #
+          # Everything else is live, DS137138 and DS173237 included; the three remaining false
+          # positives (two SHA-256 test vectors, one XML namespace) are suppressed inline on their
+          # line with a reason. scripts/build-pr.ps1 carries the identical flags.
 
       - name: Display security scan results
         if: always()
@@ -2012,14 +2030,29 @@ jobs:
             cat devskim-results.txt
             echo ""
             
-            if grep -qi "error\|critical\|high" devskim-results.txt; then
-              echo "❌ Security issues detected - review required"
+            # Every finding fails the gate - Critical, Important, Moderate, BestPractice and
+            # ManualReview alike - the same policy TreatWarningsAsErrors applies to the
+            # compiler. A finding line is "<file>:<line>:<col>:<line>:<col> [Severity] DSnnnnnn ..."
+            # in the text format; matching that shape instead of a severity word keeps the
+            # gate independent of DevSkim's vocabulary (the old error|critical|high grep
+            # matched none of them, so 22 findings on main passed). A false positive is excluded
+            # as narrowly as it can be - by rule id when the rule is structurally inapplicable to
+            # this repo, by glob when one data file trips one rule, or inline on the single line
+            # when neither fits - always with a reason, and never by lowering the bar.
+            findings=$(grep -cE '^.+:[0-9]+:[0-9]+:[0-9]+:[0-9]+ \[[A-Za-z]+\] DS[0-9]+' devskim-results.txt || true)
+            if [ "$findings" -gt 0 ]; then
+              echo "By severity:"
+              grep -oE '\[[A-Za-z]+\]' devskim-results.txt | sort | uniq -c
+              echo "❌ $findings DevSkim finding(s) - every finding fails this gate; fix it or exclude the rule id with a reason"
               exit 1
             else
-              echo "✅ No critical security issues found"
+              echo "✅ No DevSkim findings"
             fi
           else
-            echo "✅ No security issues found"
+            # The analyze step always writes the file, even with no findings; its absence means
+            # the scan did not run, and a gate that cannot run must fail.
+            echo "❌ devskim-results.txt was not written - the scan did not run"
+            exit 1
           fi
 
       - name: Upload security scan results

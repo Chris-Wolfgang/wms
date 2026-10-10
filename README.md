@@ -25,8 +25,8 @@ its landing page; the picking screens arrive with the picking module):
 3. **Start the API** and check `GET /api/v0/system/schema` reports the schema up to date
    ([docs/BOOTSTRAP.md](docs/BOOTSTRAP.md)); then open the console.
 
-The only NuGet package is `Wolfgang.Wms.Client`, the generated API client for devices and integrations, published
-with each release. The server is not a package: today it is built from source (the Quick Start below), the worker
+The package meant for others to reference is `Wolfgang.Wms.Client`, the generated API client for devices and
+integrations, published with each release (#983 makes the release pack only it). The server is not a package: today it is built from source (the Quick Start below), the worker
 image and the Windows install arrive with E14/E15, and a downloadable bundle lands before v1.0 (#847).
 
 ---

@@ -28,6 +28,8 @@ Declarative: you name a target, never a direction; the tool states the direction
 | `--output <file>` | `--script` only; rejected without it |
 | `--confirm-data-loss` | required for a downgrade, applied or scripted, whose reverted migrations drop tables, columns, schemas or rows, or run raw SQL (`MigrationBuilder.Sql`, which the tool does not inspect and so treats as data-losing) |
 | `--provider`, `--connection-string`, `--trust-server-certificate` | override the configured `Wms:Database` values |
+| `--key-ring <path>` | overrides `Wms:DataProtection:KeyRingPath`; needed to decrypt an `enc:v1:` connection string (E8.2) |
+| `wms-migrate --protect [--connection-string <plain>] [--key-ring <path>]` | prints the connection string encrypted with the key ring as `enc:v1:…` for `appsettings.json` or an environment variable; the string must not already be encrypted |
 
 Exit codes: `0` ok, `1` a migration failed (the output names it), `2` usage or configuration error (including a
 malformed connection string), `3` the downgrade (applied or scripted) needs `--confirm-data-loss`, `4` nothing

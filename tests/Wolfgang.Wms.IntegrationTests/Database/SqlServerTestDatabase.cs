@@ -71,10 +71,13 @@ public sealed class SqlServerTestDatabase : IAsyncDisposable
     /// <summary>
     /// Starts the database: a new one on the configured instance, else a new one in a container of
     /// <paramref name="image"/> (whose connection string points at <c>master</c>, which no test should use).
+    /// Nothing started is left behind on failure: a container whose database could not be created is disposed
+    /// before the exception leaves (CI runs without the Ryuk reaper, #843, so nothing else would).
+    /// <paramref name="name"/> overrides the generated database name; tests use it to force a failure.
     /// </summary>
-    public static async Task<SqlServerTestDatabase> StartAsync(string image = DefaultImage, CancellationToken cancellationToken = default)
+    public static async Task<SqlServerTestDatabase> StartAsync(string image = DefaultImage, CancellationToken cancellationToken = default, string? name = null)
     {
-        var name = "wms_test_" + Guid.NewGuid().ToString("N")[..12];
+        name ??= "wms_test_" + Guid.NewGuid().ToString("N")[..12];
         var instance = Environment.GetEnvironmentVariable(EnvironmentVariable);
         if (!string.IsNullOrWhiteSpace(instance))
         {
@@ -84,7 +87,16 @@ public sealed class SqlServerTestDatabase : IAsyncDisposable
 
         var container = new MsSqlBuilder(image).Build();
         await container.StartAsync(cancellationToken);
-        await CreateAsync(container.GetConnectionString(), name, cancellationToken);
+        try
+        {
+            await CreateAsync(container.GetConnectionString(), name, cancellationToken);
+        }
+        catch
+        {
+            await container.DisposeAsync();   // no owner yet; without this the engine keeps running
+            throw;
+        }
+
         return new SqlServerTestDatabase(new SqlConnectionStringBuilder(container.GetConnectionString()) { InitialCatalog = name }.ConnectionString, container, instance: null, name);
     }
 

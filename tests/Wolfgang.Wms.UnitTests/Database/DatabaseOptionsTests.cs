@@ -4,11 +4,15 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.UnitTests.Database.TestModels;
 
 namespace Wolfgang.Wms.UnitTests.Database;
 
@@ -68,6 +72,21 @@ public sealed class DatabaseOptionsTests
         );
         Assert.Empty(new DatabaseOptions { Provider = "None" }.Validate());
         Assert.Empty(new DatabaseOptions { Provider = "SqlServer", ConnectionString = "Server=db", TrustServerCertificate = true }.Validate());
+    }
+
+
+
+    [Theory]
+    [InlineData("SqlServer", "Server=x;Encrypt=True;this is not a keyword value pair")]
+    [InlineData("PostgreSql", "Host=x;this is not a keyword value pair")]
+    [InlineData("PostgreSql", "Server=x;Encrypt=True")]   // a SQL Server string given to the PostgreSQL provider
+    public void A_connection_string_the_provider_cannot_parse_fails_validation_naming_the_setting(string provider, string connectionString)
+    {
+        var errors = new DatabaseOptions { Provider = provider, ConnectionString = connectionString }.Validate();
+
+        var error = Assert.Single(errors);
+        Assert.StartsWith("Wms:Database:ConnectionString is not valid: ", error, StringComparison.Ordinal);
+        Assert.Empty(new DatabaseOptions { Provider = "None", ConnectionString = connectionString }.Validate());   // None never connects
     }
 
 
@@ -141,12 +160,68 @@ public sealed class DatabaseOptionsTests
 
 
     [Fact]
-    public void AddWmsDatabase_with_None_registers_no_context_and_keeps_the_bootstrap_schema_source()
+    public async Task AddWmsDatabase_with_None_registers_no_context_and_keeps_the_bootstrap_schema_source()
     {
         using var services = Build("None", null);
 
+        var check = Assert.Single(services.GetServices<IHostedService>().OfType<SchemaStartupCheck>());
+        await check.StartAsync(CancellationToken.None);   // logs that no database is configured; nothing to check
+        await check.StopAsync(CancellationToken.None);
+
         Assert.Null(services.GetService<WmsDbContext>());
         Assert.IsType<NotInstalledSchemaVersionSource>(services.GetRequiredService<ISchemaVersionSource>());
+    }
+
+
+
+    [Fact]
+    public async Task A_provider_changed_after_registration_fails_startup_instead_of_running_without_a_database()
+    {
+        // None when AddWmsDatabase ran (so no context was registered), SqlServer by the time the host starts.
+        using var services = Build("None", null, s => s.PostConfigure<DatabaseOptions>(o =>
+        {
+            o.Provider = "SqlServer";
+            o.ConnectionString = "Server=localhost;Database=wms;Encrypt=True";
+        }));
+        var check = Assert.Single(services.GetServices<IHostedService>().OfType<SchemaStartupCheck>());
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => check.StartAsync(CancellationToken.None));
+
+        Assert.StartsWith("Wms:Database:Provider is SqlServer but no database was registered: the provider was None (or unset) when AddWmsDatabase ran", exception.Message, StringComparison.Ordinal);
+        Assert.Throws<ArgumentNullException>(() => new SchemaStartupCheck(null!, Options.Create(new DatabaseOptions()), NullLogger<SchemaStartupCheck>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new SchemaStartupCheck(services.GetRequiredService<IServiceScopeFactory>(), null!, NullLogger<SchemaStartupCheck>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new SchemaStartupCheck(services.GetRequiredService<IServiceScopeFactory>(), Options.Create(new DatabaseOptions()), null!));
+    }
+
+
+
+    [Fact]
+    public async Task The_schema_source_logs_why_the_history_could_not_be_read_and_still_reports_no_current_migration()
+    {
+        var unreachable = new SqlConnectionStringBuilder
+        {
+            DataSource = "127.0.0.1,1",
+            InitialCatalog = "wms",
+            UserID = "x",
+            Password = "x",
+            Encrypt = SqlConnectionEncryptOption.Mandatory,
+            ConnectTimeout = 1,
+            ConnectRetryCount = 0,
+        }.ConnectionString;
+        var builder = new DbContextOptionsBuilder<WmsDbContext>();
+        DatabaseServiceCollectionExtensions.Configure(builder, new DatabaseOptions { Provider = "SqlServer", ConnectionString = unreachable });
+        using var context = new WmsDbContext(builder.Options);
+        var logger = new CapturingLogger<MigrationsSchemaVersionSource>();
+
+        var status = await new MigrationsSchemaVersionSource(context, logger).GetAsync(CancellationToken.None);
+
+        Assert.Null(status.Current);
+        Assert.NotNull(status.Expected);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Warning, entry.Level);
+        Assert.StartsWith("The migrations history could not be read, so the schema endpoint reports no current migration: ", entry.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Password", entry.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(logger.BeginScope("scope"));
     }
 
 
@@ -173,12 +248,13 @@ public sealed class DatabaseOptionsTests
         Assert.Throws<ArgumentNullException>(() => DatabaseServiceCollectionExtensions.Configure(builder, null!));
         Assert.Throws<ArgumentNullException>(() => DatabaseServiceCollectionExtensions.AddWmsDatabase(null!, new ConfigurationBuilder().Build()));
         Assert.Throws<ArgumentNullException>(() => new ServiceCollection().AddWmsDatabase(null!));
-        Assert.Throws<ArgumentNullException>(() => new MigrationsSchemaVersionSource(null!));
+        Assert.Throws<ArgumentNullException>(() => new MigrationsSchemaVersionSource(null!, NullLogger<MigrationsSchemaVersionSource>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new MigrationsSchemaVersionSource(new WmsDbContext(new DbContextOptionsBuilder<WmsDbContext>().Options), null!));
     }
 
 
 
-    private static ServiceProvider Build(string provider, string? connectionString)
+    private static ServiceProvider Build(string provider, string? connectionString, Action<IServiceCollection>? afterRegistration = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
@@ -193,6 +269,7 @@ public sealed class DatabaseOptionsTests
         services.AddWmsModules();
         services.AddWmsSchemaModule();
         services.AddWmsDatabase(configuration);
+        afterRegistration?.Invoke(services);
         return services.BuildServiceProvider();
     }
 }

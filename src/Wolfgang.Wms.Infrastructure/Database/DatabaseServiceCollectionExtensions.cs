@@ -47,10 +47,13 @@ public static class DatabaseServiceCollectionExtensions
 
 
     /// <summary>
-    /// Binds and validates <see cref="DatabaseOptions"/> (startup fails on an unknown provider or a missing
-    /// connection string), registers <see cref="WmsDbContext"/> on the chosen provider, and replaces the
-    /// bootstrap schema source with the migrations-history one. With provider <c>None</c> no context is
-    /// registered and the schema endpoint keeps reporting no database.
+    /// Binds and validates <see cref="DatabaseOptions"/> (startup fails on an unknown provider, a missing or
+    /// unparsable connection string), registers <see cref="WmsDbContext"/> on the chosen provider, and replaces
+    /// the bootstrap schema source with the migrations-history one. With provider <c>None</c> no context is
+    /// registered and the schema endpoint keeps reporting no database. The startup check is registered either
+    /// way: it reads the validated options when the host starts, so a provider that was <c>None</c> here and
+    /// was changed afterwards (a later <c>Configure</c>/<c>PostConfigure</c>) fails startup with the reason
+    /// instead of leaving the host running without a database.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
     public static IServiceCollection AddWmsDatabase(this IServiceCollection services, IConfiguration configuration)
@@ -64,6 +67,7 @@ public static class DatabaseServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<DatabaseOptions>, DatabaseOptionsValidator>());
 
         services.AddExceptionHandler<ConcurrencyExceptionHandler>();   // E5.2: stale save → 412, like a failed If-Match
+        services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead (or registered without a database)
 
         var options = new DatabaseOptions();
         configuration.GetSection(DatabaseOptions.SectionName).Bind(options);
@@ -76,7 +80,6 @@ public static class DatabaseServiceCollectionExtensions
         services.RemoveAll<ISchemaVersionSource>();
         services.AddScoped<ISchemaVersionSource, MigrationsSchemaVersionSource>();
         services.AddScoped<MigrationRunner>();
-        services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead
         return services;
     }
 
@@ -89,7 +92,8 @@ public static class DatabaseServiceCollectionExtensions
     /// </summary>
     /// <exception cref="InvalidOperationException">The provider is not one a context can run on.</exception>
     /// <exception cref="ArgumentException">The SQL Server connection string is malformed and
-    /// <see cref="DatabaseOptions.TrustServerCertificate"/> is set (it is parsed to apply the switch).</exception>
+    /// <see cref="DatabaseOptions.TrustServerCertificate"/> is set (it is parsed to apply the switch); options
+    /// that passed <see cref="DatabaseOptions.Validate()"/> never trip this.</exception>
     public static DbContextOptionsBuilder Configure(DbContextOptionsBuilder builder, DatabaseOptions options)
     {
         ArgumentNullException.ThrowIfNull(builder);

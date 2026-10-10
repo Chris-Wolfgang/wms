@@ -1,7 +1,9 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Wolfgang.Wms.Infrastructure.Database.Sync;
 
 namespace Wolfgang.Wms.Infrastructure.Database.Conventions;
 
@@ -10,8 +12,8 @@ namespace Wolfgang.Wms.Infrastructure.Database.Conventions;
 /// model test (<see cref="Verify"/>): snake_case names, a module schema per table, <c>id</c> as the
 /// server-assigned <c>long</c> key, <c>&lt;table&gt;_id</c> foreign keys with explicit indexes and no
 /// database cascades, <c>decimal(9,3)</c> quantities, UTC <c>DateTimeOffset</c> timestamps at millisecond
-/// precision, and no GUID columns. Owned entity types follow the same rules, whether they have a table of their
-/// own or share their owner's.
+/// precision, and no GUID columns; plus E5.1 row versioning and E5.3 soft deletion for the entities that opt in.
+/// Owned entity types follow the same rules, whether they have a table of their own or share their owner's.
 /// </summary>
 public static class ModelConventions
 {
@@ -94,7 +96,12 @@ public static class ModelConventions
             // E5.1: versioned (non-owned) entities get the row_version column and index before names are applied.
             if (ownership is null && typeof(IVersionedEntity).IsAssignableFrom(entity.ClrType))
             {
-                ConfigureRowVersion(entity, providerName);
+                ConfigureRowVersion(entity, providerName, entity.GetTableName()!);
+            }
+
+            if (ownership is null && typeof(ISoftDeletable).IsAssignableFrom(entity.ClrType))
+            {
+                ConfigureSoftDelete(entity);
             }
 
             var storeObject = StoreObjectIdentifier.Create(entity, StoreObjectType.Table)!.Value;
@@ -136,6 +143,7 @@ public static class ModelConventions
 
             VerifyKeys(entity, storeObject, violations);
             VerifyRowVersion(entity, table, violations);
+            VerifySoftDelete(entity, table, violations);
             foreach (var property in entity.GetProperties())
             {
                 VerifyProperty(property, storeObject, violations);
@@ -168,10 +176,17 @@ public static class ModelConventions
 
     /// <summary>
     /// E5.1: <c>row_version</c> is a database-assigned bigint (sequence default on insert, trigger on update),
-    /// the concurrency token, and indexed because it is the sync watermark.
+    /// the concurrency token, and indexed because it is the sync watermark. The update trigger is declared
+    /// on the entity so EF reads generated values back with a query instead of an <c>OUTPUT</c> clause, which
+    /// SQL Server refuses on a table with triggers.
     /// </summary>
-    private static void ConfigureRowVersion(IMutableEntityType entity, string? providerName)
+    private static void ConfigureRowVersion(IMutableEntityType entity, string? providerName, string table)
     {
+        if (entity.FindDeclaredTrigger(RowVersioning.TriggerName(table)) is null)
+        {
+            entity.AddTrigger(RowVersioning.TriggerName(table));
+        }
+
         var property = entity.FindProperty(nameof(IVersionedEntity.RowVersion)) ?? entity.AddProperty(nameof(IVersionedEntity.RowVersion), typeof(long));
         property.ValueGenerated = ValueGenerated.OnAddOrUpdate;
         property.IsConcurrencyToken = true;
@@ -179,6 +194,45 @@ public static class ModelConventions
         if (entity.FindIndex(property) is null)
         {
             entity.AddIndex(property);
+        }
+    }
+
+
+
+    /// <summary>
+    /// E5.3: soft-deleted rows are hidden from every query by default; delta reads opt out with
+    /// <c>IgnoreQueryFilters()</c>.
+    /// </summary>
+    private static void ConfigureSoftDelete(IMutableEntityType entity)
+    {
+        if (entity.FindProperty(nameof(ISoftDeletable.DeletedAt)) is null)
+        {
+            return;
+        }
+
+        var row = Expression.Parameter(entity.ClrType, "e");
+        var live = Expression.Equal(Expression.Property(row, nameof(ISoftDeletable.DeletedAt)), Expression.Constant(null, typeof(DateTimeOffset?)));
+        entity.SetQueryFilter(Expression.Lambda(live, row));
+    }
+
+
+
+    private static void VerifySoftDelete(IEntityType entity, string table, List<string> violations)
+    {
+        if (!typeof(ISoftDeletable).IsAssignableFrom(entity.ClrType))
+        {
+            return;
+        }
+
+        var property = entity.FindProperty(nameof(ISoftDeletable.DeletedAt));
+        if (property is null || property.ClrType != typeof(DateTimeOffset?) || !string.Equals(property.GetColumnName(), "deleted_at", StringComparison.Ordinal))
+        {
+            violations.Add($"{table}: soft-deletable entities carry a nullable deleted_at timestamp.");
+        }
+
+        if (entity.GetDeclaredQueryFilters().Count == 0)
+        {
+            violations.Add($"{table}: soft-deletable tables hide deleted rows by default (query filter).");
         }
     }
 

@@ -49,7 +49,7 @@ All wildcard entries (`*.editorconfig`, `*.globalconfig`, `*.ruleset`, `*.DotSet
 
 In addition to the overwrite step, the `Detect .NET Projects` job runs a "Detect protected configuration file changes" step that classifies the PR by what it changes relative to its merge base with `main`. A **configuration-only** PR (every changed file is a protected file) **passes** with a warning banner listing the files: CI could not exercise them (it ran `main`'s copies), but nothing else changed for the stale configuration to mis-validate, so it merges on review with the ruleset fully active. A PR that **mixes** protected files with any other change **fails** and cannot be bypassed: the other files were validated against the old configuration and the configuration change itself was untested. Split it - protected files in their own PR first, the rest rebased on top so it runs under the new configuration.
 
-**Implementation** (in every job that consumes project source — `detect-projects`, `inspectcode`, the three test stages and `security-scan`; *not* the `secrets-scan` job, which only fetches `.gitleaks.toml`, and *not* `changelog-check`, which fetches `scripts/changelog.ps1`):
+**Implementation** (in every job that consumes project source — `detect-projects`, `inspectcode`, the two test stages and `security-scan`; *not* the `secrets-scan` job, which only fetches `.gitleaks.toml`, and *not* `changelog-check`, which fetches `scripts/changelog.ps1`):
 ```yaml
 - name: Fetch trusted configuration files from main branch
   run: |
@@ -201,7 +201,7 @@ PR #2: New feature
 
 When adding new configuration files that control code quality or security:
 
-1. Add the file name to the `config_files` array (bash) or `$configFiles` / `$globPatterns` (pwsh, Stage 2) in every job that runs `Fetch trusted configuration files from main branch` — `detect-projects`, `inspectcode`, the three test stages and `security-scan`; search `pr.yaml` for that step name to find them all. The `secrets-scan` and `changelog-check` jobs fetch only their own single file and do not need to be updated.
+1. Add the file name to the `config_files` array (bash) or `$configFiles` / `$globPatterns` (pwsh, Stage 2) in every job that runs `Fetch trusted configuration files from main branch` — `detect-projects`, `inspectcode`, the two test stages and `security-scan`; search `pr.yaml` for that step name to find them all. The `secrets-scan` and `changelog-check` jobs fetch only their own single file and do not need to be updated.
 2. Add the file to the "Detect protected configuration file changes" guard in `pr.yaml` (its `grep -iE` pattern) so PRs that touch the file fail with a maintainer-review banner.
 3. Test that the file is correctly fetched from main branch.
 4. Update this documentation and the list in [CONTRIBUTING.md](../CONTRIBUTING.md).

@@ -456,7 +456,9 @@ jobs:
       # The oasdiff CLI, from the project's GitHub release: the oasdiff-action steps are Docker container
       # actions whose image comes from Docker Hub and is built before any step runs, so neither a login nor a
       # pre-pull can authenticate that pull (#842). The CLI is downloaded over HTTPS from GitHub and its SHA-256
-      # checked against the release's checksums.txt. Bump both together; v1.33.0 is the version the action pins.
+      # checked against the pinned value below, which is the linux_amd64 line of the release's checksums.txt
+      # (fetching that file over the same channel would add nothing). Bump both together; v1.33.0 is the version
+      # the action pins.
       OASDIFF_VERSION: 1.33.0
       OASDIFF_SHA256: 43a4e328e2d13ba1552d760aa68d2485c75c5621f309f6ff64ae895188345247
     steps:
@@ -807,6 +809,9 @@ jobs:
     runs-on:  ubuntu-latest
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      # True only when both secrets are set: a username without its token would start a login that fails, and
+      # the pulls would not be authenticated. The token itself never enters the environment.
+      DOCKERHUB_AUTH: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
       # The Docker Hub images the tests pull, pre-pulled while the login is active (see the step). Add one when a
       # test starts using another Docker Hub image; MCR (SQL Server) and quay.io (Keycloak) images are not
       # subject to Docker Hub's limit and are not listed.
@@ -920,7 +925,7 @@ jobs:
         # secret is present for a fork's PR as well, and that is fine: the credential only pulls the images this
         # workflow names (a fork cannot edit this file, the base branch's copy runs) and is logged out in the
         # next step, before any pull-request code runs.
-        if: env.DOCKERHUB_USERNAME != ''
+        if: env.DOCKERHUB_AUTH == 'true'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -930,7 +935,7 @@ jobs:
         # The login must not outlive this step: everything after it (restore, build, tests) runs code from the
         # pull request, which could read a stored credential. The images go into the runner's cache here, so
         # Testcontainers finds them without touching Docker Hub later.
-        if: env.DOCKERHUB_USERNAME != ''
+        if: env.DOCKERHUB_AUTH == 'true'
         shell: bash
         run: |
           # The logout is an EXIT trap so a failed pull cannot leave the credential behind, and the pull output
@@ -1215,7 +1220,7 @@ jobs:
           if [ "$hits" -gt 0 ]; then
             # The remedy depends on whether the pulls were authenticated: without the secrets it is the shared
             # unauthenticated limit; with them it is the account's own quota, and adding secrets is no remedy.
-            if [ -n "$DOCKERHUB_USERNAME" ]; then
+            if [ "$DOCKERHUB_AUTH" = true ]; then
               remedy="The pulls were authenticated as $DOCKERHUB_USERNAME, so this is that account's pull quota. Re-run the job later, or raise the account's quota."
             else
               remedy="The pulls were unauthenticated, so this is the limit Docker Hub shares across the runner's egress address. Re-run the job, or add the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets so the pulls are authenticated."

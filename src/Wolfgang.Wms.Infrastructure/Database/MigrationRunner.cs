@@ -211,7 +211,7 @@ public sealed class MigrationRunner
                 DropSequenceOperation drop => "drop sequence " + Qualified(drop.Schema, drop.Name),
                 DeleteDataOperation delete => "delete rows from " + Qualified(delete.Schema, delete.Table),
                 UpdateDataOperation update => "update rows in " + Qualified(update.Schema, update.Table),
-                AlterColumnOperation alter when Narrows(alter) => "narrow column " + Qualified(alter.Schema, alter.Table) + "." + alter.Name + " (" + Narrowing(alter) + ")",
+                AlterColumnOperation alter when Narrowing(alter) is { Length: > 0 } narrowing => "narrow column " + Qualified(alter.Schema, alter.Table) + "." + alter.Name + " (" + narrowing + ")",
                 SqlOperation sql => "raw SQL, not inspected: " + Summary(sql.Sql),
                 _ => null,
             })
@@ -331,17 +331,12 @@ public sealed class MigrationRunner
 
 
     /// <summary>
-    /// True when the column loses room: a smaller maximum length, precision or scale than before, or another
-    /// store type or CLR type (a conversion the engine may truncate or refuse). Widening and nullability changes
+    /// How the column loses room, as a comma-separated list; empty when it does not. A smaller maximum length,
+    /// precision or scale than before, or another store type or CLR type (a conversion the engine may truncate or
+    /// refuse) count; a store type that is set on one side only counts too, since the other side is the
+    /// provider's inferred type and the migration exists because the two differ. Widening and nullability changes
     /// keep every value and are not flagged.
     /// </summary>
-    private static bool Narrows(AlterColumnOperation alter)
-    {
-        return Narrowing(alter).Length != 0;
-    }
-
-
-
     private static string Narrowing(AlterColumnOperation alter)
     {
         var old = alter.OldColumn;
@@ -361,10 +356,12 @@ public sealed class MigrationRunner
             reasons.Add("scale " + oldScale.ToString(CultureInfo.InvariantCulture) + " -> " + scale.ToString(CultureInfo.InvariantCulture));
         }
 
-        if ((old.ColumnType is not null && alter.ColumnType is not null && !string.Equals(old.ColumnType, alter.ColumnType, StringComparison.OrdinalIgnoreCase))
-            || (old.ClrType is not null && alter.ClrType is not null && old.ClrType != alter.ClrType))
+        var storeTypeChanged = (old.ColumnType is null) != (alter.ColumnType is null)
+            || (old.ColumnType is not null && !string.Equals(old.ColumnType, alter.ColumnType, StringComparison.OrdinalIgnoreCase));
+        var clrTypeChanged = old.ClrType is not null && alter.ClrType is not null && old.ClrType != alter.ClrType;
+        if (storeTypeChanged || clrTypeChanged)
         {
-            reasons.Add("type " + (old.ColumnType ?? old.ClrType?.Name) + " -> " + (alter.ColumnType ?? alter.ClrType?.Name));
+            reasons.Add("type " + (old.ColumnType ?? "inferred for " + old.ClrType?.Name) + " -> " + (alter.ColumnType ?? "inferred for " + alter.ClrType?.Name));
         }
 
         return string.Join(", ", reasons);

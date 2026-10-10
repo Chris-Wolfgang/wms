@@ -27,6 +27,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.UserName).HasMaxLength(User.UserNameLength).IsRequired();
         builder.Property(u => u.UserNameNormalized).HasMaxLength(User.UserNameLength).IsRequired();
         builder.Property(u => u.DisplayName).HasMaxLength(User.DisplayNameLength).IsRequired();
+        builder.Property(u => u.Signature).HasMaxLength(64);
         // Serves: sign-in by name (case-insensitive through the normalised column) and its uniqueness.
         builder.HasIndex(u => u.UserNameNormalized).IsUnique();
     }

@@ -109,6 +109,48 @@ public sealed class ContainerLine
 
 
 /// <summary>
+/// A compliant model whose convention-built index name runs past PostgreSQL's 63 characters (E3.2): the one
+/// violation the verifier must report on both providers before a migration is generated.
+/// </summary>
+internal sealed class LongNamesDbContext : DbContext
+{
+    public LongNamesDbContext(DbContextOptions<LongNamesDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<InventoryAdjustmentReconciliationLine> Lines => Set<InventoryAdjustmentReconciliationLine>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        ModelConventions.Configure(configurationBuilder);
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasDefaultSchema("picking");
+        modelBuilder.Entity<InventoryAdjustmentReconciliationLine>().HasIndex(l => new { l.WarehouseLocationIdentifier, l.ReconciliationBatchIdentifier });
+        ModelConventions.Apply(modelBuilder, Database.ProviderName);
+    }
+}
+
+
+
+/// <summary>
+/// A 40-character table name; with its two long columns the conventional index name is 105 characters.
+/// </summary>
+internal sealed class InventoryAdjustmentReconciliationLine
+{
+    public long Id { get; set; }
+
+    public string WarehouseLocationIdentifier { get; set; } = "";
+
+    public string ReconciliationBatchIdentifier { get; set; } = "";
+}
+
+
+
+/// <summary>
 /// A model that breaks every checked convention at least once, so the verifier's messages are pinned.
 /// </summary>
 internal sealed class BadModelDbContext : DbContext

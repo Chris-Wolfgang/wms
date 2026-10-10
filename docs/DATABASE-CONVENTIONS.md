@@ -34,7 +34,10 @@ hand-written SQL needs no quoting tricks:
 | index | `ix_<table>_<columns>`, unique `ux_…` | `ix_container_zone_group_id`, `ux_container_barcode` |
 
 The verifier checks key, foreign-key constraint and index names as the database sees them: the right prefix
-and snake_case.
+and snake_case. Every identifier (table, column, key, constraint, index) is at most 63 characters, PostgreSQL's
+limit, enforced on SQL Server too (`ModelConventions.MaxIdentifierLength`) so a name is never truncated on one
+engine and kept on the other; a convention-built name that runs past it gets a shorter explicit name in the
+module's configuration.
 
 Owned types follow the same rules. An owned collection (or an owned value given its own table) gets a
 snake_case table (`container_line`) keyed by `(<owner table>_id, id)`; an owned value sharing its owner's table

@@ -498,6 +498,7 @@ jobs:
       - name: Install oasdiff
         # After the classification, and only for a changed document, so a download or checksum failure
         # can never leave the comment step below reporting a comparison that did not happen.
+        id: install
         if: steps.classify.outputs.state == 'changed'
         shell: bash
         run: |
@@ -530,7 +531,10 @@ jobs:
           fi
 
       - name: Changelog
-        if: steps.classify.outputs.state == 'changed'
+        # Runs after a failed breaking-changes gate too (the comment should still show what changed), but not
+        # without the binary; the comment step reads this step's outcome.
+        id: changelog
+        if: "!cancelled() && steps.classify.outputs.state == 'changed' && steps.install.outcome == 'success'"
         shell: bash
         run: |
           "$RUNNER_TEMP/oasdiff/oasdiff" changelog "base/docs/api/openapi-$DOCUMENT.json" "pr/docs/api/openapi-$DOCUMENT.json" --allow-external-refs=false > changelog.md
@@ -543,16 +547,26 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           STATE: ${{ steps.classify.outputs.state }}
           FROZEN: ${{ steps.classify.outputs.frozen }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
           BREAKING_OUTCOME: ${{ steps.breaking.outcome }}
+          CHANGELOG_OUTCOME: ${{ steps.changelog.outcome }}
         run: |
           marker="<!-- openapi-diff: $DOCUMENT -->"
           {
             echo "$marker"
             echo "### OpenAPI \`$DOCUMENT\` — $STATE$( [ "$FROZEN" = true ] && echo ' (frozen: breaking changes fail this PR)' || echo ' (unstable: breaking changes allowed with a breaking-type changelog fragment)' )"
             echo
+            # A comparison that did not complete is said so, never shown as a clean result: a failed download
+            # or changelog leaves changelog.md absent, which must not read as "no changes".
             if [ "$STATE" = new ]; then
               echo "New document; nothing to compare against on the base branch."
+            elif [ "$INSTALL_OUTCOME" != success ] || [ "$CHANGELOG_OUTCOME" != success ]; then
+              echo "**The comparison did not complete** (install oasdiff: $INSTALL_OUTCOME, breaking-changes gate: $BREAKING_OUTCOME, changelog: $CHANGELOG_OUTCOME); see the job log. An earlier result in this comment no longer applies."
             elif [ -s changelog.md ]; then
+              if [ "$BREAKING_OUTCOME" = failure ]; then
+                echo "**Breaking changes in a frozen document; this PR fails.**"
+                echo
+              fi
               cat changelog.md
             else
               echo "No API-level changes (formatting or description only)."

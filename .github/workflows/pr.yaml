@@ -453,7 +453,12 @@ jobs:
         document: [v0]
     env:
       DOCUMENT: ${{ matrix.document }}
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      # The oasdiff CLI, from the project's GitHub release: the oasdiff-action steps are Docker container
+      # actions whose image comes from Docker Hub and is built before any step runs, so neither a login nor a
+      # pre-pull can authenticate that pull (#842). The CLI is downloaded over HTTPS from GitHub and its SHA-256
+      # checked against the release's checksums.txt. Bump both together; v1.33.0 is the version the action pins.
+      OASDIFF_VERSION: 1.33.0
+      OASDIFF_SHA256: 43a4e328e2d13ba1552d760aa68d2485c75c5621f309f6ff64ae895188345247
     steps:
       - name: Checkout PR head (docs/api only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -473,15 +478,16 @@ jobs:
           sparse-checkout: docs/api
           sparse-checkout-cone-mode: false
 
-      - name: Log in to Docker Hub (authenticated pulls)
-        # Docker Hub's unauthenticated pull limit is shared by the runner's egress address and fails the
-        # PostgreSQL container tests and the oasdiff image pull at random (#842). With a read-only access token
-        # the pulls count against the account instead. Skipped when the secret is absent (forks, template).
-        if: env.DOCKERHUB_USERNAME != ''
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Install oasdiff
+        shell: bash
+        run: |
+          archive="oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL --retry 3 -o "$RUNNER_TEMP/$archive" "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/$archive"
+          echo "$OASDIFF_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/oasdiff"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/oasdiff" oasdiff
+          echo "$RUNNER_TEMP/oasdiff" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/oasdiff/oasdiff" --version
 
       - name: Classify the document
         id: classify
@@ -503,20 +509,23 @@ jobs:
       - name: Breaking changes (fails only for a frozen version)
         id: breaking
         if: steps.classify.outputs.state == 'changed'
-        uses: oasdiff/oasdiff-action/breaking@b9325c9e0a27ab65b0da3b766522cedec6be81dc  # v0.1.18
-        with:
-          base: base/docs/api/openapi-${{ matrix.document }}.json
-          revision: pr/docs/api/openapi-${{ matrix.document }}.json
-          fail-on: ${{ steps.classify.outputs.frozen == 'true' && 'ERR' || '' }}
-          review: false
+        shell: bash
+        env:
+          FROZEN: ${{ steps.classify.outputs.frozen }}
+        run: |
+          base="base/docs/api/openapi-$DOCUMENT.json"
+          revision="pr/docs/api/openapi-$DOCUMENT.json"
+          # Same two calls as the oasdiff-action entrypoint: annotations for every breaking change (never
+          # fails), then the gate, which fails a frozen document on an ERR-level change.
+          oasdiff breaking "$base" "$revision" --format githubactions || true
+          if [ "$FROZEN" = true ]; then
+            oasdiff breaking "$base" "$revision" --fail-on ERR
+          fi
 
       - name: Changelog
         if: steps.classify.outputs.state == 'changed'
-        uses: oasdiff/oasdiff-action/changelog@b9325c9e0a27ab65b0da3b766522cedec6be81dc  # v0.1.18
-        with:
-          base: base/docs/api/openapi-${{ matrix.document }}.json
-          revision: pr/docs/api/openapi-${{ matrix.document }}.json
-          output-to-file: changelog.md
+        shell: bash
+        run: oasdiff changelog "base/docs/api/openapi-$DOCUMENT.json" "pr/docs/api/openapi-$DOCUMENT.json" > changelog.md
 
       - name: Post or update the PR comment
         if: always() && steps.classify.outputs.state != 'unchanged' && steps.classify.outputs.state != 'absent'
@@ -768,6 +777,10 @@ jobs:
     runs-on:  ubuntu-latest
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      # The Docker Hub images the tests pull, pre-pulled while the login is active (see the step). Add one when a
+      # test starts using another Docker Hub image; MCR (SQL Server) and quay.io (Keycloak) images are not
+      # subject to Docker Hub's limit and are not listed.
+      DOCKERHUB_IMAGES: postgres:16
       # Testcontainers starts a Ryuk reaper container (testcontainers/ryuk, from Docker Hub) beside every test
       # engine to clean up after a crashed test host. An ephemeral runner is thrown away anyway, so the pull is
       # one more Docker Hub request per job for nothing; it took the SQL Server tool test down with it (#842).
@@ -872,13 +885,25 @@ jobs:
 
       - name: Log in to Docker Hub (authenticated pulls)
         # Docker Hub's unauthenticated pull limit is shared by the runner's egress address and fails the
-        # PostgreSQL container tests and the oasdiff image pull at random (#842). With a read-only access token
-        # the pulls count against the account instead. Skipped when the secret is absent (forks, template).
+        # PostgreSQL container tests at random (#842). With a read-only access token the pulls count against
+        # the account instead. Skipped when the secret is absent (forks, template).
         if: env.DOCKERHUB_USERNAME != ''
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull the Docker Hub images the tests use, then log out
+        # The login must not outlive this step: everything after it (restore, build, tests) runs code from the
+        # pull request, which could read a stored credential. The images go into the runner's cache here, so
+        # Testcontainers finds them without touching Docker Hub later.
+        if: env.DOCKERHUB_USERNAME != ''
+        shell: bash
+        run: |
+          for image in $DOCKERHUB_IMAGES; do
+            docker pull "$image"
+          done
+          docker logout
 
       - name: Restore .NET workloads
         # Some projects (MAUI / MauiHybrid / Android / iOS / WPF) declare workloads via
@@ -1136,6 +1161,24 @@ jobs:
             done <<< "$frameworks"
             echo ""
           done
+
+      - name: Docker Hub rate-limit diagnostic (#842)
+        # A pull that Docker Hub refused with "toomanyrequests" fails a container test like a product failure
+        # would. When that is what happened, say so in the summary, so nobody debugs the product for it.
+        if: failure()
+        shell: bash
+        run: |
+          hits=$(grep -rlE "toomanyrequests|pull rate limit|429 Too Many Requests" TestResults 2>/dev/null | wc -l)
+          if [ "$hits" -gt 0 ]; then
+            echo "::warning::Docker Hub pull rate limit hit in $hits test result file(s): an infrastructure failure, not a product one (#842). Re-run the job, or add the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets so the pulls are authenticated."
+            {
+              echo "### Docker Hub pull rate limit (#842)"
+              echo ""
+              echo "$hits test result file(s) carry \`toomanyrequests\`: the failure is Docker Hub's unauthenticated pull limit, not the product. Re-run the job, or add the \`DOCKERHUB_USERNAME\` / \`DOCKERHUB_TOKEN\` secrets so the pulls are authenticated."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No Docker Hub rate-limit message in TestResults."
+          fi
 
       - name: Check for coverage files
         id: check-coverage

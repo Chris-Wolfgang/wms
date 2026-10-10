@@ -1,21 +1,25 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Microsoft.EntityFrameworkCore;
+using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Core.Sites;
+using Wolfgang.Wms.Domain.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
 
 namespace Wolfgang.Wms.Infrastructure.Sites;
 
 /// <summary>
-/// <see cref="ISites"/> over <c>layout.site</c> (E16.1). Codes are unique without regard to case; deactivating a
-/// site asks <see cref="IOpenReleases"/> first; every write goes through the audited context (E6.4) and bumps
-/// the row version (E5.1).
+/// <see cref="ISites"/> over <c>layout.site</c> (E16.1). Codes are unique without regard to case; a draft without
+/// a time zone takes the organisation's default (E16.4); a new site's settings scope is populated with the
+/// organisation's effective values at once (E7.3, E16.4); deactivating a site asks <see cref="IOpenReleases"/>
+/// first; every write goes through the audited context (E6.4) and bumps the row version (E5.1).
 /// </summary>
 public sealed class EfSites : ISites
 {
     private readonly WmsDbContext _context;
     private readonly TimeProvider _timeProvider;
     private readonly IOpenReleases _openReleases;
+    private readonly ISettings _settings;
 
 
 
@@ -23,11 +27,12 @@ public sealed class EfSites : ISites
     /// Creates the store.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public EfSites(WmsDbContext context, TimeProvider timeProvider, IOpenReleases openReleases)
+    public EfSites(WmsDbContext context, TimeProvider timeProvider, IOpenReleases openReleases, ISettings settings)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _openReleases = openReleases ?? throw new ArgumentNullException(nameof(openReleases));
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
 
@@ -56,12 +61,14 @@ public sealed class EfSites : ISites
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);
 
+        draft = await WithDefaultsAsync(draft, cancellationToken).ConfigureAwait(false);
         Validate(draft);
         await RequireCodeFreeAsync(draft.Code, exceptSiteId: 0, cancellationToken).ConfigureAwait(false);
         var row = new Site();
         row.Apply(draft, _timeProvider.GetUtcNow(), updatedBy);
         await _context.Sites.AddAsync(row, cancellationToken).ConfigureAwait(false);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await _settings.PopulateAsync(SettingScopeRef.Site(row.Id), updatedBy, cancellationToken).ConfigureAwait(false);   // E16.4: nothing beneath the new site is ever unresolved
         return row.ToInfo();
     }
 
@@ -73,6 +80,7 @@ public sealed class EfSites : ISites
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);
 
+        draft = await WithDefaultsAsync(draft, cancellationToken).ConfigureAwait(false);
         Validate(draft);
         var row = await _context.Sites.FirstOrDefaultAsync(s => s.Id == siteId, cancellationToken).ConfigureAwait(false) ?? throw NotFound(siteId);
         await RequireCodeFreeAsync(draft.Code, siteId, cancellationToken).ConfigureAwait(false);
@@ -88,6 +96,23 @@ public sealed class EfSites : ISites
         row.Apply(draft, _timeProvider.GetUtcNow(), updatedBy);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return row.ToInfo();
+    }
+
+
+
+    /// <summary>
+    /// E16.4: a draft without a time zone takes the organisation's default; without an organisation the rules
+    /// then report the missing time zone.
+    /// </summary>
+    private async Task<SiteDraft> WithDefaultsAsync(SiteDraft draft, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(draft.TimeZone))
+        {
+            return draft;
+        }
+
+        var organizationTimeZone = await _context.Organizations.AsNoTracking().OrderBy(o => o.Id).Select(o => o.TimeZone).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        return organizationTimeZone is null ? draft : draft with { TimeZone = organizationTimeZone };
     }
 
 

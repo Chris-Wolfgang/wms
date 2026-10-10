@@ -17,6 +17,7 @@ using Wolfgang.Wms.Core.Api;
 using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Modules;
+using Wolfgang.Wms.Core.Organization;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Core.Sites;
 using Wolfgang.Wms.Domain.Keys;
@@ -32,7 +33,8 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 /// code in another case is 409, an invalid draft 400; the list is in code order; an update needs <c>If-Match</c>
 /// (428 without, 412 stale, 200 current) and refuses a code another site holds; retiring a site is 409 while
 /// <see cref="IOpenReleases"/> reports open releases and succeeds once it does not; the settings cascade
-/// reaches the stored sites; every write is audited with the user.
+/// reaches the stored sites; a new site's settings scope is populated at once and a draft without a time zone
+/// takes the organisation's (E16.4); every write is audited with the user.
 /// </summary>
 public sealed class SitesTests
 {
@@ -100,6 +102,7 @@ public sealed class SitesTests
 
         await AssertUpdateAsync(client, hamburg, main, releases);
         await AssertCascadeAsync(app.Services, hamburg.Id);
+        await AssertDefaultsAsync(client, app.Services);
         await AssertAuditAsync(app.Services);
     }
 
@@ -148,13 +151,37 @@ public sealed class SitesTests
         var hierarchy = scope.ServiceProvider.GetRequiredService<ISettingScopeHierarchy>();
 
         var children = await hierarchy.ChildrenAsync(SettingScopeRef.Organization, CancellationToken.None);
-        await settings.PopulateAsync(SettingScopeRef.Site(siteId), "admin", CancellationToken.None);
+        var populatedOnCreate = await settings.ListAsync(SettingScopeRef.Site(siteId), CancellationToken.None);
+        var createdNow = await settings.PopulateAsync(SettingScopeRef.Site(siteId), "admin", CancellationToken.None);
         await settings.SetAsync(LeaseTimeout, SettingScopeRef.Organization, TimeSpan.FromMinutes(40), "admin", CancellationToken.None);
         var effective = await settings.GetAsync(LeaseTimeout, SettingScopeRef.Site(siteId), CancellationToken.None);
 
         Assert.Equal(2, children.Count);
         Assert.Contains(SettingScopeRef.Site(siteId), children);
+        Assert.Contains(populatedOnCreate, v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal));   // E16.4: the create populated the scope (every module's site-level setting); the explicit populate finds nothing to add
+        Assert.Equal(0, createdNow);
         Assert.Equal(TimeSpan.FromMinutes(40), effective);
+    }
+
+
+
+    private static async Task AssertDefaultsAsync(HttpClient client, IServiceProvider services)
+    {
+        var organization = new OrganizationDraft("Acme", null, null, "Europe/Berlin", "de-DE", null, null, null);
+
+        using var noTimeZoneYet = await client.PostAsync(new Uri("/api/v0/sites", UriKind.Relative), Body(new SiteDraft("DEF", "Defaults", null)));
+        using var created = await client.PostAsync(new Uri("/api/v0/organization", UriKind.Relative), new StringContent(JsonSerializer.Serialize(organization, Json), Encoding.UTF8, "application/json"));
+        using var defaulted = await client.PostAsync(new Uri("/api/v0/sites", UriKind.Relative), Body(new SiteDraft("DEF", "Defaults", " ")));
+        var site = (await defaulted.Content.ReadFromJsonAsync<SiteInfo>(Json))!;
+        using var scope = services.CreateScope();
+        var values = await scope.ServiceProvider.GetRequiredService<ISettings>().ListAsync(SettingScopeRef.Site(site.Id), CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, noTimeZoneYet.StatusCode);
+        Assert.Equal("sites.invalid", await CodeAsync(noTimeZoneYet));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, defaulted.StatusCode);
+        Assert.Equal("Europe/Berlin", site.TimeZone);
+        Assert.Equal("00:40:00", values.Single(v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal)).EffectiveValue);   // the organisation's effective value, inherited at creation
     }
 
 
@@ -216,6 +243,7 @@ public sealed class SitesTests
         builder.Services.AddWmsModules();
         builder.Services.AddWmsSettingsModule();
         builder.Services.AddWmsAuthModule();
+        builder.Services.AddWmsOrganizationModule();
         builder.Services.AddWmsSitesModule();
         builder.Services.AddWmsModule(ModuleDescriptor.Create("sample").WithSettings(LeaseTimeout));
         builder.Services.AddWmsDataProtection(builder.Configuration);

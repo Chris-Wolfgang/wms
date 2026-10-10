@@ -39,9 +39,34 @@ public sealed class WmsCompressionTests
         var ordinaryMode = await ModeSeenByTheEndpoint(ordinary, provider);
         var noFeatureMode = await ModeSeenByTheEndpoint(optedOut, provider, acceptsCompression: false);
 
-        Assert.Null(optedOutMode);   // Accept-Encoding was dropped, so the middleware never installed its feature: the opt-out is the one guard
+        Assert.Null(optedOutMode);   // the compression middleware was bypassed, so it installed no feature: the opt-out is the one guard
         Assert.Equal(HttpsCompressionMode.Default, ordinaryMode);
         Assert.Null(noFeatureMode);
+    }
+
+
+
+    [Fact]
+    public async Task UseWmsCompression_leaves_an_opted_out_request_as_the_client_sent_it()
+    {
+        using var provider = BuildProvider();
+        var optedOut = new Endpoint(_ => Task.CompletedTask, new EndpointMetadataCollection(DisableResponseCompressionMetadata.Instance), "auth");
+        string? acceptEncodingSeen = null;
+        var app = new ApplicationBuilder(provider);
+        app.UseWmsCompression();
+        app.Run(context =>
+        {
+            acceptEncodingSeen = context.Request.Headers.AcceptEncoding;
+            return Task.CompletedTask;
+        });
+        var pipeline = app.Build();
+        var context = new DefaultHttpContext { RequestServices = provider };
+        context.Request.Headers.AcceptEncoding = "br";
+        context.SetEndpoint(optedOut);
+
+        await pipeline(context);
+
+        Assert.Equal("br", acceptEncodingSeen);
     }
 
 

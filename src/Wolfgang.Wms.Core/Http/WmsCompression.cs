@@ -58,10 +58,11 @@ public static class WmsCompression
 
 
     /// <summary>
-    /// Adds request decompression, the per-endpoint opt-out, and response compression. For a marked endpoint the
-    /// opt-out drops the request's <c>Accept-Encoding</c> before the compression middleware looks at it, so the
-    /// middleware never engages, on HTTP or HTTPS (it returns before installing its compression feature, which
-    /// is why nothing downstream needs to switch that feature off). Call before endpoints.
+    /// Adds request decompression and response compression, the latter on a branch that a request to a marked
+    /// endpoint bypasses: the compression middleware never runs for it, on HTTP or HTTPS, so it installs no
+    /// compression feature and nothing downstream has to switch one off, and the request itself is left as the
+    /// client sent it. The opt-out reads the endpoint that routing selected, so call this after routing (which
+    /// <c>WebApplication</c> adds ahead of the first middleware) and before the endpoints.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="app"/> is null.</exception>
     public static IApplicationBuilder UseWmsCompression(this IApplicationBuilder app)
@@ -69,16 +70,7 @@ public static class WmsCompression
         ArgumentNullException.ThrowIfNull(app);
 
         app.UseRequestDecompression();
-        app.Use(next => context =>
-        {
-            if (IsOptedOut(context))
-            {
-                context.Request.Headers.Remove(HeaderNames.AcceptEncoding);
-            }
-
-            return next(context);
-        });
-        app.UseResponseCompression();
+        app.UseWhen(context => !IsOptedOut(context), branch => branch.UseResponseCompression());
         return app;
     }
 

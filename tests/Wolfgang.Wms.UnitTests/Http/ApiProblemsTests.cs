@@ -32,10 +32,20 @@ public sealed class ApiProblemsTests
 
 
     [Fact]
-    public void Title_without_arguments_is_the_raw_template()
+    public void Title_renders_escaped_braces_even_without_arguments()
     {
-        Assert.Equal("Tote {0} is not on the line.", ApiProblems.Title(ToteMissing));
+        var literal = new ErrorCode("picking.literal", StatusCodes.Status400BadRequest, "Literal {{braces}} stay.", "literal", ErrorSeverity.Warning);
+
+        Assert.Equal("Literal {braces} stay.", ApiProblems.Title(literal));
         Assert.Equal("Tote T-1 is not on the line.", ApiProblems.Title(ToteMissing, "T-1"));
+    }
+
+
+
+    [Fact]
+    public void Title_without_the_arguments_the_template_needs_throws()
+    {
+        Assert.Throws<FormatException>(() => ApiProblems.Title(ToteMissing));
     }
 
 

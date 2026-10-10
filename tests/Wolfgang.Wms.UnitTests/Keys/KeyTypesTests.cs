@@ -145,11 +145,14 @@ public sealed class KeyTypesTests
     [InlineData("Empty {} placeholder")]
     [InlineData("Trailing {")]
     [InlineData("{0:x")]
+    [InlineData("Empty alignment {0,}")]
+    [InlineData("Alignment {0,foo} is not a number")]
     public void Error_code_rejects_a_template_string_Format_would_throw_on(string template)
     {
         var exception = Assert.Throws<ArgumentException>(() => new ErrorCode("a.b", 400, template, "a", ErrorSeverity.Warning));
 
         Assert.Equal("MessageTemplate", exception.ParamName);
+        Assert.IsType<FormatException>(exception.InnerException);
     }
 
 

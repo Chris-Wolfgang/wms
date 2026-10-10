@@ -1,5 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Text;
+
 namespace Wolfgang.Wms.Domain.Keys;
 
 /// <summary>
@@ -10,9 +12,10 @@ namespace Wolfgang.Wms.Domain.Keys;
 /// <param name="HttpStatus">HTTP status the API answers with when this error is the outcome (100–599).</param>
 /// <param name="MessageTemplate">User-facing message; may contain positional placeholders <c>{0}</c>, <c>{1}</c>…
 /// (with an optional <c>,alignment</c> or <c>:format</c>, as <see cref="string.Format(IFormatProvider, string, object[])"/>
-/// reads them) that the caller fills, and <c>{{</c> / <c>}}</c> for literal braces. Anything else between braces,
-/// such as a named <c>{tote}</c>, is refused here, so a bad template fails at startup instead of turning the
-/// error response into a 500 the first time an argument is passed.</param>
+/// reads them) that the caller fills, and <c>{{</c> / <c>}}</c> for literal braces. The template is checked with
+/// <see cref="CompositeFormat.Parse(string)"/>, the parser <c>string.Format</c> itself uses, so anything it would
+/// throw on, such as a named <c>{tote}</c> or an empty alignment <c>{0,}</c>, is refused here and a bad template
+/// fails at startup instead of turning the error response into a 500 the first time it is formatted.</param>
 /// <param name="DocsAnchor">Anchor in the troubleshooting reference, for example <c>tote-already-closed</c>.</param>
 /// <param name="Severity">How the error is surfaced.</param>
 public sealed record ErrorCode
@@ -67,59 +70,24 @@ public sealed record ErrorCode
 
 
     /// <summary>
-    /// A non-empty template whose braces are all <c>{{</c>, <c>}}</c> or a positional placeholder
-    /// <c>{index[,alignment][:format]}</c>.
+    /// A non-empty template that <see cref="string.Format(IFormatProvider, string, object[])"/> accepts: positional
+    /// placeholders <c>{index[,alignment][:format]}</c> and <c>{{</c> / <c>}}</c> escapes, checked by the same parser
+    /// (<see cref="CompositeFormat.Parse(string)"/>), so nothing that passes here throws when it is formatted.
     /// </summary>
-    /// <exception cref="ArgumentException">The template is empty, or has a brace that is neither an escape nor a
-    /// positional placeholder.</exception>
+    /// <exception cref="ArgumentException">The template is empty or not a valid composite format; the inner
+    /// exception says where the parser stopped.</exception>
     private static string RequireTemplate(string value, string paramName)
     {
         RequireText(value, paramName);
-        var i = 0;
-        while (i < value.Length)
+        try
         {
-            var c = value[i];
-            if (c == '}')
-            {
-                if (i + 1 >= value.Length || value[i + 1] != '}')
-                {
-                    throw new ArgumentException($"The message template has a stray '}}' at position {i}; write '}}}}' for a literal brace.", paramName);
-                }
-
-                i += 2;
-            }
-            else if (c == '{')
-            {
-                i = i + 1 < value.Length && value[i + 1] == '{' ? i + 2 : SkipPlaceholder(value, i, paramName);
-            }
-            else
-            {
-                i++;
-            }
+            CompositeFormat.Parse(value);
+        }
+        catch (FormatException exception)
+        {
+            throw new ArgumentException("The message template is not a valid composite format: " + exception.Message + " Use positional '{0}', '{1}'… (optionally '{0,5}' or '{0:x}') and '{{' / '}}' for literal braces.", paramName, exception);
         }
 
         return value;
-    }
-
-
-
-    private static int SkipPlaceholder(string value, int open, string paramName)
-    {
-        var i = open + 1;
-        var digits = 0;
-        while (i < value.Length && char.IsAsciiDigit(value[i]))
-        {
-            i++;
-            digits++;
-        }
-
-        var close = value.IndexOf('}', i);
-        var wellFormed = digits > 0 && close >= 0 && (close == i || value[i] == ',' || value[i] == ':');
-        if (!wellFormed)
-        {
-            throw new ArgumentException($"The message template has an invalid placeholder at position {open}; use positional '{{0}}', '{{1}}'… (optionally '{{0,5}}' or '{{0:x}}') and '{{{{' / '}}}}' for literal braces.", paramName);
-        }
-
-        return close + 1;
     }
 }

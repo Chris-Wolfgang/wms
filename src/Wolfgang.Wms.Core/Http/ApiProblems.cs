@@ -100,16 +100,17 @@ public static class ApiProblems
 
 
     /// <summary>
-    /// The code's message template with <paramref name="arguments"/> applied (invariant culture).
+    /// The code's message template with <paramref name="arguments"/> applied (invariant culture). The template is
+    /// always formatted, so <c>{{</c> / <c>}}</c> render as braces even when there is nothing to fill in.
     /// </summary>
+    /// <exception cref="FormatException">The template has a placeholder that <paramref name="arguments"/> does not
+    /// fill, exactly as <see cref="string.Format(IFormatProvider, string, object[])"/> reports it.</exception>
     public static string Title(ErrorCode code, params object[] arguments)
     {
         ArgumentNullException.ThrowIfNull(code);
         ArgumentNullException.ThrowIfNull(arguments);
 
-        return arguments.Length == 0
-            ? code.MessageTemplate
-            : string.Format(CultureInfo.InvariantCulture, code.MessageTemplate, arguments);
+        return string.Format(CultureInfo.InvariantCulture, code.MessageTemplate, arguments);
     }
 
 

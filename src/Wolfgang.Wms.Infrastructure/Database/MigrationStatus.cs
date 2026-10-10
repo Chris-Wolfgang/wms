@@ -6,7 +6,7 @@ namespace Wolfgang.Wms.Infrastructure.Database;
 /// What <c>wms-migrate --status</c> and the startup check see (E4.3, E4.4): the migrations this build ships,
 /// which of them the database has, and whether the database is ahead of the build.
 /// </summary>
-/// <param name="Reachable">False when the database could not be queried or does not exist on the server;
+/// <param name="Reachable">False when the database could not be queried, does not exist on the server, or cannot be opened by this login;
 /// <see cref="Applied"/> is then empty and <see cref="Pending"/> lists every shipped migration.</param>
 /// <param name="Applied">Applied migrations in order, including any this build does not know.</param>
 /// <param name="Pending">Migrations this build ships that the database lacks, in order.</param>

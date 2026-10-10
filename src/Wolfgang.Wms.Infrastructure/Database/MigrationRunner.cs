@@ -196,7 +196,8 @@ public sealed class MigrationRunner
     /// The Down operations of a migration that may lose data: dropped tables, columns, schemas and sequences
     /// (a sequence's current value is state: the row-version sequence is every client's sync watermark),
     /// deleted or updated rows, a column narrowed to a smaller length, precision or scale, to fewer integral digits
-    /// (a larger scale inside the same precision) or to another type,
+    /// (a larger scale inside the same precision), to a bounded precision from an unbounded one, to non-unicode
+    /// text or to another type,
     /// and raw SQL (<see cref="MigrationBuilder.Sql"/>), which is not inspected and so is treated as data-losing.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="migration"/> is null.</exception>
@@ -355,25 +356,13 @@ public sealed class MigrationRunner
             reasons.Add("max length " + (oldLength?.ToString(CultureInfo.InvariantCulture) ?? "unbounded") + " -> " + length.ToString(CultureInfo.InvariantCulture));
         }
 
-        var oldPrecision = old.Precision ?? oldType.Precision;
-        var newPrecision = alter.Precision ?? newType.Precision;
-        var oldScale = old.Scale ?? oldType.Scale;
-        var newScale = alter.Scale ?? newType.Scale;
-        if (newPrecision is { } precision && oldPrecision is { } fromPrecision && fromPrecision > precision)
-        {
-            reasons.Add("precision " + fromPrecision.ToString(CultureInfo.InvariantCulture) + " -> " + precision.ToString(CultureInfo.InvariantCulture));
-        }
+        NumericNarrowing(alter, old, oldType, newType, reasons);
 
-        if (newScale is { } scale && oldScale is { } fromScale && fromScale > scale)
+        // Unicode text made non-unicode (nvarchar -> varchar on SQL Server) loses every character outside the
+        // collation's code page; an old column that does not say is unicode, the providers' default.
+        if (alter.IsUnicode == false && old.IsUnicode != false)
         {
-            reasons.Add("scale " + fromScale.ToString(CultureInfo.InvariantCulture) + " -> " + scale.ToString(CultureInfo.InvariantCulture));
-        }
-
-        // A scale that grows inside the same precision takes the room from the integral digits: decimal(18,2) ->
-        // decimal(18,4) keeps 14 of 16, and a large existing value no longer fits.
-        if (newPrecision is { } p && newScale is { } s && oldPrecision is { } fp && oldScale is { } fs && p - s < fp - fs)
-        {
-            reasons.Add("integral digits " + (fp - fs).ToString(CultureInfo.InvariantCulture) + " -> " + (p - s).ToString(CultureInfo.InvariantCulture));
+            reasons.Add("unicode -> non-unicode");
         }
 
         // Only the type family is a type change; its facets were compared above, so "nvarchar(50)" ->
@@ -393,13 +382,55 @@ public sealed class MigrationRunner
 
 
     /// <summary>
+    /// Adds the precision, scale and integral-digit reasons for <paramref name="alter"/> to <paramref name="reasons"/>.
+    /// </summary>
+    private static void NumericNarrowing(AlterColumnOperation alter, ColumnOperation old, StoreType oldType, StoreType newType, List<string> reasons)
+    {
+        // An old numeric column with no precision known here ("numeric" on PostgreSQL, or facets this
+        // migration does not state) may hold more digits than the bounded new precision, so bounding it counts as
+        // narrowing, as an unbounded length does above. A known non-numeric old family is a type change instead.
+        var oldPrecision = old.Precision ?? oldType.Precision;
+        var newPrecision = alter.Precision ?? newType.Precision;
+        var oldScale = old.Scale ?? oldType.Scale;
+        var newScale = alter.Scale ?? newType.Scale;
+        if (newPrecision is { } precision && oldPrecision is null && (oldType.Family is null || StoreType.IsDecimal(oldType.Family)))
+        {
+            reasons.Add("precision unbounded -> " + precision.ToString(CultureInfo.InvariantCulture));
+        }
+        else if (newPrecision is { } precision2 && oldPrecision is { } fromPrecision && fromPrecision > precision2)
+        {
+            reasons.Add("precision " + fromPrecision.ToString(CultureInfo.InvariantCulture) + " -> " + precision2.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (newScale is { } scale && oldScale is { } fromScale && fromScale > scale)
+        {
+            reasons.Add("scale " + fromScale.ToString(CultureInfo.InvariantCulture) + " -> " + scale.ToString(CultureInfo.InvariantCulture));
+        }
+
+        // A scale that grows inside the same precision takes the room from the integral digits: decimal(18,2) ->
+        // decimal(18,4) keeps 14 of 16, and a large existing value no longer fits.
+        if (newPrecision is { } p && newScale is { } s && oldPrecision is { } fp && oldScale is { } fs && p - s < fp - fs)
+        {
+            reasons.Add("integral digits " + (fp - fs).ToString(CultureInfo.InvariantCulture) + " -> " + (p - s).ToString(CultureInfo.InvariantCulture));
+        }
+    }
+
+
+
+    /// <summary>
     /// A store type split into its family and facets: <c>nvarchar(50)</c> (length), <c>nvarchar(max)</c>
-    /// (unbounded), <c>decimal(9, 3)</c> (precision, scale), <c>int</c> (none). <see cref="Family"/> is
-    /// lower-case with whitespace removed; <see cref="Text"/> is the type as written, trimmed.
+    /// (unbounded), <c>decimal(9, 3)</c> (precision, scale), <c>decimal(18)</c> (precision 18, scale 0, as both
+    /// providers read it), <c>int</c> (none). <see cref="Family"/> is lower-case with whitespace removed;
+    /// <see cref="Text"/> is the type as written, trimmed.
     /// </summary>
     private sealed record StoreType(string? Text, string? Family, int? Length, int? Precision, int? Scale)
     {
         private static readonly Regex Shape = new(@"^(?<family>[^(]+?)\s*(\((?<facets>[^)]*)\))?$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+        public static bool IsDecimal(string family)
+        {
+            return family is "decimal" or "numeric" or "dec";
+        }
 
         public static StoreType Parse(string? columnType)
         {
@@ -417,6 +448,7 @@ public sealed class MigrationRunner
             var numbers = facets.Select(facet => int.TryParse(facet, NumberStyles.None, CultureInfo.InvariantCulture, out var number) ? number : (int?)null).ToArray();
             return numbers switch
             {
+                [{ } one] when IsDecimal(family) => new StoreType(text, family, Length: null, Precision: one, Scale: 0),
                 [{ } one] => new StoreType(text, family, Length: one, Precision: null, Scale: null),
                 [{ } precision, { } scale] => new StoreType(text, family, Length: null, precision, scale),
                 _ => new StoreType(text, family, Length: null, Precision: null, Scale: null),   // int, nvarchar(max), facets this code does not read

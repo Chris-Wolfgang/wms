@@ -48,3 +48,8 @@ Every error the API answers with (E82.3): `application/problem+json` whose `code
 | `settings.store_unavailable` | 503 | error | Settings cannot be changed until a database is configured. | [settings-store-unavailable](../troubleshooting.md#settings-store-unavailable) |
 | `settings.unknown_key` | 404 | error | '{0}' is not a registered setting. | [settings-unknown-key](../troubleshooting.md#settings-unknown-key) |
 | `settings.unknown_scope` | 400 | error | '{0}' is not a setting scope (organization, site, zone, sku). | [settings-unknown-scope](../troubleshooting.md#settings-unknown-scope) |
+| `sites.code_taken` | 409 | error | {0} | [sites-code-taken](../troubleshooting.md#sites-code-taken) |
+| `sites.has_open_releases` | 409 | error | {0} | [sites-has-open-releases](../troubleshooting.md#sites-has-open-releases) |
+| `sites.invalid` | 400 | error | {0} | [sites-invalid](../troubleshooting.md#sites-invalid) |
+| `sites.not_found` | 404 | warning | The site does not exist. | [sites-not-found](../troubleshooting.md#sites-not-found) |
+| `sites.unavailable` | 503 | warning | Sites are unavailable until the database is configured. | [sites-unavailable](../troubleshooting.md#sites-unavailable) |

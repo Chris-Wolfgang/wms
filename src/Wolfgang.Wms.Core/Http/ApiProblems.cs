@@ -74,8 +74,10 @@ public static class ApiProblems
     /// and <c>code</c>/<c>severity</c> extensions.
     /// </summary>
     /// <param name="code">The error code.</param>
-    /// <param name="detail">Optional human-readable detail specific to this occurrence.</param>
-    /// <param name="arguments">Values for the message template's placeholders.</param>
+    /// <param name="detail">Optional human-readable detail specific to this occurrence. It comes before
+    /// <paramref name="arguments"/>, so a call that has placeholder values but no detail must name them:
+    /// <c>Problem(code, arguments: toteCode)</c>, or a lone string lands here instead of in <c>{0}</c>.</param>
+    /// <param name="arguments">Values for the message template's positional placeholders (<c>{0}</c>, <c>{1}</c>…).</param>
     /// <exception cref="ArgumentNullException"><paramref name="code"/> is null.</exception>
     public static IResult Problem(ErrorCode code, string? detail = null, params object[] arguments)
     {

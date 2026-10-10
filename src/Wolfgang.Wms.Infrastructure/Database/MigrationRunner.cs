@@ -72,8 +72,8 @@ public sealed class MigrationRunner
     /// <summary>
     /// Moves the schema to <paramref name="target"/> (a migration id, name, timestamp prefix, <see cref="Empty"/>,
     /// or null for the latest), one migration at a time. A downgrade whose reverted migrations lose data (see
-    /// <see cref="DestructiveOperationsIn"/>: dropped tables, columns, schemas or sequences, deleted or updated
-    /// rows, a narrowed column, raw SQL) runs only with <paramref name="confirmDataLoss"/>. Nothing runs when the
+    /// <see cref="DestructiveOperationsIn"/>: dropped tables, columns, schemas or sequences, a restarted sequence,
+    /// deleted or updated rows, a narrowed column, raw SQL) runs only with <paramref name="confirmDataLoss"/>. Nothing runs when the
     /// database is unreachable or its schema is newer than this build (<see cref="Refusal"/>).
     /// </summary>
     /// <exception cref="ArgumentException"><paramref name="target"/> names no shipped migration, or more than one.</exception>
@@ -194,8 +194,9 @@ public sealed class MigrationRunner
 
 
     /// <summary>
-    /// The Down operations of a migration that may lose data: dropped tables, columns, schemas and sequences
-    /// (a sequence's current value is state: the row-version sequence is every client's sync watermark),
+    /// The Down operations of a migration that may lose data: dropped tables, columns, schemas and sequences, a
+    /// restarted sequence (a sequence's current value is state: the row-version sequence is every client's sync
+    /// watermark, and a restart discards it as surely as a drop),
     /// deleted or updated rows, a column narrowed to a smaller length, precision or scale, to fewer integral digits
     /// (the scale grows by more than the precision), to a bounded precision from an unbounded one, to non-unicode
     /// text, to a type written without its length or precision (the provider's default applies) or to another
@@ -214,6 +215,7 @@ public sealed class MigrationRunner
                 DropColumnOperation drop => "drop column " + Qualified(drop.Schema, drop.Table) + "." + drop.Name,
                 DropSchemaOperation drop => "drop schema " + drop.Name,
                 DropSequenceOperation drop => "drop sequence " + Qualified(drop.Schema, drop.Name),
+                RestartSequenceOperation restart => "restart sequence " + Qualified(restart.Schema, restart.Name) + " at " + (restart.StartValue?.ToString(CultureInfo.InvariantCulture) ?? "its start value"),
                 DeleteDataOperation delete => "delete rows from " + Qualified(delete.Schema, delete.Table),
                 UpdateDataOperation update => "update rows in " + Qualified(update.Schema, update.Table),
                 AlterColumnOperation alter when Narrowing(alter) is { Length: > 0 } narrowing => "narrow column " + Qualified(alter.Schema, alter.Table) + "." + alter.Name + " (" + narrowing + ")",
@@ -403,9 +405,12 @@ public sealed class MigrationRunner
         var newPrecision = alter.Precision ?? newType.Precision;
         var oldScale = old.Scale ?? oldType.Scale;
         var newScale = alter.Scale ?? newType.Scale;
-        if (newPrecision is null && newType.Facetless && StoreType.IsDecimal(newType.Family!) && oldPrecision is { } droppedPrecision)
+        var inferredDecimal = alter.ColumnType is null && alter.ClrType == typeof(decimal);   // no store type written: the provider's default decimal, decimal(18,2) on SQL Server
+        var facetlessDecimal = newType.Facetless && StoreType.IsDecimal(newType.Family!);
+        if (newPrecision is null && (facetlessDecimal || inferredDecimal) && oldPrecision is { } droppedPrecision)
         {
-            // "decimal" with no facets: decimal(18,0) on SQL Server, unbounded on PostgreSQL (see Narrowing).
+            // "decimal" with no facets, or none written at all: decimal(18,0) / decimal(18,2) on SQL Server,
+            // unbounded on PostgreSQL (see Narrowing). The old facets were known, so this may lose digits.
             reasons.Add("precision " + droppedPrecision.ToString(CultureInfo.InvariantCulture) + " -> provider default");
         }
         else if (newPrecision is { } precision && oldPrecision is null && (oldType.Family is null || StoreType.IsDecimal(oldType.Family)))
@@ -483,7 +488,8 @@ public sealed class MigrationRunner
             return numbers switch
             {
                 [{ } one] when IsDecimal(family) => new StoreType(text, family, Length: null, Precision: one, Scale: 0),
-                [{ } one] => new StoreType(text, family, Length: one, Precision: null, Scale: null),
+                [{ } one] when IsLengthFamily(family) => new StoreType(text, family, Length: one, Precision: null, Scale: null),
+                [{ } one] => new StoreType(text, family, Length: null, Precision: one, Scale: null),   // time(3), datetime2(7), float(24): a precision, not a length
                 [{ } precision, { } scale] => new StoreType(text, family, Length: null, precision, scale),
                 _ => new StoreType(text, family, Length: null, Precision: null, Scale: null, facetless, unbounded),   // int, varchar, nvarchar(max), facets this code does not read
             };

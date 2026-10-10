@@ -46,7 +46,7 @@ is `Wolfgang.Wms.Client`, the generated API client. The product documentation fo
 - **Changelog fragment**: a PR that changes anything under `src/` must add `changelog/unreleased/<name>.md` (`type: breaking|feature|fix|docs|internal` + one user-facing sentence) or carry the `no-changelog` label; a `feature` or `breaking` fragment must come with a documentation change or the `no-docs` label (E85.10). `CHANGELOG.md` is never edited by hand. See `changelog/unreleased/README.md`.
 - **Protected configuration files**: `.editorconfig`, `Directory.Build.props`, `Directory.Build.targets`, `BannedSymbols.txt`, `coverlet.runsettings`, `*.globalconfig`, `*.ruleset`, `*.DotSettings` and anything under `.github/workflows/` are re-fetched from `main` during CI, and a PR that changes them **fails the `Detect .NET Projects` check by design** so a maintainer reviews the diff and merges with the admin bypass. Keep such changes in their own PR. See `docs/WORKFLOW_SECURITY.md`.
 - **Security scanning**: gitleaks, DevSkim (any finding fails), CodeQL (security-extended), Semgrep, ReSharper InspectCode (error-severity findings fail), actionlint + zizmor on the workflow files (High-severity zizmor findings fail).
-- **Documentation**: `GenerateDocumentationFile` is on for every project under `src/`; a public member without an XML doc comment is CS1591 → build error.
+- **Documentation**: `GenerateDocumentationFile` is on for every project under `src/` except the two provider migrations projects (`Wolfgang.Wms.Infrastructure.Migrations.*`, generated code, set to `false`); elsewhere a public member without an XML doc comment is CS1591 → build error.
 - **Banned APIs**: `BannedSymbols.txt` rejects blocking waits, sync I/O, `Parallel.*` and obsolete APIs at compile time; all I/O is async.
 - **AOT**: every non-UI product project has `IsAotCompatible`/`IsTrimmable` on and the trim/AOT analyzers fail the build; `Wolfgang.Wms.Infrastructure` (EF Core) is the documented exception. See [docs/CODING-CONVENTIONS.md](../docs/CODING-CONVENTIONS.md).
 
@@ -157,7 +157,7 @@ When you **discover work** that fits one of the categories — a security scanne
 This information was validated against the repository on 2026-10-10. **Only search for additional information if these instructions are incomplete or found to be incorrect.**
 
 ### When Working in This Repository
-1. **Scope**: one story per PR; the title carries the story ID (`E27.3: …`). Config-only changes (protected files) go in their own PR.
+1. **Scope**: one story per PR, and a story PR's title carries the story ID (`E27.3: …`); a maintenance or review-fix PR names the issue it closes in its body instead. Config-only changes (protected files) go in their own PR.
 2. **Adding Dependencies**: `dotnet add package`; a dependency note in the PR (`pr-gate` skill), and the license must be on the allow-list (`.github/license-audit/`).
 3. **Code Style**: follow `.editorconfig` (file-scoped namespaces, `var` where the type is apparent, Allman braces) and `docs/CODING-CONVENTIONS.md`.
 4. **Testing**: unit tests in `Wolfgang.Wms.UnitTests`, database and host tests in `Wolfgang.Wms.IntegrationTests` with a SQL Server and a PostgreSQL twin for every database behaviour; test names read `Method_when_condition_expected_result`.

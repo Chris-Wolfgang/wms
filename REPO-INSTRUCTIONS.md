@@ -129,13 +129,17 @@ API, CI/CD). The `Maintenance: <repo>` parent issue is referenced by
 `.github/copilot-instructions.md` and the downstream maintenance workflows;
 if you skip this step those references point at a non-existent issue.
 
+This is a one-time step per repo, and it is done for this repository: the parent issue exists. The script
+is template-only and is not kept here. To run it again, copy `scripts/Setup-Maintenance.ps1` and
+`scripts/templates/maintenance-parent-body.md` from the template into this checkout (both delete themselves
+on success, so the copies are disposable; never run it from the template checkout, where its `git` and file
+operations would act on the template) and run it here:
+
 ```powershell
-# from a checkout of the template repository (the script is template-only and is not kept here)
-pwsh -File ./scripts/Setup-Maintenance.ps1 -Repository Chris-Wolfgang/wms
+pwsh -File ./scripts/Setup-Maintenance.ps1 -MaintenanceProjectUrl '<cross-repo project url>'
 ```
 
-This is a one-time step per repo (done for this repository: the parent issue exists). The script is
-idempotent - re-running it updates the existing parent issue rather than creating duplicates.
+The script is idempotent - re-running it updates the existing parent issue rather than creating duplicates.
 
 Requires `gh auth login` (same prerequisite as the labels script).
 
@@ -221,9 +225,13 @@ The fastest path is the bundled script. It creates the `gh-pages` branch if
 needed, enables Pages on it, substitutes the docfx placeholders for the
 current repo, and self-deletes when it succeeds:
 
+It has run for this repository and is template-only, so it is not kept here. To run it again, copy
+`scripts/Setup-GitHubPages.ps1` from the template into this checkout and run it here (its docfx paths and
+`git` commands act on the checkout it runs in, so never from the template checkout; it deletes itself on
+success):
+
 ```powershell
-# from a checkout of the template repository (the script is template-only; it has run for this repository)
-pwsh -File ./scripts/Setup-GitHubPages.ps1 -Repository Chris-Wolfgang/wms
+pwsh -File ./scripts/Setup-GitHubPages.ps1
 ```
 
 After this runs, publishing a GitHub Release fires `release.yaml`, which

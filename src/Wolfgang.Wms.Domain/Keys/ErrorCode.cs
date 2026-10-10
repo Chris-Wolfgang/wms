@@ -12,10 +12,12 @@ namespace Wolfgang.Wms.Domain.Keys;
 /// <param name="HttpStatus">HTTP status the API answers with when this error is the outcome (100–599).</param>
 /// <param name="MessageTemplate">User-facing message; may contain positional placeholders <c>{0}</c>, <c>{1}</c>…
 /// (with an optional <c>,alignment</c> or <c>:format</c>, as <see cref="string.Format(IFormatProvider, string, object[])"/>
-/// reads them) that the caller fills, and <c>{{</c> / <c>}}</c> for literal braces. The template is checked with
-/// <see cref="CompositeFormat.Parse(string)"/>, the parser <c>string.Format</c> itself uses, so anything it would
-/// throw on, such as a named <c>{tote}</c> or an empty alignment <c>{0,}</c>, is refused here and a bad template
-/// fails at startup instead of turning the error response into a 500 the first time it is formatted.</param>
+/// reads them) that the caller fills, and <c>{{</c> / <c>}}</c> for literal braces. The syntax is checked with
+/// <see cref="CompositeFormat.Parse(string)"/>, the parser <c>string.Format</c> itself uses, so a malformed template,
+/// such as a named <c>{tote}</c> or an empty alignment <c>{0,}</c>, is refused here and fails at startup instead of
+/// turning the error response into a 500 the first time it is formatted. What the parser cannot see stays with the
+/// caller: the arguments must cover every placeholder, and a format such as <c>{0:Q}</c> must suit the argument's
+/// type.</param>
 /// <param name="DocsAnchor">Anchor in the troubleshooting reference, for example <c>tote-already-closed</c>.</param>
 /// <param name="Severity">How the error is surfaced.</param>
 public sealed record ErrorCode
@@ -70,9 +72,10 @@ public sealed record ErrorCode
 
 
     /// <summary>
-    /// A non-empty template that <see cref="string.Format(IFormatProvider, string, object[])"/> accepts: positional
-    /// placeholders <c>{index[,alignment][:format]}</c> and <c>{{</c> / <c>}}</c> escapes, checked by the same parser
-    /// (<see cref="CompositeFormat.Parse(string)"/>), so nothing that passes here throws when it is formatted.
+    /// A non-empty template whose composite-format syntax <see cref="string.Format(IFormatProvider, string, object[])"/>
+    /// accepts: positional placeholders <c>{index[,alignment][:format]}</c> and <c>{{</c> / <c>}}</c> escapes, checked
+    /// by the same parser (<see cref="CompositeFormat.Parse(string)"/>). Argument count and type-specific formats are
+    /// only known when the template is formatted, so those failures remain the caller's.
     /// </summary>
     /// <exception cref="ArgumentException">The template is empty or not a valid composite format; the inner
     /// exception says where the parser stopped.</exception>

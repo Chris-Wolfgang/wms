@@ -214,14 +214,35 @@ $rulesetConfig = @{
                 # must NOT have path filters (paths/paths-ignore). If a workflow is path-filtered
                 # and doesn't run for a PR, GitHub will treat the required check as missing and
                 # block the merge. All required status checks must run on every PR.
+                # Every job that is written to fail the PR is listed, so "fails the job" is "blocks the
+                # merge". None of these is path-filtered (see the IMPORTANT note above): the pr.yaml jobs
+                # run on every PR to main and report "skipped" (which satisfies the rule) when
+                # detect-projects does not run (a stacked PR, #846); the others run from workflows
+                # triggered by every pull_request event.
+                # Every context is pinned to the GitHub Actions app (integration_id 15368): the code-scanning app
+                # reports a check with the same name for a tool whose SARIF it receives ("zizmor" on every PR,
+                # "CodeQL"), and that check is green once the upload succeeded, whatever the job's gate decided.
+                # Without the pin either app satisfies the context and the gate could be bypassed by its own report.
                 required_status_checks = @(
-                    @{ context = "Detect .NET Projects" },
-                    @{ context = "Stage 1: Linux Tests (.NET 5.0-10.0) + Coverage Gate" },
-                    @{ context = "Stage 2: Windows Tests (.NET 5.0-10.0, Framework 4.6.2-4.8.1)" },
-                    @{ context = "Security Scan (DevSkim)" },
-                    @{ context = "Security Scan (CodeQL) (csharp)" },
-                    @{ context = "Secrets Scan (gitleaks)" },
-                    @{ context = "Changelog Fragment Check" }
+                    # pr.yaml
+                    @{ context = "Detect .NET Projects"; integration_id = 15368 },
+                    @{ context = "Stage 1: Linux Tests (.NET 5.0-10.0) + Coverage Gate"; integration_id = 15368 },
+                    @{ context = "Stage 2: Windows Tests (.NET 5.0-10.0, Framework 4.6.2-4.8.1)"; integration_id = 15368 },
+                    @{ context = "ReSharper InspectCode"; integration_id = 15368 },
+                    @{ context = "AOT Smoke (NativeAOT, Linux)"; integration_id = 15368 },
+                    @{ context = "OpenAPI Diff (v0)"; integration_id = 15368 },
+                    @{ context = "Security Scan (DevSkim)"; integration_id = 15368 },
+                    @{ context = "Secrets Scan (gitleaks)"; integration_id = 15368 },
+                    @{ context = "Changelog Fragment Check"; integration_id = 15368 },
+                    # codeql.yaml
+                    @{ context = "Security Scan (CodeQL) (csharp)"; integration_id = 15368 },
+                    # actions-audit.yaml, semgrep.yaml, license-audit.yaml, sbom.yaml, sourcelink.yaml
+                    @{ context = "actionlint"; integration_id = 15368 },
+                    @{ context = "zizmor"; integration_id = 15368 },
+                    @{ context = "Semgrep"; integration_id = 15368 },
+                    @{ context = "License audit"; integration_id = 15368 },
+                    @{ context = "Generate SBOM"; integration_id = 15368 },
+                    @{ context = "Verify SourceLink"; integration_id = 15368 }
                 )
             }
         },

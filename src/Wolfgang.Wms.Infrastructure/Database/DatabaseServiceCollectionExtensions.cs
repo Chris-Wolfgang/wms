@@ -29,6 +29,24 @@ public static class DatabaseServiceCollectionExtensions
 
 
     /// <summary>
+    /// Schema of the migrations history table (E3.1: nothing in dbo/public). EF creates the schema together with
+    /// the history table, before any migration runs (<c>IF SCHEMA_ID(N'wms') IS NULL ... CREATE SCHEMA</c> on
+    /// SQL Server, <c>CREATE SCHEMA wms</c> guarded by <c>pg_namespace</c> on PostgreSQL), so an empty database
+    /// needs CREATE SCHEMA rights only (E4.5). No release ever used EF's default <c>__EFMigrationsHistory</c>
+    /// location, so there is no history to carry over from it.
+    /// </summary>
+    public const string HistorySchema = "wms";
+
+
+
+    /// <summary>
+    /// Name of the migrations history table.
+    /// </summary>
+    public const string HistoryTable = "migrations_history";
+
+
+
+    /// <summary>
     /// Binds and validates <see cref="DatabaseOptions"/> (startup fails on an unknown provider or a missing
     /// connection string), registers <see cref="WmsDbContext"/> on the chosen provider, and replaces the
     /// bootstrap schema source with the migrations-history one. With provider <c>None</c> no context is
@@ -55,6 +73,8 @@ public static class DatabaseServiceCollectionExtensions
         services.AddDbContext<WmsDbContext>((provider, builder) => Configure(builder, provider.GetRequiredService<IOptions<DatabaseOptions>>().Value));
         services.RemoveAll<ISchemaVersionSource>();
         services.AddScoped<ISchemaVersionSource, MigrationsSchemaVersionSource>();
+        services.AddScoped<MigrationRunner>();
+        services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead
         return services;
     }
 
@@ -62,17 +82,27 @@ public static class DatabaseServiceCollectionExtensions
 
     /// <summary>
     /// Points the context at the configured provider. Called per context; the options are already validated.
+    /// An empty connection string (only <c>wms-migrate --script</c> accepts one) configures the provider with
+    /// no connection, which is enough to generate SQL.
     /// </summary>
     /// <exception cref="InvalidOperationException">The provider is not one a context can run on.</exception>
+    /// <exception cref="ArgumentException">The SQL Server connection string is malformed and
+    /// <see cref="DatabaseOptions.TrustServerCertificate"/> is set (it is parsed to apply the switch).</exception>
     public static DbContextOptionsBuilder Configure(DbContextOptionsBuilder builder, DatabaseOptions options)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(options);
 
+        var connectionString = options.EffectiveConnectionString();
+        if (connectionString.Length == 0)
+        {
+            connectionString = null;
+        }
+
         return options.ParsedProvider switch
         {
-            DatabaseProvider.SqlServer => builder.UseSqlServer(options.EffectiveConnectionString(), sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly)),
-            DatabaseProvider.PostgreSql => builder.UseNpgsql(options.EffectiveConnectionString(), npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly)),
+            DatabaseProvider.SqlServer => builder.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema)),
+            DatabaseProvider.PostgreSql => builder.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema)),
             _ => throw new InvalidOperationException($"{DatabaseOptions.SectionName}:Provider '{options.Provider}' cannot host a database context."),
         };
     }

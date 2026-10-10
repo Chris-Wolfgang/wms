@@ -16,5 +16,7 @@
   href: device-app-version.md
 - name: Your identifiers
   href: identifiers.md
+- name: Database migrations
+  href: migrate.md
 - name: Project website
   href: 'https://github.com/Chris-Wolfgang/wms'

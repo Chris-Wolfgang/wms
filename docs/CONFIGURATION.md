@@ -26,5 +26,8 @@ Examples:
 ```
 
 Supported engines: SQL Server 2022 and later including Express (E2.2), PostgreSQL 16 and later (E2.3). The
-model is shared; migrations are generated per provider (E2.4) and applied by `wms migrate`, never by the API
-(docs/BOOTSTRAP.md).
+model is shared; migrations are generated per provider (E2.4). They are applied by an operator or installer
+running the `wms-migrate` executable with the DBA's rights, as a separate step before the API starts
+([MIGRATE.md](MIGRATE.md), [BOOTSTRAP.md](BOOTSTRAP.md)). The API never changes the schema and its service
+account never holds schema rights; it refuses to start while the schema is behind, ahead of its build, or
+unreachable, naming the migrations.

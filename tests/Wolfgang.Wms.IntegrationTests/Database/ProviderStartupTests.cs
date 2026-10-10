@@ -5,18 +5,20 @@ using System.Text.Json;
 using DotNet.Testcontainers.Containers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
-using Wolfgang.Wms.Infrastructure.Database;
 
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
-/// E2.2 / E2.3 against real engines in containers: the API starts on each supported provider, reports the
-/// schema as not yet migrated, applies both providers' migrations, and then reports the schema up to date.
-/// The SQL Server 2025 container runs as Express (<c>MSSQL_PID</c>), the free edition customers start on.
+/// E2.2 / E2.3 / E4.4 / E4.6 against real engines: on each supported provider the API refuses to start on an
+/// unmigrated database (naming the pending migration and <c>wms-migrate</c>), starts once the tool has applied
+/// the schema and reports it up to date, and refuses to start once a newer build has migrated the database
+/// (naming the unknown migration). The API never migrates itself: every host here connects with a runtime
+/// login that holds data rights only (<see cref="TestLogins"/>), while the tool runs with the test's own. The
+/// refusals start the database module directly (<see cref="DatabaseHost"/>, #840); the successful start goes
+/// through <c>Program</c>. The SQL Server 2025 container runs as Express (<c>MSSQL_PID</c>), the free edition
+/// customers start on.
 /// </summary>
 public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -31,14 +33,13 @@ public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<P
 
 
 
-    [DockerFact]
+    [SqlServerFact]
     public async Task SqlServer_2022_starts_and_migrates()
     {
-        await using var container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
-            .Build();
-        await container.StartAsync();
+        await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await AssertStartsAndMigratesAsync(container, "SqlServer", container.GetConnectionString(), trustServerCertificate: true);
+        Assert.True(database.Running);
+        await AssertStartsAndMigratesAsync(container: null, "SqlServer", database.ConnectionString, trustServerCertificate: true);
     }
 
 
@@ -68,28 +69,56 @@ public sealed class ProviderStartupTests : IClassFixture<WebApplicationFactory<P
 
 
 
-    private async Task AssertStartsAndMigratesAsync(IContainer container, string provider, string connectionString, bool trustServerCertificate)
+    private async Task AssertStartsAndMigratesAsync(IContainer? container, string provider, string connectionString, bool trustServerCertificate)
     {
-        Assert.Equal(TestcontainersStates.Running, container.State);
-        using var host = _factory.WithWebHostBuilder(builder => builder
+        if (container is not null)
+        {
+            Assert.Equal(TestcontainersStates.Running, container.State);
+        }
+
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => DatabaseHost.StartAsync(provider, runtime, trustServerCertificate));
+        Assert.Contains("pending migrations", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("_Initial", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("Run wms-migrate", refused.Message, StringComparison.Ordinal);
+
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        await TestLogins.GrantDataAsync(provider, connectionString, runtime);
+        await TestLogins.AssertCannotChangeSchemaAsync(provider, runtime);
+
+        using var host = Host(provider, runtime, trustServerCertificate);
+        using var client = host.CreateClient();
+        var status = await SchemaAsync(client);
+
+        Assert.EndsWith("_Initial", status.RootElement.GetProperty("expected").GetString(), StringComparison.Ordinal);
+        Assert.Equal(status.RootElement.GetProperty("expected").GetString(), status.RootElement.GetProperty("current").GetString());
+        Assert.True(status.RootElement.GetProperty("upToDate").GetBoolean());
+
+        await AssertRefusesASchemaAheadOfTheBuildAsync(provider, connectionString, runtime, trustServerCertificate);
+    }
+
+
+
+    private static async Task AssertRefusesASchemaAheadOfTheBuildAsync(string provider, string connectionString, string runtime, bool trustServerCertificate)
+    {
+        await FutureMigration.RecordAsync(provider, connectionString);
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => DatabaseHost.StartAsync(provider, runtime, trustServerCertificate));
+
+        Assert.Contains("The database schema is newer than this build", refused.Message, StringComparison.Ordinal);
+        Assert.Contains(FutureMigration.Id, refused.Message, StringComparison.Ordinal);
+        Assert.Contains("Upgrade the application, or restore the backup taken before the upgrade.", refused.Message, StringComparison.Ordinal);
+    }
+
+
+
+    private WebApplicationFactory<Program> Host(string provider, string connectionString, bool trustServerCertificate)
+    {
+        return _factory.WithWebHostBuilder(builder => builder
             .UseSetting("Wms:Database:Provider", provider)
             .UseSetting("Wms:Database:ConnectionString", connectionString)
             .UseSetting("Wms:Database:TrustServerCertificate", trustServerCertificate ? "true" : "false"));
-        using var client = host.CreateClient();
-
-        var before = await SchemaAsync(client);
-        using (var scope = host.Services.CreateScope())
-        {
-            await scope.ServiceProvider.GetRequiredService<WmsDbContext>().Database.MigrateAsync();
-        }
-
-        var after = await SchemaAsync(client);
-
-        Assert.Equal(JsonValueKind.Null, before.RootElement.GetProperty("current").ValueKind);
-        Assert.EndsWith("_Initial", before.RootElement.GetProperty("expected").GetString(), StringComparison.Ordinal);
-        Assert.False(before.RootElement.GetProperty("upToDate").GetBoolean());
-        Assert.Equal(after.RootElement.GetProperty("expected").GetString(), after.RootElement.GetProperty("current").GetString());
-        Assert.True(after.RootElement.GetProperty("upToDate").GetBoolean());
     }
 
 

@@ -91,6 +91,18 @@ public sealed class DatabaseOptions
     /// </summary>
     public IReadOnlyList<string> Validate()
     {
+        return Validate(connectionStringRequired: true);
+    }
+
+
+
+    /// <summary>
+    /// Every problem with the options, each naming the setting; empty when valid. With
+    /// <paramref name="connectionStringRequired"/> false a missing connection string is accepted, for work that
+    /// never connects (<c>wms-migrate --script</c>); the provider and certificate rules still apply.
+    /// </summary>
+    public IReadOnlyList<string> Validate(bool connectionStringRequired)
+    {
         var errors = new List<string>();
         var provider = ParsedProvider;
         if (provider is null)
@@ -99,7 +111,7 @@ public sealed class DatabaseOptions
             return errors;
         }
 
-        if (provider != DatabaseProvider.None && string.IsNullOrWhiteSpace(ConnectionString))
+        if (connectionStringRequired && provider != DatabaseProvider.None && string.IsNullOrWhiteSpace(ConnectionString))
         {
             errors.Add($"{SectionName}:ConnectionString is required when {SectionName}:Provider is {provider}.");
         }

@@ -1,0 +1,3 @@
+type: feature
+
+Add `wms-migrate`: apply pending migrations (exit code names a failing migration), `--to` a migration in either direction with `--confirm-data-loss` for destructive downgrades (including raw SQL in a `Down`), `--script [--from] [--to]` for idempotent provider-specific SQL without a connection or connection string, and `--status`; it applies nothing to an unreachable database or a schema newer than the build (exit code 4); the API refuses to start on a schema that is behind, ahead or unreachable and never applies a migration itself (its service account has no schema rights); the migrations history table is `wms.migrations_history`.

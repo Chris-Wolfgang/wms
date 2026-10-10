@@ -1,0 +1,332 @@
+// Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
+
+using System.Data.Common;
+using System.Globalization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
+
+namespace Wolfgang.Wms.Infrastructure.Database;
+
+/// <summary>
+/// The migration operations behind <c>wms-migrate</c> and the startup check (E4): status, apply to a target
+/// in either direction one migration at a time (so a failure names the migration), refuse a data-losing
+/// downgrade without confirmation, and generate idempotent provider-specific scripts with no connection.
+/// </summary>
+public sealed class MigrationRunner
+{
+    /// <summary>
+    /// The target that means "no migrations applied" (an empty schema).
+    /// </summary>
+    public const string Empty = "0";
+
+    private readonly WmsDbContext _context;
+
+
+
+    /// <summary>
+    /// Creates the runner over a context configured for the installation's provider.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
+    public MigrationRunner(WmsDbContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        _context = context;
+    }
+
+
+
+    /// <summary>
+    /// Applied and pending migrations and what this build expects (E4.3).
+    /// </summary>
+    public async Task<MigrationStatus> StatusAsync(CancellationToken cancellationToken)
+    {
+        var shipped = Shipped();
+        IReadOnlyList<string> applied;
+        try
+        {
+            applied = (await _context.Database.GetAppliedMigrationsAsync(cancellationToken).ConfigureAwait(false)).ToList();
+        }
+        catch (DbException exception)
+        {
+            // A reachable server with no history table (or no database yet) is not an error: EF's history
+            // repository checks that both exist and returns no applied migrations. Only a failure to talk to the
+            // server lands here.
+            return new MigrationStatus(Reachable: false, Applied: [], Pending: shipped, Expected: Last(shipped))
+            {
+                Error = exception.Message,
+            };
+        }
+
+        return new MigrationStatus(Reachable: true, applied, shipped.Except(applied, StringComparer.Ordinal).ToList(), Last(shipped))
+        {
+            Unknown = applied.Except(shipped, StringComparer.Ordinal).ToList(),
+        };
+    }
+
+
+
+    /// <summary>
+    /// Moves the schema to <paramref name="target"/> (a migration id, name, timestamp prefix, <see cref="Empty"/>,
+    /// or null for the latest), one migration at a time. A downgrade whose reverted migrations drop tables,
+    /// columns, schemas or rows, or run raw SQL, runs only with <paramref name="confirmDataLoss"/>. Nothing runs
+    /// when the database is unreachable or its schema is newer than this build (<see cref="Refusal"/>).
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="target"/> names no shipped migration, or more than one.</exception>
+    public async Task<MigrationResult> ApplyAsync(string? target, bool confirmDataLoss, CancellationToken cancellationToken)
+    {
+        var shipped = Shipped();
+        var to = Resolve(shipped, target);
+        var status = await StatusAsync(cancellationToken).ConfigureAwait(false);
+        var current = status.Current;
+        var refusal = Refusal(status);
+        if (refusal is not null)
+        {
+            return new MigrationResult
+            (
+                Direction: MigrationDirection.None,
+                From: current,
+                To: to,
+                Steps: [],
+                FailedMigration: null,
+                Error: refusal,
+                DestructiveSteps: []
+            );
+        }
+
+        var currentIndex = current is null ? -1 : shipped.IndexOf(current);
+        var targetIndex = to is null ? -1 : shipped.IndexOf(to);
+
+        if (targetIndex == currentIndex)
+        {
+            return new MigrationResult(Direction: MigrationDirection.None, From: current, To: to, Steps: [], FailedMigration: null, Error: null, DestructiveSteps: []);
+        }
+
+        var migrator = _context.GetService<IMigrator>();
+        if (targetIndex > currentIndex)
+        {
+            var steps = shipped.Skip(currentIndex + 1).Take(targetIndex - currentIndex).ToList();
+            return await RunAsync(migrator, MigrationDirection.Up, current, to, steps, steps, [], cancellationToken).ConfigureAwait(false);
+        }
+
+        var reverted = shipped.Skip(targetIndex + 1).Take(currentIndex - targetIndex).Reverse().ToList();
+        var destructive = reverted.SelectMany(id => DestructiveOperationsIn(Load(id)).Select(step => id + ": " + step)).ToList();
+        if (destructive.Count > 0 && !confirmDataLoss)
+        {
+            return new MigrationResult(Direction: MigrationDirection.Down, From: current, To: to, Steps: [], FailedMigration: null, Error: null, DestructiveSteps: destructive);
+        }
+
+        // Reverting migration N means migrating to N-1 (or to Empty for the first).
+        var targets = reverted.Select(id => shipped.IndexOf(id) == 0 ? Empty : shipped[shipped.IndexOf(id) - 1]).ToList();
+        return await RunAsync(migrator, MigrationDirection.Down, current, to, reverted, targets, destructive, cancellationToken).ConfigureAwait(false);
+    }
+
+
+
+    /// <summary>
+    /// An idempotent, provider-specific SQL script from <paramref name="from"/> (null or <see cref="Empty"/>:
+    /// an empty schema) to <paramref name="to"/> (null: the latest), with no database connection (E4.2). A
+    /// script that moves down lists the data-losing steps as a header comment and, when there are any, is
+    /// produced only with <paramref name="confirmDataLoss"/> (E4.6), as an applied downgrade is.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="from"/> or <paramref name="to"/> names no shipped
+    /// migration, or more than one.</exception>
+    public MigrationScript Script(string? from, string? to, bool confirmDataLoss)
+    {
+        var shipped = Shipped();
+        var fromId = Resolve(shipped, from ?? Empty);
+        var toId = Resolve(shipped, to);
+        var fromIndex = fromId is null ? -1 : shipped.IndexOf(fromId);
+        var toIndex = toId is null ? -1 : shipped.IndexOf(toId);
+        if (toIndex >= fromIndex)
+        {
+            var direction = toIndex == fromIndex ? MigrationDirection.None : MigrationDirection.Up;
+            return new MigrationScript(direction, Generate(fromId, toId), []);
+        }
+
+        var destructive = shipped
+            .Skip(toIndex + 1)
+            .Take(fromIndex - toIndex)
+            .Reverse()
+            .SelectMany(id => DestructiveOperationsIn(Load(id)).Select(step => id + ": " + step))
+            .ToList();
+        if (destructive.Count > 0 && !confirmDataLoss)
+        {
+            return new MigrationScript(MigrationDirection.Down, Sql: null, destructive);
+        }
+
+        var lines = new List<string> { "-- Downgrade from " + fromId + " to " + (toId ?? Empty) };
+        lines.AddRange(destructive.Select(step => "-- DATA LOSS " + step));
+        lines.Add(Generate(fromId, toId));
+        return new MigrationScript(MigrationDirection.Down, string.Join(Environment.NewLine, lines), destructive);
+    }
+
+
+
+    /// <summary>
+    /// Why nothing may be applied to the database <paramref name="status"/> describes, or null when it may:
+    /// it cannot be reached (so its schema is unknown, and "already at the target" cannot be claimed), or it
+    /// carries migrations this build does not ship (E4.6: a newer schema is never touched by an older build).
+    /// The startup check refuses to start for the same reasons with the same message.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="status"/> is null.</exception>
+    public static string? Refusal(MigrationStatus status)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+
+        if (!status.Reachable)
+        {
+            return $"{DatabaseOptions.SectionName}: the database cannot be reached; check the connection string and that the server is up. {status.Error}".TrimEnd();
+        }
+
+        if (status.SchemaIsNewer)
+        {
+            return $"The database schema is newer than this build (unknown migrations: {string.Join(", ", status.Unknown)}). Upgrade the application, or restore the backup taken before the upgrade.";
+        }
+
+        return null;
+    }
+
+
+
+    /// <summary>
+    /// The Down operations of a migration that may lose data: dropped tables, columns and schemas, deleted rows,
+    /// and raw SQL (<see cref="MigrationBuilder.Sql"/>), which is not inspected and so is treated as data-losing.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="migration"/> is null.</exception>
+    public static IReadOnlyList<string> DestructiveOperationsIn(Migration migration)
+    {
+        ArgumentNullException.ThrowIfNull(migration);
+
+        return migration.DownOperations
+            .Select(operation => operation switch
+            {
+                DropTableOperation drop => "drop table " + Qualified(drop.Schema, drop.Name),
+                DropColumnOperation drop => "drop column " + Qualified(drop.Schema, drop.Table) + "." + drop.Name,
+                DropSchemaOperation drop => "drop schema " + drop.Name,
+                DeleteDataOperation delete => "delete rows from " + Qualified(delete.Schema, delete.Table),
+                SqlOperation sql => "raw SQL, not inspected: " + Summary(sql.Sql),
+                _ => null,
+            })
+            .Where(step => step is not null)
+            .Select(step => step!)
+            .ToList();
+    }
+
+
+
+    /// <summary>
+    /// The shipped migration matching <paramref name="target"/>: exact id, else name after the timestamp, else
+    /// id prefix; <see cref="Empty"/> resolves to null; null means the latest. A name or prefix matching more
+    /// than one migration is rejected rather than guessed, since the target may be a destructive downgrade.
+    /// </summary>
+    /// <exception cref="ArgumentException">No shipped migration matches, or more than one does.</exception>
+    public static string? Resolve(IReadOnlyList<string> shipped, string? target)
+    {
+        ArgumentNullException.ThrowIfNull(shipped);
+
+        if (target is null || string.Equals(target, "latest", StringComparison.OrdinalIgnoreCase))
+        {
+            return Last(shipped);
+        }
+
+        if (string.Equals(target, Empty, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        if (shipped.Contains(target, StringComparer.Ordinal))
+        {
+            return target;
+        }
+
+        var matches = shipped
+            .Where(id => id.EndsWith("_" + target, StringComparison.Ordinal))
+            .ToList();
+        if (matches.Count == 0)
+        {
+            matches = shipped
+                .Where(id => id.StartsWith(target, StringComparison.Ordinal))
+                .ToList();
+        }
+
+        return matches.Count switch
+        {
+            1 => matches[0],
+            0 => throw new ArgumentException($"'{target}' is not a shipped migration. Known: {string.Join(", ", shipped)}.", nameof(target)),
+            _ => throw new ArgumentException($"'{target}' is ambiguous; it matches {string.Join(", ", matches)}. Give the full migration id.", nameof(target)),
+        };
+    }
+
+
+
+    private static async Task<MigrationResult> RunAsync(IMigrator migrator, MigrationDirection direction, string? from, string? to, IReadOnlyList<string> steps, IReadOnlyList<string> targets, IReadOnlyList<string> destructive, CancellationToken cancellationToken)
+    {
+        var done = new List<string>();
+        for (var i = 0; i < steps.Count; i++)
+        {
+            try
+            {
+                await migrator.MigrateAsync(targets[i], cancellationToken).ConfigureAwait(false);
+                done.Add(steps[i]);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                // Any failure inside a migration's Up/Down (custom migration code included) names that step.
+                return new MigrationResult(Direction: direction, From: from, To: to, Steps: done, FailedMigration: steps[i], Error: exception.Message, DestructiveSteps: destructive);
+            }
+        }
+
+        return new MigrationResult(Direction: direction, From: from, To: to, Steps: done, FailedMigration: null, Error: null, DestructiveSteps: destructive);
+    }
+
+
+
+    private string Generate(string? fromId, string? toId)
+    {
+        return _context
+            .GetService<IMigrator>()
+            .GenerateScript(fromId ?? Empty, toId ?? Empty, MigrationsSqlGenerationOptions.Idempotent);
+    }
+
+
+
+    private static string Summary(string sql)
+    {
+        // One line, so the summary can sit in a "--" comment of a downgrade script header without the rest of
+        // the statement escaping the comment.
+        var line = string.Join(' ', sql.Split(['\r', '\n', '\t', ' '], StringSplitOptions.RemoveEmptyEntries));
+        return line.Length <= 80 ? line : line[..80] + "...";
+    }
+
+
+
+    private List<string> Shipped()
+    {
+        return _context.Database.GetMigrations().ToList();
+    }
+
+
+
+    private Migration Load(string id)
+    {
+        var assembly = _context.GetService<IMigrationsAssembly>();
+        return assembly.CreateMigration(assembly.Migrations[id], _context.Database.ProviderName ?? throw new InvalidOperationException("The context has no database provider."));
+    }
+
+
+
+    private static string? Last(IReadOnlyList<string> migrations)
+    {
+        return migrations.Count == 0 ? null : migrations[^1];
+    }
+
+
+
+    private static string Qualified(string? schema, string name)
+    {
+        return string.IsNullOrEmpty(schema) ? name : string.Create(CultureInfo.InvariantCulture, $"{schema}.{name}");
+    }
+}

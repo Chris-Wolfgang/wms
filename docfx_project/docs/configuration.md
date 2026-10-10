@@ -24,4 +24,6 @@ Examples:
 ```
 
 Supported databases: SQL Server 2022 and later, including Express, and PostgreSQL 16 and later. Creating the
-database and applying its migrations happens outside the API; see [Before the API can serve](bootstrap.md).
+database and applying its migrations is a separate step outside the API, with `wms-migrate` and the database
+administrator's rights; the server's own account never changes the schema. See
+[Database migrations](migrate.md) and [Before the API can serve](bootstrap.md).

@@ -860,11 +860,23 @@ jobs:
         # avoid ~5-15s of network-dependent setup and an extra failure mode.
         shell: bash
         run: |
-          if find . -name '*.csproj' -type f -exec grep -lE 'net[0-9]+\.[0-9]+-(android|ios|maccatalyst|maui|tvos|tizen|browser)' {} \; | grep -q .; then
-            echo "Workload-bearing TFMs detected — running dotnet workload restore"
+          # Only a project this job will build needs its workload: one that lists a platform TFM
+          # (net10.0-android) next to a Linux-buildable one. A platform-only project (the handheld)
+          # is excluded by the build filter below, so installing the Android workload for it costs
+          # minutes on every run and produces nothing.
+          needs_workload=false
+          while IFS= read -r -d '' proj; do
+            flat=$(tr -d '\n\r' < "$proj")
+            if printf '%s' "$flat" | grep -qE 'net[0-9]+\.[0-9]+-(android|ios|maccatalyst|maui|tvos|tizen|browser)' \
+               && printf '%s' "$flat" | grep -qE '<TargetFramework[s]?>[^<]*(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)([;<]|$)|netcoreapp|netstandard)'; then
+              needs_workload=true
+            fi
+          done < <(find . -name '*.csproj' -type f -print0)
+          if [ "$needs_workload" = true ]; then
+            echo "A project this job builds carries a workload-bearing TFM — running dotnet workload restore"
             dotnet workload restore
           else
-            echo "No workload-bearing TFMs in any csproj — skipping dotnet workload restore"
+            echo "No project this job builds carries a workload-bearing TFM — skipping dotnet workload restore"
           fi
 
       - name: Restore and build (exclude .NET Framework-only projects)
@@ -881,11 +893,14 @@ jobs:
             # Check if project has any .NET 5+ target framework
             # Look for: net5.0, net6.0, net7.0, net8.0, net9.0, net10.0, or netcoreapp, netstandard
             # Normalize line endings to handle multi-line <TargetFramework> / <TargetFrameworks> elements
-            if tr -d '\n\r' < "$proj" | grep -qE '<TargetFramework[s]?>.*(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)|netcoreapp|netstandard)'; then
+            # Exact TFM only ([;<] or end after the moniker): a platform TFM such as net10.0-android is
+            # not buildable here, and the per-framework filter below would skip it anyway, so restoring
+            # it (and its workload) was wasted work.
+            if tr -d '\n\r' < "$proj" | grep -qE '<TargetFramework[s]?>[^<]*(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)([;<]|$)|netcoreapp|netstandard)'; then
               projects+=("$proj")
               echo "✓ Including: $proj (has .NET 5+ or .NET Core target)"
             else
-              echo "⊘ Excluding: $proj (Framework-only, incompatible with Linux)"
+              echo "⊘ Excluding: $proj (no Linux-buildable target: Framework-only or platform TFM)"
             fi
           done < <(find . -type f \( -name "*.csproj" -o -name "*.vbproj" -o -name "*.fsproj" \) -print0)
           
@@ -1270,14 +1285,6 @@ jobs:
           path: |
             TestResults/
             CoverageReport/
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: build-output
-          path: |
-            src/**/bin/Release
-            tests/**/bin/Release
 
   # ============================================================================
   # AOT SMOKE: every NativeAOT project published and run on Linux

@@ -61,7 +61,7 @@ public sealed class WorkspacePageGateTests
     [Fact]
     public void Ungated_scan_reports_a_page_without_a_layout_and_a_page_under_a_layout_that_is_not_a_workspace_layout()
     {
-        var ungated = UngatedPagesIn([typeof(GatedSample), typeof(OpenSample), typeof(NoLayoutSample), typeof(NotAPage)]);
+        var ungated = UngatedPagesIn([typeof(GatedSample), typeof(OpenSample), typeof(NoLayoutSample), typeof(NotAPage), typeof(RoutedButNotAComponent)]);
 
         Assert.Equal([typeof(NoLayoutSample).FullName!, typeof(OpenSample).FullName!], ungated);
     }
@@ -70,7 +70,8 @@ public sealed class WorkspacePageGateTests
 
     private static Type[] RoutableComponentsIn(IEnumerable<Type> types)
     {
-        return types.Where(t => t.GetCustomAttributes<RouteAttribute>().Any()).ToArray();
+        // A component with a route; a [Route] on a type that is not a component is not a page and is not scanned.
+        return types.Where(t => typeof(IComponent).IsAssignableFrom(t) && t.GetCustomAttributes<RouteAttribute>(inherit: true).Any()).ToArray();
     }
 
 
@@ -78,7 +79,7 @@ public sealed class WorkspacePageGateTests
     private static string[] UngatedPagesIn(IEnumerable<Type> types)
     {
         return RoutableComponentsIn(types)
-            .Where(t => !typeof(WorkspaceLayout).IsAssignableFrom(t.GetCustomAttribute<LayoutAttribute>()?.LayoutType))
+            .Where(t => !typeof(WorkspaceLayout).IsAssignableFrom(t.GetCustomAttribute<LayoutAttribute>(inherit: true)?.LayoutType))   // a [Layout] on a page's base class counts
             .Select(t => t.FullName!)
             .Order(StringComparer.Ordinal)
             .ToArray();
@@ -110,6 +111,13 @@ public sealed class WorkspacePageGateTests
 
 
     private sealed class NotAPage : ComponentBase
+    {
+    }
+
+
+
+    [Route("/sample/not-a-component")]
+    private sealed class RoutedButNotAComponent
     {
     }
 

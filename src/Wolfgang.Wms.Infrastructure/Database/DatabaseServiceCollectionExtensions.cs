@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Wolfgang.Wms.Core.Caching;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
+using Wolfgang.Wms.Infrastructure.Database.Auditing;
 using Wolfgang.Wms.Infrastructure.Database.Settings;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
@@ -75,6 +76,7 @@ public static class DatabaseServiceCollectionExtensions
             return services;
         }
 
+        services.AddWmsAuditing();   // E6.4: AuditTrail options and the on-behalf-of user provider the context needs
         services.AddDbContext<WmsDbContext>((provider, builder) => Configure(builder, provider.GetRequiredService<IOptions<DatabaseOptions>>().Value));
         services.RemoveAll<ISchemaVersionSource>();
         services.AddScoped<ISchemaVersionSource, MigrationsSchemaVersionSource>();
@@ -111,8 +113,11 @@ public static class DatabaseServiceCollectionExtensions
 
         return options.ParsedProvider switch
         {
-            DatabaseProvider.SqlServer => builder.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema)),
-            DatabaseProvider.PostgreSql => builder.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema)),
+            // Both providers retry transient failures, which is safe because the audited context (E6.4) owns the
+            // execution-strategy wrap. PostgreSQL batches are capped at 100 rows, where AuditTrail's own benchmarks
+            // stop paying off.
+            DatabaseProvider.SqlServer => builder.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema).EnableRetryOnFailure()),
+            DatabaseProvider.PostgreSql => builder.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema).EnableRetryOnFailure().MaxBatchSize(WmsAuditing.PostgreSqlMaxBatchSize)),
             _ => throw new InvalidOperationException($"{DatabaseOptions.SectionName}:Provider '{options.Provider}' cannot host a database context."),
         };
     }

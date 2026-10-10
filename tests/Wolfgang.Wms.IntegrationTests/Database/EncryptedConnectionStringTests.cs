@@ -17,8 +17,8 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
 /// E8.1/E8.2 end to end on each provider: the migrate tool encrypts the connection string with a file key ring,
-/// the host starts from the <c>enc:v1:</c> value and the same ring, migrates and serves; the tool migrates
-/// with it too; a host pointed at an empty ring refuses to start with the clear message.
+/// the tool migrates with the <c>enc:v1:</c> value and that ring (the API never migrates, E4.4), the host starts
+/// from the same value and ring and serves; a host pointed at an empty ring refuses to start with the clear message.
 /// </summary>
 public sealed class EncryptedConnectionStringTests
 {
@@ -56,6 +56,8 @@ public sealed class EncryptedConnectionStringTests
             Assert.Equal(MigrateProgram.ExitOk, protectExit);
             Assert.StartsWith("enc:v1:", encrypted, StringComparison.Ordinal);
 
+            var migrateExit = await MigrateProgram.RunAsync(["--provider", provider, "--connection-string", encrypted, "--key-ring", ring], output, error, configuration: null, CancellationToken.None);
+            Assert.Equal(MigrateProgram.ExitOk, migrateExit);
             var toolExit = await MigrateProgram.RunAsync(["--status", "--provider", provider, "--connection-string", encrypted, "--key-ring", ring], output, error, configuration: null, CancellationToken.None);
             Assert.Equal(MigrateProgram.ExitOk, toolExit);
             Assert.Contains("Reachable: yes", output.ToString(), StringComparison.Ordinal);
@@ -92,7 +94,6 @@ public sealed class EncryptedConnectionStringTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
             [KeyRingOptions.PathKey] = ring,
         });
         builder.Services.AddWmsApiVersioning();

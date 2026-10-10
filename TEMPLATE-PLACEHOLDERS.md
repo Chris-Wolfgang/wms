@@ -4,7 +4,7 @@ This document provides comprehensive documentation of all placeholders used in t
 
 ## Overview
 
-The automated setup script (`pwsh ./scripts/setup.ps1`) handles all placeholder replacements automatically. This document is for reference or manual setup if needed.
+The template's setup script (`pwsh ./scripts/setup.ps1`) handled the placeholder replacements when this repository was created and deleted itself afterwards; it is not in `scripts/` any more. This document is kept for reference: the line numbers below refer to the template's copy of the script.
 
 ---
 
@@ -422,7 +422,7 @@ After replacement, verify:
 - **Setup Script:** `pwsh ./scripts/setup.ps1`
 - **Repository Instructions:** [REPO-INSTRUCTIONS.md](REPO-INSTRUCTIONS.md)
 - **Template README:** [README.md](README.md) (describes template)
-- **Project README Template:** [README-TEMPLATE.md](README-TEMPLATE.md)
+- **Project README Template:** `README-TEMPLATE.md` in the template (it became this repository's [README.md](README.md) at setup)
 
 ---
 

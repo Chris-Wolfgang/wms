@@ -195,7 +195,8 @@ public sealed class MigrationRunner
     /// <summary>
     /// The Down operations of a migration that may lose data: dropped tables, columns, schemas and sequences
     /// (a sequence's current value is state: the row-version sequence is every client's sync watermark),
-    /// deleted or updated rows, a column narrowed to a smaller length, precision or scale or to another type,
+    /// deleted or updated rows, a column narrowed to a smaller length, precision or scale, to fewer integral digits
+    /// (a larger scale inside the same precision) or to another type,
     /// and raw SQL (<see cref="MigrationBuilder.Sql"/>), which is not inspected and so is treated as data-losing.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="migration"/> is null.</exception>

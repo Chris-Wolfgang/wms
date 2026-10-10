@@ -26,7 +26,7 @@ Declarative: you name a target, never a direction; the tool states the direction
 | `wms-migrate --status` | applied and pending migrations, the version this build expects, whether the database is reachable (with the reason when not) and whether it is ahead of the build |
 | `wms-migrate --script [--from <m>] [--to <m>] [--output <file>]` | idempotent, provider-specific SQL for a DBA to review and run; needs **no** database connection and no connection string (only `--provider`); `--from` emits a delta; a downgrade script starts with a `-- Downgrade` header listing every data-losing step |
 | `--output <file>` | `--script` only; rejected without it |
-| `--confirm-data-loss` | required for a downgrade, applied or scripted, whose reverted migrations drop tables, columns, schemas or sequences, delete or update rows, narrow a column (smaller length, precision or scale, or another type), or run raw SQL (`MigrationBuilder.Sql`, which the tool does not inspect and so treats as data-losing) |
+| `--confirm-data-loss` | required for a downgrade, applied or scripted, whose reverted migrations drop tables, columns, schemas or sequences, delete or update rows, narrow a column (smaller length, precision or scale, fewer integral digits when the scale grows inside the same precision, or another type), or run raw SQL (`MigrationBuilder.Sql`, which the tool does not inspect and so treats as data-losing) |
 | `--provider`, `--connection-string`, `--trust-server-certificate` | override the configured `Wms:Database` values |
 
 Exit codes: `0` ok, `1` a migration failed (the output names it), `2` usage or configuration error (including a

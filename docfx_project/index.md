@@ -4,7 +4,8 @@ _layout: landing
 
 # Wolfgang.Wms Documentation
 
-Welcome to the Wolfgang.Wms documentation. This site contains comprehensive guides, API reference, and examples to help you get started.
+Wolfgang.Wms is a warehouse management system you install: a database, the API, the web console and the handheld
+app, starting with the picking module. These pages cover installing, configuring and operating it, and the API.
 
 ## Quick Links
 
@@ -14,18 +15,13 @@ Welcome to the Wolfgang.Wms documentation. This site contains comprehensive guid
 
 ## About Wolfgang.Wms
 
-Warehouse management system (Wolfgang.Wms): picking module
-
-## Installation
-
-```bash
-dotnet add package Wolfgang.Wms
-```
+An installed application, not a library: see [Getting Started](docs/getting-started.md) for the path from an empty
+database to a console you can open. The only NuGet package is `Wolfgang.Wms.Client`, the generated API client.
 
 ## Documentation Sections
 
-### 📖 [Documentation](docs/getting-started.md)
-Step-by-step guides and tutorials to help you use Wolfgang.Wms effectively.
+### 📖 [Documentation](docs/index.md)
+Operator pages: configuration, migrations, first-run order, the console, identifiers and the handheld version gate.
 
 ### 📚 [API Reference](api/index.md)
 Complete API documentation automatically generated from source code XML comments.

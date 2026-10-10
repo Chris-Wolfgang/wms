@@ -6,6 +6,7 @@ using Wolfgang.AuditTrail;
 using Wolfgang.Wms.Infrastructure.Database.Auditing;
 using Wolfgang.Wms.Infrastructure.Database.Conventions;
 using Wolfgang.Wms.Infrastructure.Database.Settings;
+using Wolfgang.Wms.Infrastructure.Identity;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -53,6 +54,13 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
 
 
 
+    /// <summary>
+    /// <c>core.user</c> (E9): console users.
+    /// </summary>
+    public DbSet<User> Users => Set<User>();
+
+
+
     /// <inheritdoc/>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -68,6 +76,7 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
 
         base.OnModelCreating(modelBuilder);   // E6.4: core.audit_header / core.audit_detail
         modelBuilder.ApplyConfiguration(new SettingConfiguration());   // E6.2
+        modelBuilder.ApplyConfiguration(new UserConfiguration());   // E9
         modelBuilder.Entity<DataProtectionKey>().ToTable("data_protection_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E8.6: library-owned, in wms like the migrations history
         modelBuilder.Entity<DataProtectionKey>().Property(k => k.FriendlyName).HasMaxLength(256);
         ModelConventions.Apply(modelBuilder, Database.ProviderName);

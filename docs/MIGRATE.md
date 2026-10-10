@@ -31,7 +31,9 @@ Declarative: you name a target, never a direction; the tool states the direction
 
 Exit codes: `0` ok, `1` a migration failed (the output names it), `2` usage or configuration error (including a
 malformed connection string), `3` the downgrade (applied or scripted) needs `--confirm-data-loss`, `4` nothing
-was applied because the database cannot be reached or its schema is newer than this build.
+was applied because the database cannot be reached, its schema is newer than this build, or its migrations
+history has a gap (a pending migration older than the last applied one: only a hand-edited or partially restored
+`wms.migrations_history` produces it; repair the table from the backup, the tool never guesses).
 
 ## Rules
 

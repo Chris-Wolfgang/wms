@@ -42,6 +42,16 @@ public sealed record MigrationStatus(bool Reachable, IReadOnlyList<string> Appli
 
 
     /// <summary>
+    /// Pending migrations older than <see cref="Current"/>: a history with a gap, which only a hand-edited or
+    /// partially restored history table produces. Empty for a consistent history (and when unreachable).
+    /// </summary>
+    public IReadOnlyList<string> Gaps => Current is null
+        ? []
+        : Pending.Where(id => string.CompareOrdinal(id, Current) < 0).ToList();
+
+
+
+    /// <summary>
     /// The last applied migration, or null.
     /// </summary>
     public string? Current => Applied.Count == 0 ? null : Applied[^1];

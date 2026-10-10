@@ -22,7 +22,8 @@ message; they pick a code, and the catalog of codes is generated from the defini
 | `204` | delete and body-less actions |
 | `400` | malformed request (bad cursor, both `after` and `before`, invalid key) |
 | `404` | not in the caller's site scope (hidden endpoints and flags too) |
-| `409` | concurrency: `If-Match` did not match `row_version` |
+| `412` | concurrency: `If-Match` did not match `row_version` (stale or weak tag); reload and retry |
+| `428` | concurrency: a change or delete without `If-Match`, or with the `*` wildcard |
 | `422` | `Idempotency-Key` reused with a different body |
 
 ## Idempotency

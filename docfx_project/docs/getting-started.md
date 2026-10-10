@@ -13,8 +13,8 @@ From an empty database to a console you can open. Each step links to the page th
 ## 1. Create the database and point the server at it
 
 Create an empty database. Then set `Wms:Database:Provider` (`SqlServer` or `PostgreSql`) and
-`Wms:Database:ConnectionString` in `appsettings.json` or the environment; the connection string may be stored
-encrypted. See [Configuration](configuration.md).
+`Wms:Database:ConnectionString`. Keep the connection string out of `appsettings.json`: set it as the environment
+variable `Wms__Database__ConnectionString` or through your secrets store. See [Configuration](configuration.md).
 
 ## 2. Apply the schema with `wms-migrate`
 

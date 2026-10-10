@@ -16,7 +16,8 @@ app, starting with the picking module. These pages cover installing, configuring
 ## About Wolfgang.Wms
 
 An installed application, not a library: see [Getting Started](docs/getting-started.md) for the path from an empty
-database to a console you can open. The only NuGet package is `Wolfgang.Wms.Client`, the generated API client.
+database to a console you can open. The package meant for others to reference is `Wolfgang.Wms.Client`, the
+generated API client.
 
 ## Documentation Sections
 

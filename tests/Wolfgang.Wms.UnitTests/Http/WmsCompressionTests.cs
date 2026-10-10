@@ -39,7 +39,7 @@ public sealed class WmsCompressionTests
         var ordinaryMode = await ModeSeenByTheEndpoint(ordinary, provider);
         var noFeatureMode = await ModeSeenByTheEndpoint(optedOut, provider, acceptsCompression: false);
 
-        Assert.Null(optedOutMode);   // Accept-Encoding was dropped, so the middleware never installed its feature
+        Assert.Null(optedOutMode);   // Accept-Encoding was dropped, so the middleware never installed its feature: the opt-out is the one guard
         Assert.Equal(HttpsCompressionMode.Default, ordinaryMode);
         Assert.Null(noFeatureMode);
     }

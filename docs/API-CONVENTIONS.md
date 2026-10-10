@@ -64,7 +64,8 @@ console drops the cursor and loads the first page of the new sort instead of rea
 Responses are compressed with Brotli (gzip fallback) for JSON, XML, problem details and text
 (`WmsCompression`), over TLS as well; the reverse proxy applies the ~1 KB threshold in production. Requests may
 be gzip- or Brotli-compressed (`Content-Encoding`), so devices and imports can shrink uploads. Authentication
-endpoints are marked `.DisableResponseCompression()` and are never compressed over TLS (BREACH). The file
+endpoints are marked `.DisableResponseCompression()` and are never compressed, on HTTP or HTTPS (BREACH: TLS
+ends at the reverse proxy in the documented deployments, so the scheme Kestrel sees proves nothing). The file
 connector can write `.gz` output, off by default.
 
 ## Content negotiation

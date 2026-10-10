@@ -3,7 +3,6 @@
 using System.IO.Compression;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
@@ -61,9 +60,8 @@ public static class WmsCompression
     /// <summary>
     /// Adds request decompression, the per-endpoint opt-out, and response compression. For a marked endpoint the
     /// opt-out drops the request's <c>Accept-Encoding</c> before the compression middleware looks at it, so the
-    /// middleware never engages, on HTTP or HTTPS; a second step inside the middleware also switches its
-    /// <see cref="IHttpsCompressionFeature"/> to <see cref="HttpsCompressionMode.DoNotCompress"/>, which is what the
-    /// framework consults for an HTTPS request. Call before endpoints.
+    /// middleware never engages, on HTTP or HTTPS (it returns before installing its compression feature, which
+    /// is why nothing downstream needs to switch that feature off). Call before endpoints.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="app"/> is null.</exception>
     public static IApplicationBuilder UseWmsCompression(this IApplicationBuilder app)
@@ -81,19 +79,6 @@ public static class WmsCompression
             return next(context);
         });
         app.UseResponseCompression();
-        app.Use(next => context =>
-        {
-            if (IsOptedOut(context))
-            {
-                var feature = context.Features.Get<IHttpsCompressionFeature>();
-                if (feature is not null)
-                {
-                    feature.Mode = HttpsCompressionMode.DoNotCompress;
-                }
-            }
-
-            return next(context);
-        });
         return app;
     }
 

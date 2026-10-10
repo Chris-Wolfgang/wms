@@ -94,7 +94,8 @@ public sealed class MigrationRunnerTests
         Assert.Contains(idempotentMarker, script, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(historyTable, script, StringComparison.Ordinal);
         Assert.Contains("_Initial", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("INSERT", delta, StringComparison.OrdinalIgnoreCase);   // Initial -> Initial applies nothing, so it writes no history row
+        Assert.Contains("INSERT INTO " + historyTable, script, StringComparison.OrdinalIgnoreCase);        // the upgrade records each migration it applies
+        Assert.DoesNotContain("INSERT INTO " + historyTable, delta, StringComparison.OrdinalIgnoreCase);   // Initial -> Initial applies nothing, so it writes no history row
         Assert.DoesNotContain("_Initial", delta, StringComparison.Ordinal);
     }
 

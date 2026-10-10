@@ -67,6 +67,7 @@ public sealed class MigrationRunnerTests
                 "narrow column picking.tote.code (max length 50 -> 20)",
                 "narrow column picking.tote.weight (precision 18 -> 9, scale 4 -> 2)",
                 "narrow column picking.tote.label (type nvarchar(max) -> int)",
+                "narrow column picking.tote.name (type inferred for String -> varchar(50))",
                 "raw SQL, not inspected: SELECT 1",
                 "raw SQL, not inspected: DELETE FROM picking.tote WHERE created < now() - interval '1 year'; TRUNCATE pic...",
             ],
@@ -477,6 +478,7 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<string>("code", "tote", maxLength: 20, schema: "picking", oldMaxLength: 50);
             migrationBuilder.AlterColumn<decimal>("weight", "tote", precision: 9, scale: 2, schema: "picking", oldPrecision: 18, oldScale: 4);
             migrationBuilder.AlterColumn<int>("label", "tote", type: "int", schema: "picking", oldClrType: typeof(string), oldType: "nvarchar(max)");
+            migrationBuilder.AlterColumn<string>("name", "tote", type: "varchar(50)", maxLength: 50, schema: "picking", oldMaxLength: 50);   // explicit store type where the old one was inferred (nvarchar -> varchar loses characters)
             migrationBuilder.Sql("SELECT 1");
             migrationBuilder.Sql("DELETE FROM picking.tote\r\n  WHERE created < now() - interval '1 year';\n\tTRUNCATE picking.container_history;");
         }

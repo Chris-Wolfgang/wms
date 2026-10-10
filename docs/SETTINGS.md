@@ -62,9 +62,28 @@ Invalid text is reported, never thrown: `key.Validate(text)` returns a reason (k
 validator) or null, and the registry's `Check(name, scope, text)` maps failures to the module's error codes:
 `settings.unknown_key` (404), `settings.scope_not_allowed` (400), `settings.invalid_value` (400).
 
+## Storage (E6.2)
+
+Values live in `core.setting`, one row per (scope type, scope id, key), on both engines through the normal
+migrations (`wms migrate`):
+
+| Column | Meaning |
+|--------|---------|
+| `scope_type`, `scope_id` | The `SettingScopeRef`: `organization` (id 0), `site`, `zone` or `sku` and the row id. |
+| `key` | The registered setting name. |
+| `configured_value` | What an administrator set at this scope as stored text; null when the scope inherits. |
+| `effective_value` | What applies at this scope after the cascade (E7.1); always present. |
+| `row_version` | The E6.2 "version": sequence-backed, reassigned by the trigger on every write; the concurrency token, the `ETag` and the device sync watermark. |
+| `updated_by`, `updated_at` | Who wrote the row last (a user id, or the service identity for a cascade) and when (UTC). |
+| `deleted_at` | Soft delete, so a reset reaches devices as a delta (E5.3). |
+
+The unique index `ux_setting_scope_type_scope_id_key` serves the accessor's lookup and enforces one row per
+scope and key. Nothing writes the table directly: the accessor (E6.3) validates against the registry, writes
+the row, recomputes descendants and audits the change.
+
 ## Scopes (E6.2, E7)
 
 A value lives at a `SettingScopeRef`: a scope type (`organization`, `site`, `zone`, `sku`) and the id of the
 site, zone or SKU (0 for the single organisation). Values cascade organisation → site → zone, or
 organisation → site → SKU for product policies; a child without its own configured value takes its parent's
-effective value. Storage and the cascade follow in E6.2 and E7.
+effective value. The cascade follows in E7.

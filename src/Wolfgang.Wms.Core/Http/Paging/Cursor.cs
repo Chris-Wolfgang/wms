@@ -11,7 +11,10 @@ namespace Wolfgang.Wms.Core.Http.Paging;
 /// URL-safe base64 so it can live in a shareable console URL; decoded only by the endpoint that issued it. A
 /// sort is one field in one direction, and the row id breaks ties in that same direction, so a position is the
 /// sorted field's <see cref="Value"/> and the row's <see cref="Id"/> (only the id when the sort is on
-/// <see cref="IdField"/> itself). The payload is <c>sort|value|id</c> or <c>sort|id</c>, never a page number. A
+/// <see cref="IdField"/> itself). The payload is <c>2|sort|id|value</c> or <c>2|sort|id</c>, never a page number;
+/// the value comes last and is read to the end, so a customer identifier containing <c>|</c> is carried as it is,
+/// and the leading <c>2</c> names the layout, so a cursor issued by the earlier <c>sort|value|id</c> layout (a saved
+/// URL, a client that outlived an upgrade) is refused instead of being reread with its id and value swapped. A
 /// cursor only means something in its own sort: <see cref="PageRequest.TryResolve"/> refuses it under another,
 /// so a grid re-sorted by the user starts again from the first page instead of reading a wrong one.
 /// </summary>
@@ -23,6 +26,8 @@ public readonly record struct Cursor
     public const string IdField = "id";
 
     private const char Separator = '|';
+
+    private const string Layout = "2";   // bump when the payload shape changes; TryParse refuses every other value
 
 
 
@@ -69,7 +74,7 @@ public readonly record struct Cursor
     /// row id as tiebreaker.
     /// </summary>
     /// <exception cref="ArgumentException">The sort is unset or is on <see cref="IdField"/>; the value is empty or
-    /// contains the separator or a control character; the id is negative.</exception>
+    /// contains a control character; the id is negative.</exception>
     public static Cursor For(SortOrder sort, string value, long id)
     {
         RequireSort(sort);
@@ -80,7 +85,7 @@ public readonly record struct Cursor
 
         if (!IsValue(value))
         {
-            throw new ArgumentException("A cursor value cannot be empty or contain '|' or control characters.", nameof(value));
+            throw new ArgumentException("A cursor value cannot be empty or contain control characters.", nameof(value));
         }
 
         RequireId(id);
@@ -108,9 +113,9 @@ public readonly record struct Cursor
 
 
     /// <summary>
-    /// Decodes a cursor received from a client; false when the text is not one this API issued: not base64url, an
-    /// invalid sort, the wrong number of segments for the sort, an empty or control-character value, or an id that
-    /// is not a non-negative integer.
+    /// Decodes a cursor received from a client; false when the text is not one this build issued: not base64url,
+    /// another layout (or none), an invalid sort, the wrong number of segments for the sort, an empty or
+    /// control-character value, or an id that is not a non-negative integer.
     /// </summary>
     public static bool TryParse(string? text, out Cursor cursor)
     {
@@ -120,15 +125,18 @@ public readonly record struct Cursor
             return false;
         }
 
-        var segments = Encoding.UTF8.GetString(Base64Url.DecodeFromChars(text)).Split(Separator);
-        if (!SortOrder.TryParse(segments[0], out var sort) || segments.Length != (IsIdSort(sort) ? 2 : 3))
+        var segments = Encoding.UTF8.GetString(Base64Url.DecodeFromChars(text)).Split(Separator, 4);
+        if (segments.Length < 3
+            || !string.Equals(segments[0], Layout, StringComparison.Ordinal)
+            || !SortOrder.TryParse(segments[1], out var sort)
+            || segments.Length != (IsIdSort(sort) ? 3 : 4))
         {
             return false;
         }
 
-        var value = segments.Length == 3 ? segments[1] : null;
+        var value = segments.Length == 4 ? segments[3] : null;
         if ((value is not null && !IsValue(value))
-            || !long.TryParse(segments[^1], NumberStyles.None, CultureInfo.InvariantCulture, out var id))
+            || !long.TryParse(segments[2], NumberStyles.None, CultureInfo.InvariantCulture, out var id))
         {
             return false;
         }
@@ -152,8 +160,8 @@ public readonly record struct Cursor
 
         var id = Id.ToString(CultureInfo.InvariantCulture);
         var payload = Value is null
-            ? $"{Sort}{Separator}{id}"
-            : $"{Sort}{Separator}{Value}{Separator}{id}";
+            ? $"{Layout}{Separator}{Sort}{Separator}{id}"
+            : $"{Layout}{Separator}{Sort}{Separator}{id}{Separator}{Value}";
         return Base64Url.EncodeToString(Encoding.UTF8.GetBytes(payload));
     }
 
@@ -176,9 +184,7 @@ public readonly record struct Cursor
 
     private static bool IsValue(string? value)
     {
-        return !string.IsNullOrEmpty(value)
-            && !value.Contains(Separator, StringComparison.Ordinal)
-            && !value.Any(char.IsControl);
+        return !string.IsNullOrEmpty(value) && !value.Any(char.IsControl);
     }
 
 

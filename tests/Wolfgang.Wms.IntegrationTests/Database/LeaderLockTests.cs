@@ -48,7 +48,10 @@ public sealed class LeaderLockTests
 
     private static async Task AssertLeaderLockAsync(string provider, string connectionString, bool trustServerCertificate)
     {
-        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
+        await using var app = await StartHostAsync(provider, runtime, trustServerCertificate);
         using var client = app.GetTestClient();
         var first = app.Services.GetRequiredService<ILeaderLock>();
         var second = new EfLeaderLock(app.Services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, NullLogger<EfLeaderLock>.Instance);
@@ -106,7 +109,6 @@ public sealed class LeaderLockTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsHealth();
         builder.Services.AddWmsDataProtection(builder.Configuration);

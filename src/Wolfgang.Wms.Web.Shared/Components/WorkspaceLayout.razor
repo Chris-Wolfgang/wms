@@ -21,8 +21,23 @@
         {
             <p class="scan-feedback" role="status">@L["layout.scan_unused", _unusedScan]</p>
         }
+        @if (_failedScan is not null)
+        {
+            <p class="scan-feedback" role="alert">@L["layout.scan_failed", _failedScan]</p>
+        }
         <CascadingValue Value="_scans" IsFixed="true">
-            @Body
+            <ErrorBoundary @ref="_boundary">
+                <ChildContent>
+                    @Body
+                </ChildContent>
+                <ErrorContent>
+                    <div class="workspace-error" role="alert">
+                        <h2>@L["layout.error.title"]</h2>
+                        <p>@L["layout.error.detail"]</p>
+                        <button type="button" @onclick="Retry">@L["layout.error.retry"]</button>
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
         </CascadingValue>
     }
     else if (_result == WorkspaceAccessResult.NotLicensed)
@@ -41,6 +56,8 @@
     private readonly ScanDispatcher _scans = new();
     private WorkspaceAccessResult? _result;
     private string? _unusedScan;
+    private string? _failedScan;
+    private ErrorBoundary? _boundary;
 
     /// <inheritdoc/>
     protected override async Task OnInitializedAsync()
@@ -49,9 +66,26 @@
     }
 
     // Every workspace takes tethered-scanner input here; the screen that registered with the cascading
-    // ScanDispatcher handles it, and a scan no screen takes is reported instead of silently dropped (E82.4).
+    // ScanDispatcher handles it, and a scan no screen takes is reported instead of silently dropped (E82.4). A
+    // screen whose handler throws is reported the same way: an exception leaving this handler would end the
+    // circuit, and with it the scanner, the screen and any form in progress.
     private async Task OnScanAsync(string scan)
     {
-        _unusedScan = await _scans.DispatchAsync(scan) ? null : scan;
+        _failedScan = null;
+        try
+        {
+            _unusedScan = await _scans.DispatchAsync(scan) ? null : scan;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _unusedScan = null;
+            _failedScan = scan;
+        }
+    }
+
+    // The screen that failed is rendered again; the chrome, the scanner and the other workspaces never went away.
+    private void Retry()
+    {
+        _boundary?.Recover();
     }
 }

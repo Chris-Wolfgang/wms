@@ -925,10 +925,14 @@ jobs:
         if: env.DOCKERHUB_USERNAME != ''
         shell: bash
         run: |
+          # The logout is an EXIT trap so a failed pull cannot leave the credential behind, and the pull output
+          # goes under TestResults so the rate-limit diagnostic at the end of the job sees a "toomanyrequests"
+          # that happens here, where it is now most likely.
+          trap 'docker logout' EXIT
+          mkdir -p TestResults
           for image in $DOCKERHUB_IMAGES; do
-            docker pull "$image"
+            docker pull "$image" 2>&1 | tee -a TestResults/docker-pull.log
           done
-          docker logout
 
       - name: Restore .NET workloads
         # Some projects (MAUI / MauiHybrid / Android / iOS / WPF) declare workloads via

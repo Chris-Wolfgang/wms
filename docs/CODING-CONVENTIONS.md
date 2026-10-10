@@ -101,6 +101,8 @@ restart or a device resync. Values are stored as invariant-culture text; a type 
 passes `SettingCodecs.Json(...)` built on the module's source-generated JSON context. Code reads and writes
 settings only through `ISettings` with the key (`Get(PickingSettings.LeaseTimeout, scope)`); the API's
 by-name endpoints are the one place a name string appears. Nothing writes `core.setting` directly.
+`appsettings` carries bootstrap keys only (`BootstrapConfiguration.RecognizedKeys`, docs/CONFIGURATION.md);
+a new bootstrap key is added to that list with its story, never read ad hoc from `IConfiguration`.
 
 ## Data access (E1.11, ADR 0002)
 

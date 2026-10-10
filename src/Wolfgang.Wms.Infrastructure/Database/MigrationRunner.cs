@@ -404,8 +404,10 @@ public sealed class MigrationRunner
         // narrowing, as an unbounded length does above. A known non-numeric old family is a type change instead.
         var oldPrecision = old.Precision ?? oldType.Precision;
         var newPrecision = alter.Precision ?? newType.Precision;
-        var oldScale = old.Scale ?? oldType.Scale;
-        var newScale = alter.Scale ?? newType.Scale;
+        // A decimal with a precision but no scale is decimal(p,0) on both providers, so an omitted scale beside a
+        // known precision is 0 here, as the parser already reads "decimal(18)"; other families have no scale.
+        var oldScale = old.Scale ?? oldType.Scale ?? (oldPrecision is not null && IsDecimalColumn(oldType, old.ClrType) ? 0 : (int?)null);
+        var newScale = alter.Scale ?? newType.Scale ?? (newPrecision is not null && IsDecimalColumn(newType, alter.ClrType) ? 0 : (int?)null);
         var inferredDecimal = alter.ColumnType is null && alter.ClrType == typeof(decimal);   // no store type written: the provider's default decimal, decimal(18,2) on SQL Server
         var facetlessDecimal = newType.Facetless && StoreType.IsDecimal(newType.Family!);
         if (newPrecision is null && (facetlessDecimal || inferredDecimal) && oldPrecision is { } droppedPrecision)
@@ -446,6 +448,13 @@ public sealed class MigrationRunner
         {
             reasons.Add("integral digits " + (fp - fs).ToString(CultureInfo.InvariantCulture) + " -> " + (p - s).ToString(CultureInfo.InvariantCulture));
         }
+    }
+
+
+
+    private static bool IsDecimalColumn(StoreType type, Type? clrType)
+    {
+        return type.Family is null ? clrType == typeof(decimal) : StoreType.IsDecimal(type.Family);
     }
 
 

@@ -86,6 +86,8 @@ public sealed class MigrationRunnerTests
                 "narrow column picking.tote.flags (precision 8 -> 1)",
                 "narrow column picking.tote.rounded (integral digits 5 -> 4)",
                 "narrow column picking.tote.blob (precision 8 -> provider default)",
+                "narrow column picking.tote.half (integral digits 18 -> 14)",
+                "narrow column picking.tote.whole (scale 4 -> 0)",
                 "raw SQL, not inspected: SELECT 1",
                 "raw SQL, not inspected: DELETE FROM picking.tote WHERE created < now() - interval '1 year'; TRUNCATE pic...",
             ],
@@ -515,6 +517,8 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<byte[]>("flags", "tote", type: "bit", schema: "picking", oldType: "bit(8)");   // PostgreSQL's bare bit is bit(1)
             migrationBuilder.AlterColumn<decimal>("rounded", "tote", type: "numeric(2,-2)", schema: "picking", oldType: "numeric(2,-3)");   // a negative scale: 5 integral digits become 4
             migrationBuilder.AlterColumn<byte[]>("blob", "tote", type: "geometry", schema: "picking", oldType: "geometry(8)");   // a family this code does not know: the default may be narrower, so confirm
+            migrationBuilder.AlterColumn<decimal>("half", "tote", precision: 18, scale: 4, schema: "picking", oldPrecision: 18);   // the old scale was omitted: decimal(18,0), so four integral digits go
+            migrationBuilder.AlterColumn<decimal>("whole", "tote", precision: 18, schema: "picking", oldPrecision: 18, oldScale: 4);   // the new scale is omitted: decimal(18,0), so the fraction goes
             migrationBuilder.Sql("SELECT 1");
             migrationBuilder.Sql("DELETE FROM picking.tote\r\n  WHERE created < now() - interval '1 year';\n\tTRUNCATE picking.container_history;");
         }
@@ -548,6 +552,7 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<DateTime>("stamp", "tote", type: "datetime2(7)", schema: "picking", oldType: "datetime2");   // the default written out: no change
             migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "timestamp with time zone", schema: "picking", oldType: "timestamp(6) with time zone");   // back to the default, which is 6: no change
             migrationBuilder.AlterColumn<byte[]>("flags", "tote", type: "bit(8)", schema: "picking", oldType: "bit");   // bit(1) -> bit(8) keeps every value
+            migrationBuilder.AlterColumn<decimal>("whole", "tote", precision: 18, scale: 0, schema: "picking", oldPrecision: 18);   // an omitted old scale is 0: writing it out changes nothing
             migrationBuilder.AlterColumn<decimal>("total", "tote", type: "numeric(18,4)", schema: "picking", oldType: "decimal(9,2)");   // numeric is decimal on both providers: a widening, not a conversion
         }
     }

@@ -1117,10 +1117,10 @@ jobs:
             echo "has-coverage=true" >> "$GITHUB_OUTPUT"
             echo "✅ Coverage files found"
           else
-            # Tests ran (the step above refuses to run with no test projects), so no cobertura file means
-            # the collector did not: a gate that cannot measure must fail, not skip (#915).
+            # Tests ran (the step above refuses to run with no test projects), so no cobertura file means the
+            # collector did not run or produced nothing: a gate that cannot measure must fail, not skip (#915).
             echo "has-coverage=false" >> "$GITHUB_OUTPUT"
-            echo "::error::No coverage files found under TestResults although tests ran - the coverage collector did not produce data, so the 90% gate cannot be enforced."
+            echo "::error::No coverage files found under TestResults although tests ran - the coverage collector did not produce data, so the coverage gate cannot be enforced."
             exit 1
           fi
 
@@ -1743,10 +1743,10 @@ jobs:
             echo "has-coverage=true" >> $env:GITHUB_OUTPUT
             Write-Host "✅ Coverage files found"
           } else {
-            # Tests ran, so no cobertura file means the collector did not: a gate that cannot measure must
-            # fail, not skip (#915).
+            # Tests ran, so no cobertura file means the collector did not run or produced nothing: a gate that
+            # cannot measure must fail, not skip (#915).
             echo "has-coverage=false" >> $env:GITHUB_OUTPUT
-            Write-Host "::error::No coverage files found under TestResults although tests ran - the coverage collector did not produce data, so the 90% gate cannot be enforced."
+            Write-Host "::error::No coverage files found under TestResults although tests ran - the coverage collector did not produce data, so the coverage gate cannot be enforced."
             exit 1
           }
         shell: pwsh

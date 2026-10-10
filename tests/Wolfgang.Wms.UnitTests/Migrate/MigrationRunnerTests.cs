@@ -62,6 +62,7 @@ public sealed class MigrationRunnerTests
                 "drop column picking.zone_group.name",
                 "drop schema layout",
                 "drop sequence wms.row_version_seq",
+                "restart sequence wms.row_version_seq at 1",
                 "delete rows from picking.tote",
                 "update rows in picking.tote",
                 "narrow column picking.tote.code (max length 50 -> 20)",
@@ -76,8 +77,9 @@ public sealed class MigrationRunnerTests
                 "narrow column picking.tote.memo (max length 50 -> provider default)",
                 "narrow column picking.tote.fee (precision 18 -> provider default)",
                 "narrow column picking.tote.total (precision 9 -> provider default)",
-                "narrow column picking.tote.seen (max length 6 -> 3)",
+                "narrow column picking.tote.seen (precision 6 -> 3)",
                 "narrow column picking.tote.state (type \"Order State\" -> \"OrderState\")",
+                "narrow column picking.tote.fee (precision 18 -> provider default)",
                 "raw SQL, not inspected: SELECT 1",
                 "raw SQL, not inspected: DELETE FROM picking.tote WHERE created < now() - interval '1 year'; TRUNCATE pic...",
             ],
@@ -483,6 +485,7 @@ public sealed class MigrationRunnerTests
             migrationBuilder.DropColumn("name", "zone_group", "picking");
             migrationBuilder.DropSchema("layout");
             migrationBuilder.DropSequence("row_version_seq", "wms");
+            migrationBuilder.RestartSequence("row_version_seq", startValue: 1L, schema: "wms");   // the current value is every client's sync watermark; a restart discards it
             migrationBuilder.DeleteData("tote", "id", 1L, "picking");
             migrationBuilder.UpdateData("tote", "id", 1L, "code", "T-1", "picking");
             migrationBuilder.AlterColumn<string>("code", "tote", maxLength: 20, schema: "picking", oldMaxLength: 50);
@@ -499,6 +502,7 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<decimal>("total", "tote", type: "numeric", schema: "picking", oldType: "numeric(9,2)");   // unbounded on PostgreSQL, numeric(18,0) on SQL Server: the provider decides, so confirm
             migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "timestamp(3) with time zone", schema: "picking", oldType: "timestamp(6) with time zone");   // the qualifier after the facet is part of the type; fewer fractional digits
             migrationBuilder.AlterColumn<string>("state", "tote", type: "\"OrderState\"", schema: "picking", oldType: "\"Order State\"");   // two user-defined types whose names differ by a space
+            migrationBuilder.AlterColumn<decimal>("fee", "tote", schema: "picking", oldPrecision: 18, oldScale: 4);   // no store type or facets written: the provider's default decimal, decimal(18,2) on SQL Server
             migrationBuilder.Sql("SELECT 1");
             migrationBuilder.Sql("DELETE FROM picking.tote\r\n  WHERE created < now() - interval '1 year';\n\tTRUNCATE picking.container_history;");
         }

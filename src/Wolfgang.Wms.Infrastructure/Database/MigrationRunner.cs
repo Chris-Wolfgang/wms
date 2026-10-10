@@ -418,12 +418,16 @@ public sealed class MigrationRunner
         {
             reasons.Add("precision unbounded -> " + precision.ToString(CultureInfo.InvariantCulture));
         }
-        else if (newPrecision is { } bounded && oldPrecision is null && oldType.Family is not null && oldType.Length is null && !oldType.Unbounded && string.Equals(oldType.Family, newType.Family, StringComparison.Ordinal))
+        else if (newPrecision is { } bounded && oldPrecision is null && oldType.Facetless && string.Equals(oldType.Family, newType.Family, StringComparison.Ordinal))
         {
-            // The same family written without its precision had the provider's default, which is the largest it
-            // offers (datetime2 is datetime2(7) on SQL Server, timestamp is timestamp(6) on PostgreSQL), so a bound
-            // written now is a narrowing.
+            // A family this code knows (datetime2, timestamp, float, bit...) carries its facetless default from
+            // the parser and is compared above; one it does not know is read conservatively: the provider's
+            // default may be wider than the bound written now, so the step needs confirmation.
             reasons.Add("precision provider default -> " + bounded.ToString(CultureInfo.InvariantCulture));
+        }
+        else if (newPrecision is null && newType.Facetless && !StoreType.IsDecimal(newType.Family!) && oldPrecision is { } fromBounded && string.Equals(oldType.Family, newType.Family, StringComparison.Ordinal))
+        {
+            reasons.Add("precision " + fromBounded.ToString(CultureInfo.InvariantCulture) + " -> provider default");
         }
         else if (newPrecision is { } precision2 && oldPrecision is { } fromPrecision && fromPrecision > precision2)
         {
@@ -453,8 +457,12 @@ public sealed class MigrationRunner
     /// <c>numeric</c> / <c>dec</c> read as <c>decimal</c>, and a qualifier after the facet (<c>timestamp(3) with
     /// time zone</c>) is part of it. A quoted or bracketed identifier (a user-defined type) is kept as written,
     /// since its case and spaces are the name. <see cref="Text"/> is the type as written, trimmed.
-    /// <see cref="Facetless"/> marks a length or decimal family written without its facets (the provider's
-    /// default applies), <see cref="Unbounded"/> an explicit <c>max</c>.
+    /// A family whose facetless default is known (<see cref="DefaultPrecision"/>: <c>datetime2</c> is
+    /// <c>datetime2(7)</c>, <c>timestamp</c> is <c>timestamp(6)</c>, <c>float</c> is <c>float(53)</c>, <c>bit</c> is
+    /// <c>bit(1)</c>) reads as that bound, so <c>datetime2 -> datetime2(7)</c> is no change and <c>bit(8) -> bit</c>
+    /// a narrowing. <see cref="Facetless"/> marks a length, decimal or unknown facet-bearing family written without
+    /// its facets (the provider's default applies and is not known here), <see cref="Unbounded"/> an explicit
+    /// <c>max</c>.
     /// </summary>
     private sealed record StoreType(string? Text, string? Family, int? Length, int? Precision, int? Scale, bool Facetless = false, bool Unbounded = false)
     {
@@ -468,6 +476,22 @@ public sealed class MigrationRunner
         public static bool IsLengthFamily(string family)
         {
             return family is "char" or "nchar" or "varchar" or "nvarchar" or "binary" or "varbinary" or "character" or "charactervarying" or "bpchar";
+        }
+
+        /// <summary>
+        /// The precision a family has when written without one, where the providers agree or the larger of the two
+        /// (SQL Server <c>time</c> is 7, PostgreSQL <c>time</c> 6: 7 keeps the SQL Server narrowing visible).
+        /// </summary>
+        public static int? DefaultPrecision(string family)
+        {
+            return family switch
+            {
+                "datetime2" or "datetimeoffset" or "time" => 7,
+                "timestamp" or "timestampwithtimezone" or "timestampwithouttimezone" or "timestamptz" or "timewithtimezone" or "timewithouttimezone" or "timetz" or "interval" => 6,
+                "float" or "doubleprecision" => 53,
+                "bit" => 1,
+                _ => null,
+            };
         }
 
         public static StoreType Parse(string? columnType)
@@ -495,9 +519,15 @@ public sealed class MigrationRunner
             var facets = match.Success && match.Groups["facets"].Success
                 ? match.Groups["facets"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
                 : [];
-            var numbers = facets.Select(facet => int.TryParse(facet, NumberStyles.None, CultureInfo.InvariantCulture, out var number) ? number : (int?)null).ToArray();
-            var facetless = facets.Length == 0 && (IsDecimal(family) || IsLengthFamily(family));
+            // A leading sign is allowed: PostgreSQL numeric takes a negative scale (numeric(2,-3) rounds to thousands).
+            var numbers = facets.Select(facet => int.TryParse(facet, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var number) ? number : (int?)null).ToArray();
             var unbounded = facets is [var only] && string.Equals(only, "max", StringComparison.OrdinalIgnoreCase);
+            if (facets.Length == 0 && DefaultPrecision(family) is { } defaultPrecision)
+            {
+                return new StoreType(text, family, Length: null, Precision: defaultPrecision, Scale: null);
+            }
+
+            var facetless = facets.Length == 0 && !unbounded && family is not ("int" or "bigint" or "smallint" or "tinyint" or "boolean" or "bool" or "uuid" or "uniqueidentifier" or "date" or "text" or "ntext" or "image" or "money" or "smallmoney" or "real" or "float4" or "float8" or "xml" or "json" or "jsonb" or "bytea" or "datetime" or "smalldatetime" or "rowversion" or "timestamp" or "serial" or "bigserial");
             return numbers switch
             {
                 [{ } one] when IsDecimal(family) => new StoreType(text, family, Length: null, Precision: one, Scale: 0),

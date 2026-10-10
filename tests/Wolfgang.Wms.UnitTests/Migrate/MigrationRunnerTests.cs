@@ -80,9 +80,12 @@ public sealed class MigrationRunnerTests
                 "narrow column picking.tote.seen (precision 6 -> 3)",
                 "narrow column picking.tote.state (type \"Order State\" -> \"OrderState\")",
                 "narrow column picking.tote.fee (precision 18 -> provider default)",
-                "narrow column picking.tote.stamp (precision provider default -> 3)",
-                "narrow column picking.tote.seen (precision provider default -> 3)",
+                "narrow column picking.tote.stamp (precision 7 -> 3)",
+                "narrow column picking.tote.seen (precision 6 -> 3)",
                 "narrow column picking.tote.state (type \"Order(TypeA)\" -> \"Order(TypeB)\")",
+                "narrow column picking.tote.flags (precision 8 -> 1)",
+                "narrow column picking.tote.rounded (integral digits 5 -> 4)",
+                "narrow column picking.tote.blob (precision 8 -> provider default)",
                 "raw SQL, not inspected: SELECT 1",
                 "raw SQL, not inspected: DELETE FROM picking.tote WHERE created < now() - interval '1 year'; TRUNCATE pic...",
             ],
@@ -509,6 +512,9 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<DateTime>("stamp", "tote", type: "datetime2(3)", schema: "picking", oldType: "datetime2");   // SQL Server's bare datetime2 is datetime2(7)
             migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "timestamp(3) with time zone", schema: "picking", oldType: "timestamp with time zone");   // PostgreSQL's bare timestamp is timestamp(6)
             migrationBuilder.AlterColumn<string>("state", "tote", type: "\"Order(TypeB)\"", schema: "picking", oldType: "\"Order(TypeA)\"");   // parentheses inside a quoted name are the name, not facets
+            migrationBuilder.AlterColumn<byte[]>("flags", "tote", type: "bit", schema: "picking", oldType: "bit(8)");   // PostgreSQL's bare bit is bit(1)
+            migrationBuilder.AlterColumn<decimal>("rounded", "tote", type: "numeric(2,-2)", schema: "picking", oldType: "numeric(2,-3)");   // a negative scale: 5 integral digits become 4
+            migrationBuilder.AlterColumn<byte[]>("blob", "tote", type: "geometry", schema: "picking", oldType: "geometry(8)");   // a family this code does not know: the default may be narrower, so confirm
             migrationBuilder.Sql("SELECT 1");
             migrationBuilder.Sql("DELETE FROM picking.tote\r\n  WHERE created < now() - interval '1 year';\n\tTRUNCATE picking.container_history;");
         }
@@ -539,6 +545,9 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "TIMESTAMP(3) WITH TIME ZONE", schema: "picking", oldType: "timestamp(3) with time zone");   // keyword case is formatting
             migrationBuilder.AlterColumn<string>("state", "tote", type: "\"OrderState\"", schema: "picking", oldType: "\"OrderState\"");   // the same user-defined type
             migrationBuilder.AlterColumn<string>("state", "tote", type: "\"Order(TypeA)\"", schema: "picking", oldType: "\"Order(TypeA)\"");   // the same user-defined type, parentheses and all
+            migrationBuilder.AlterColumn<DateTime>("stamp", "tote", type: "datetime2(7)", schema: "picking", oldType: "datetime2");   // the default written out: no change
+            migrationBuilder.AlterColumn<DateTimeOffset>("seen", "tote", type: "timestamp with time zone", schema: "picking", oldType: "timestamp(6) with time zone");   // back to the default, which is 6: no change
+            migrationBuilder.AlterColumn<byte[]>("flags", "tote", type: "bit(8)", schema: "picking", oldType: "bit");   // bit(1) -> bit(8) keeps every value
             migrationBuilder.AlterColumn<decimal>("total", "tote", type: "numeric(18,4)", schema: "picking", oldType: "decimal(9,2)");   // numeric is decimal on both providers: a widening, not a conversion
         }
     }

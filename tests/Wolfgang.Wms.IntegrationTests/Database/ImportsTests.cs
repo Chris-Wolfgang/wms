@@ -69,8 +69,11 @@ public sealed class ImportsTests
 
     private static async Task AssertImportsAsync(string provider, string connectionString, bool trustServerCertificate)
     {
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
         var groups = new FakeOpenZoneGroups();
-        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate, groups);
+        await using var app = await StartHostAsync(provider, runtime, trustServerCertificate, groups);
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));
         var site = await CreateSiteAsync(client, "DC1");
@@ -311,7 +314,6 @@ public sealed class ImportsTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();
         builder.Services.AddWmsProblemDetails();

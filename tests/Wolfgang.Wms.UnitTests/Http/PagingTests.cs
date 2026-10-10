@@ -29,10 +29,24 @@ public sealed class PagingTests
         Assert.Equal(42, back.Id);
         Assert.False(back.IsEmpty);
         Assert.Equal(encoded, cursor.ToString());
-        Assert.Equal("-created_at|2026-09-19T12:00:00Z|42", Decode(encoded));
+        Assert.Equal("-created_at|42|2026-09-19T12:00:00Z", Decode(encoded));
         Assert.DoesNotContain('+', encoded);
         Assert.DoesNotContain('/', encoded);
         Assert.DoesNotContain('=', encoded);
+    }
+
+
+
+    [Fact]
+    public void Cursor_carries_a_value_that_contains_the_separator_because_the_value_is_read_last()
+    {
+        var cursor = Cursor.For(SortOrder.Ascending("sku_code"), "A|B|C", 7);
+
+        Assert.True(Cursor.TryParse(cursor.Encode(), out var back));
+        Assert.Equal(cursor, back);
+        Assert.Equal("A|B|C", back.Value);
+        Assert.Equal(7, back.Id);
+        Assert.Equal("sku_code|7|A|B|C", Decode(cursor.Encode()));
     }
 
 
@@ -82,9 +96,10 @@ public sealed class PagingTests
     [InlineData("created_at|42")]
     [InlineData("created_at|v|w|42")]
     [InlineData("created_at||42")]
-    [InlineData("created_at|v\u0001|42")]
+    [InlineData("created_at|42|v\u0001")]
+    [InlineData("created_at|42|")]
     [InlineData("created_at|v|")]
-    [InlineData("created_at|v|9223372036854775808")]
+    [InlineData("created_at|9223372036854775808|v")]
     public void Cursor_TryParse_rejects_a_payload_whose_shape_does_not_match_its_sort(string payload)
     {
         Assert.False(Cursor.TryParse(Encode(payload), out _));
@@ -101,7 +116,6 @@ public sealed class PagingTests
         Assert.Equal("sort", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, 1)).ParamName);
         Assert.Equal("value", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, null!, 1)).ParamName);
         Assert.Equal("value", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, string.Empty, 1)).ParamName);
-        Assert.Equal("value", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, "a|b", 1)).ParamName);
         Assert.Equal("value", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, "a\u0001", 1)).ParamName);
         Assert.Equal("id", Assert.Throws<ArgumentException>(() => Cursor.For(NewestFirst, "v", -1)).ParamName);
         Assert.Equal("id", Assert.Throws<ArgumentException>(() => Cursor.For(ById, -1)).ParamName);

@@ -11,7 +11,8 @@ namespace Wolfgang.Wms.Core.Http.Paging;
 /// URL-safe base64 so it can live in a shareable console URL; decoded only by the endpoint that issued it. A
 /// sort is one field in one direction, and the row id breaks ties in that same direction, so a position is the
 /// sorted field's <see cref="Value"/> and the row's <see cref="Id"/> (only the id when the sort is on
-/// <see cref="IdField"/> itself). The payload is <c>sort|value|id</c> or <c>sort|id</c>, never a page number. A
+/// <see cref="IdField"/> itself). The payload is <c>sort|id|value</c> or <c>sort|id</c>, never a page number; the
+/// value comes last and is read to the end, so a customer identifier containing <c>|</c> is carried as it is. A
 /// cursor only means something in its own sort: <see cref="PageRequest.TryResolve"/> refuses it under another,
 /// so a grid re-sorted by the user starts again from the first page instead of reading a wrong one.
 /// </summary>
@@ -69,7 +70,7 @@ public readonly record struct Cursor
     /// row id as tiebreaker.
     /// </summary>
     /// <exception cref="ArgumentException">The sort is unset or is on <see cref="IdField"/>; the value is empty or
-    /// contains the separator or a control character; the id is negative.</exception>
+    /// contains a control character; the id is negative.</exception>
     public static Cursor For(SortOrder sort, string value, long id)
     {
         RequireSort(sort);
@@ -80,7 +81,7 @@ public readonly record struct Cursor
 
         if (!IsValue(value))
         {
-            throw new ArgumentException("A cursor value cannot be empty or contain '|' or control characters.", nameof(value));
+            throw new ArgumentException("A cursor value cannot be empty or contain control characters.", nameof(value));
         }
 
         RequireId(id);
@@ -120,15 +121,15 @@ public readonly record struct Cursor
             return false;
         }
 
-        var segments = Encoding.UTF8.GetString(Base64Url.DecodeFromChars(text)).Split(Separator);
+        var segments = Encoding.UTF8.GetString(Base64Url.DecodeFromChars(text)).Split(Separator, 3);
         if (!SortOrder.TryParse(segments[0], out var sort) || segments.Length != (IsIdSort(sort) ? 2 : 3))
         {
             return false;
         }
 
-        var value = segments.Length == 3 ? segments[1] : null;
+        var value = segments.Length == 3 ? segments[2] : null;
         if ((value is not null && !IsValue(value))
-            || !long.TryParse(segments[^1], NumberStyles.None, CultureInfo.InvariantCulture, out var id))
+            || !long.TryParse(segments[1], NumberStyles.None, CultureInfo.InvariantCulture, out var id))
         {
             return false;
         }
@@ -153,7 +154,7 @@ public readonly record struct Cursor
         var id = Id.ToString(CultureInfo.InvariantCulture);
         var payload = Value is null
             ? $"{Sort}{Separator}{id}"
-            : $"{Sort}{Separator}{Value}{Separator}{id}";
+            : $"{Sort}{Separator}{id}{Separator}{Value}";
         return Base64Url.EncodeToString(Encoding.UTF8.GetBytes(payload));
     }
 
@@ -176,9 +177,7 @@ public readonly record struct Cursor
 
     private static bool IsValue(string? value)
     {
-        return !string.IsNullOrEmpty(value)
-            && !value.Contains(Separator, StringComparison.Ordinal)
-            && !value.Any(char.IsControl);
+        return !string.IsNullOrEmpty(value) && !value.Any(char.IsControl);
     }
 
 

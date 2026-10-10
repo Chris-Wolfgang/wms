@@ -453,6 +453,14 @@ jobs:
         document: [v0]
     env:
       DOCUMENT: ${{ matrix.document }}
+      # The oasdiff CLI, from the project's GitHub release: the oasdiff-action steps are Docker container
+      # actions whose image comes from Docker Hub and is built before any step runs, so neither a login nor a
+      # pre-pull can authenticate that pull (#842). The CLI is downloaded over HTTPS from GitHub and its SHA-256
+      # checked against the pinned value below, which is the linux_amd64 line of the release's checksums.txt
+      # (fetching that file over the same channel would add nothing). Bump both together; v1.33.0 is the version
+      # the action pins.
+      OASDIFF_VERSION: 1.33.0
+      OASDIFF_SHA256: 43a4e328e2d13ba1552d760aa68d2485c75c5621f309f6ff64ae895188345247
     steps:
       - name: Checkout PR head (docs/api only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -489,42 +497,93 @@ jobs:
           echo "frozen=$frozen" >> "$GITHUB_OUTPUT"
           echo "$DOCUMENT: $state (frozen: $frozen)"
 
+      - name: Install oasdiff
+        # After the classification, and only for a changed document, so a download or checksum failure
+        # can never leave the comment step below reporting a comparison that did not happen.
+        id: install
+        if: steps.classify.outputs.state == 'changed'
+        shell: bash
+        run: |
+          archive="oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL --retry 3 -o "$RUNNER_TEMP/$archive" "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/$archive"
+          echo "$OASDIFF_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/oasdiff"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/oasdiff" oasdiff
+          # Called by its path below rather than added to GITHUB_PATH (zizmor github-env: a PATH edit in a
+          # pull_request_target job is a code-execution vector, however trusted this one is).
+          "$RUNNER_TEMP/oasdiff/oasdiff" --version
+
       - name: Breaking changes (fails only for a frozen version)
         id: breaking
         if: steps.classify.outputs.state == 'changed'
-        uses: oasdiff/oasdiff-action/breaking@b9325c9e0a27ab65b0da3b766522cedec6be81dc  # v0.1.18
-        with:
-          base: base/docs/api/openapi-${{ matrix.document }}.json
-          revision: pr/docs/api/openapi-${{ matrix.document }}.json
-          fail-on: ${{ steps.classify.outputs.frozen == 'true' && 'ERR' || '' }}
-          review: false
+        shell: bash
+        env:
+          FROZEN: ${{ steps.classify.outputs.frozen }}
+        run: |
+          base="base/docs/api/openapi-$DOCUMENT.json"
+          revision="pr/docs/api/openapi-$DOCUMENT.json"
+          # Same two calls as the oasdiff-action entrypoint: annotations for every breaking change (never
+          # fails), then the gate, which fails a frozen document on an ERR-level change. The CLI follows
+          # external $refs by default; the action switched that off, and so does every call here, because the
+          # revision is the PR's document (an external $ref would make the runner fetch a URL or file of the
+          # PR author's choosing). oasdiff needs the "=false" form for a false boolean.
+          # Exit 1 means breaking changes were found (annotated above, gated below for a frozen document); anything
+          # higher is a load, parse or internal error, and the comparison did not happen: fail here, so the
+          # comment step reports an incomplete comparison instead of a clean one.
+          # "completed" tells the comment step apart: a failed gate (exit 1 below) is a result, an oasdiff
+          # error is not, and both end this step with the failure outcome.
+          echo "completed=false" >> "$GITHUB_OUTPUT"
+          rc=0
+          "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --format githubactions --allow-external-refs=false || rc=$?
+          if [ "$rc" -ge 2 ]; then
+            echo "::error::oasdiff breaking failed with exit code $rc"
+            exit "$rc"
+          fi
+          echo "completed=true" >> "$GITHUB_OUTPUT"
+          if [ "$FROZEN" = true ]; then
+            "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --fail-on ERR --allow-external-refs=false
+          fi
 
       - name: Changelog
-        if: steps.classify.outputs.state == 'changed'
-        uses: oasdiff/oasdiff-action/changelog@b9325c9e0a27ab65b0da3b766522cedec6be81dc  # v0.1.18
-        with:
-          base: base/docs/api/openapi-${{ matrix.document }}.json
-          revision: pr/docs/api/openapi-${{ matrix.document }}.json
-          output-to-file: changelog.md
+        # Runs after a failed breaking-changes gate too (the comment should still show what changed), but not
+        # without the binary; the comment step reads this step's outcome. Unlike the replaced action's changelog
+        # step (review: true by default), this uploads nothing to oasdiff.com and posts no review link: the
+        # changelog below is the whole result, and no spec leaves CI.
+        id: changelog
+        if: "!cancelled() && steps.classify.outputs.state == 'changed' && steps.install.outcome == 'success'"
+        shell: bash
+        run: |
+          "$RUNNER_TEMP/oasdiff/oasdiff" changelog "base/docs/api/openapi-$DOCUMENT.json" "pr/docs/api/openapi-$DOCUMENT.json" --allow-external-refs=false > changelog.md
 
       - name: Post or update the PR comment
-        if: always() && steps.classify.outputs.state != 'unchanged' && steps.classify.outputs.state != 'absent'
+        if: always() && (steps.classify.outputs.state == 'changed' || steps.classify.outputs.state == 'new')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           STATE: ${{ steps.classify.outputs.state }}
           FROZEN: ${{ steps.classify.outputs.frozen }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
           BREAKING_OUTCOME: ${{ steps.breaking.outcome }}
+          BREAKING_COMPLETED: ${{ steps.breaking.outputs.completed }}
+          CHANGELOG_OUTCOME: ${{ steps.changelog.outcome }}
         run: |
           marker="<!-- openapi-diff: $DOCUMENT -->"
           {
             echo "$marker"
             echo "### OpenAPI \`$DOCUMENT\` — $STATE$( [ "$FROZEN" = true ] && echo ' (frozen: breaking changes fail this PR)' || echo ' (unstable: breaking changes allowed with a breaking-type changelog fragment)' )"
             echo
+            # A comparison that did not complete is said so, never shown as a clean result: a failed download
+            # or changelog leaves changelog.md absent, which must not read as "no changes".
             if [ "$STATE" = new ]; then
               echo "New document; nothing to compare against on the base branch."
+            elif [ "$INSTALL_OUTCOME" != success ] || [ "$BREAKING_COMPLETED" != true ] || [ "$CHANGELOG_OUTCOME" != success ]; then
+              echo "**The comparison did not complete** (install oasdiff: $INSTALL_OUTCOME, breaking-changes analysis completed: ${BREAKING_COMPLETED:-false}, gate: $BREAKING_OUTCOME, changelog: $CHANGELOG_OUTCOME); see the job log. An earlier result in this comment no longer applies."
             elif [ -s changelog.md ]; then
+              if [ "$BREAKING_OUTCOME" = failure ]; then
+                echo "**Breaking changes in a frozen document; this PR fails.**"
+                echo
+              fi
               cat changelog.md
             else
               echo "No API-level changes (formatting or description only)."
@@ -755,6 +814,19 @@ jobs:
   test-linux-core: 
     name: "Stage 1: Linux Tests (.NET 5.0-10.0) + Coverage Gate"
     runs-on:  ubuntu-latest
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      # True only when both secrets are set: a username without its token would start a login that fails, and
+      # the pulls would not be authenticated. The token itself never enters the environment.
+      DOCKERHUB_AUTH: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+      # The Docker Hub images the tests pull, pre-pulled while the login is active (see the step). Add one when a
+      # test starts using another Docker Hub image; MCR (SQL Server) and quay.io (Keycloak) images are not
+      # subject to Docker Hub's limit and are not listed.
+      DOCKERHUB_IMAGES: postgres:16
+      # Testcontainers starts a Ryuk reaper container (testcontainers/ryuk, from Docker Hub) beside every test
+      # engine to clean up after a crashed test host. An ephemeral runner is thrown away anyway, so the pull is
+      # one more Docker Hub request per job for nothing; it took the SQL Server tool test down with it (#842).
+      TESTCONTAINERS_RYUK_DISABLED: 'true'
     needs: detect-projects
     if: github.repository != 'Chris-Wolfgang/repo-template' && needs.detect-projects.outputs.has-projects == 'true'
     
@@ -852,6 +924,35 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
         with:
           dotnet-version: 10.0.x
+
+      - name: Log in to Docker Hub (authenticated pulls)
+        # Docker Hub's unauthenticated pull limit is shared by the runner's egress address and fails the
+        # PostgreSQL container tests at random (#842). With a read-only access token the pulls count against
+        # the account instead. Skipped when the secret is absent (the template). Under pull_request_target the
+        # secret is present for a fork's PR as well, and that is fine: the credential only pulls the images this
+        # workflow names (a fork cannot edit this file, the base branch's copy runs) and is logged out in the
+        # next step, before any pull-request code runs.
+        if: env.DOCKERHUB_AUTH == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull the Docker Hub images the tests use, then log out
+        # The login must not outlive this step: everything after it (restore, build, tests) runs code from the
+        # pull request, which could read a stored credential. The images go into the runner's cache here, so
+        # Testcontainers finds them without touching Docker Hub later.
+        if: env.DOCKERHUB_AUTH == 'true'
+        shell: bash
+        run: |
+          # The logout is an EXIT trap so a failed pull cannot leave the credential behind, and the pull output
+          # goes under TestResults so the rate-limit diagnostic at the end of the job sees a "toomanyrequests"
+          # that happens here, where it is now most likely.
+          trap 'docker logout' EXIT
+          mkdir -p TestResults
+          for image in $DOCKERHUB_IMAGES; do
+            docker pull "$image" 2>&1 | tee -a TestResults/docker-pull.log
+          done
 
       - name: Restore .NET workloads
         # Some projects (MAUI / MauiHybrid / Android / iOS / WPF) declare workloads via
@@ -1092,7 +1193,11 @@ jobs:
               # ..."), which is how ETL-FixedWidth ran zero tests on two TFMs for
               # weeks with a green CI. Fail the TFM unless the summary reports a
               # non-zero total (vstest prints "Total: N" at minimal and "Total tests: N" at normal verbosity, MTP prints "total: N").
-              test_log=$(mktemp)
+              # Written under TestResults, kept when the run fails (removed below when it passes), so the
+              # rate-limit diagnostic at the end of the job can read what dotnet test printed; the console
+              # logger is the only one, so nothing else records the failure.
+              mkdir -p TestResults
+              test_log="TestResults/console-$(basename "$test_proj" .csproj)-$fw.log"
               dotnet test "$test_proj" \
                 --configuration Release \
                 --framework "$fw" \
@@ -1109,6 +1214,43 @@ jobs:
             done <<< "$frameworks"
             echo ""
           done
+
+      - name: Docker Hub rate-limit diagnostic (#842)
+        # A pull that Docker Hub refused with "toomanyrequests" fails a container test like a product failure
+        # would. When that is what happened, say so in the summary, so nobody debugs the product for it.
+        if: failure()
+        shell: bash
+        run: |
+          # grep exits 1 when nothing matches, which under the shell's pipefail would end the step before the
+          # else branch; the no-match status is the expected case here.
+          # Only Docker Hub's own wording ("toomanyrequests: You have reached your ... pull rate limit"): a bare
+          # 429 would also match a product test that received one from the API under test.
+          # Where the message sits says which pull was refused: docker-pull.log is the authenticated pre-pull
+          # (when the secrets exist); anything else is a pull Testcontainers made during the tests, which is
+          # always anonymous, because the credential is logged out before any pull-request code runs.
+          prepull=$( (grep -lE "toomanyrequests|pull rate limit" TestResults/docker-pull.log 2>/dev/null || true) | wc -l)
+          tests=$( (grep -rlE --exclude=docker-pull.log "toomanyrequests|pull rate limit" TestResults 2>/dev/null || true) | wc -l)
+          hits=$((prepull + tests))
+          if [ "$hits" -gt 0 ]; then
+            remedy=""
+            if [ "$prepull" -gt 0 ]; then
+              remedy="The authenticated pre-pull (as $DOCKERHUB_USERNAME) was refused, so that account's pull quota is exhausted: re-run the job later, or raise the quota."
+            fi
+            if [ "$tests" -gt 0 ] && [ "$DOCKERHUB_AUTH" = true ]; then
+              remedy="$remedy A pull made during the tests was refused; those pulls are anonymous, so the image is one the pre-pull did not cache: add it to DOCKERHUB_IMAGES in pr.yaml."
+            elif [ "$tests" -gt 0 ]; then
+              remedy="$remedy A pull made during the tests was refused under the limit Docker Hub shares across the runner's egress address: re-run the job, or add the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets so the pre-pull caches the images first."
+            fi
+            remedy="${remedy# }"
+            echo "::warning::Docker Hub pull rate limit hit in $hits file(s) under TestResults: an infrastructure failure, not a product one (#842). $remedy"
+            {
+              echo "### Docker Hub pull rate limit (#842)"
+              echo ""
+              echo "$hits file(s) under \`TestResults\` carry \`toomanyrequests\`: the failure is Docker Hub's pull limit, not the product. $remedy"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No Docker Hub rate-limit message in TestResults."
+          fi
 
       - name: Check for coverage files
         id: check-coverage

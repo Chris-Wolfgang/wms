@@ -70,6 +70,9 @@ public sealed class MigrationRunnerTests
                 "narrow column picking.tote.name (type inferred for String -> varchar(50))",
                 "narrow column picking.tote.amount (integral digits 16 -> 14)",
                 "narrow column picking.tote.remark (max length unbounded -> 20)",
+                "narrow column picking.tote.price (precision unbounded -> 9)",
+                "narrow column picking.tote.title (unicode -> non-unicode)",
+                "narrow column picking.tote.total (integral digits 18 -> 14)",
                 "raw SQL, not inspected: SELECT 1",
                 "raw SQL, not inspected: DELETE FROM picking.tote WHERE created < now() - interval '1 year'; TRUNCATE pic...",
             ],
@@ -483,6 +486,9 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<string>("name", "tote", type: "varchar(50)", maxLength: 50, schema: "picking", oldMaxLength: 50);   // explicit store type where the old one was inferred (nvarchar -> varchar loses characters)
             migrationBuilder.AlterColumn<decimal>("amount", "tote", type: "decimal(18,4)", schema: "picking", oldType: "decimal(18,2)");   // same precision, more scale: two integral digits fewer
             migrationBuilder.AlterColumn<string>("remark", "tote", type: "nvarchar(20)", schema: "picking", oldType: "nvarchar(max)");   // facets in the store type only, as EF scaffolds them
+            migrationBuilder.AlterColumn<decimal>("price", "tote", type: "numeric(9,2)", schema: "picking", oldType: "numeric");   // PostgreSQL unbounded numeric bounded to 9 digits
+            migrationBuilder.AlterColumn<string>("title", "tote", unicode: false, schema: "picking", oldUnicode: true);   // nvarchar -> varchar with no store type written
+            migrationBuilder.AlterColumn<decimal>("total", "tote", type: "decimal(18,4)", schema: "picking", oldType: "decimal(18)");   // decimal(18) is precision 18, scale 0: four integral digits fewer
             migrationBuilder.Sql("SELECT 1");
             migrationBuilder.Sql("DELETE FROM picking.tote\r\n  WHERE created < now() - interval '1 year';\n\tTRUNCATE picking.container_history;");
         }
@@ -505,6 +511,9 @@ public sealed class MigrationRunnerTests
             migrationBuilder.AlterColumn<decimal>("weight", "tote", type: "decimal(9, 3)", schema: "picking", oldType: "decimal(9,3)");   // same store type, different spacing
             migrationBuilder.AlterColumn<string>("name", "tote", type: "nvarchar(100)", schema: "picking", oldType: "nvarchar(50)");   // typed widening, as EF scaffolds it
             migrationBuilder.AlterColumn<decimal>("weight", "tote", type: "decimal(18,4)", schema: "picking", oldType: "decimal(9,2)");   // typed widening: precision, scale and integral digits all grow
+            migrationBuilder.AlterColumn<string>("title", "tote", unicode: true, schema: "picking", oldUnicode: false);   // varchar -> nvarchar keeps every character
+            migrationBuilder.AlterColumn<decimal>("total", "tote", type: "decimal(18,4)", schema: "picking", oldType: "decimal(9)");   // decimal(9) is 9 integral digits; decimal(18,4) keeps 14
+            migrationBuilder.AlterColumn<decimal>("total", "tote", type: "numeric", schema: "picking", oldType: "numeric(9,2)");   // unbounding keeps every value
         }
     }
 }

@@ -530,12 +530,16 @@ jobs:
           # Exit 1 means breaking changes were found (annotated above, gated below for a frozen document); anything
           # higher is a load, parse or internal error, and the comparison did not happen: fail here, so the
           # comment step reports an incomplete comparison instead of a clean one.
+          # "completed" tells the comment step apart: a failed gate (exit 1 below) is a result, an oasdiff
+          # error is not, and both end this step with the failure outcome.
+          echo "completed=false" >> "$GITHUB_OUTPUT"
           rc=0
           "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --format githubactions --allow-external-refs=false || rc=$?
           if [ "$rc" -ge 2 ]; then
             echo "::error::oasdiff breaking failed with exit code $rc"
             exit "$rc"
           fi
+          echo "completed=true" >> "$GITHUB_OUTPUT"
           if [ "$FROZEN" = true ]; then
             "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --fail-on ERR --allow-external-refs=false
           fi
@@ -559,6 +563,7 @@ jobs:
           FROZEN: ${{ steps.classify.outputs.frozen }}
           INSTALL_OUTCOME: ${{ steps.install.outcome }}
           BREAKING_OUTCOME: ${{ steps.breaking.outcome }}
+          BREAKING_COMPLETED: ${{ steps.breaking.outputs.completed }}
           CHANGELOG_OUTCOME: ${{ steps.changelog.outcome }}
         run: |
           marker="<!-- openapi-diff: $DOCUMENT -->"
@@ -570,8 +575,8 @@ jobs:
             # or changelog leaves changelog.md absent, which must not read as "no changes".
             if [ "$STATE" = new ]; then
               echo "New document; nothing to compare against on the base branch."
-            elif [ "$INSTALL_OUTCOME" != success ] || [ "$CHANGELOG_OUTCOME" != success ]; then
-              echo "**The comparison did not complete** (install oasdiff: $INSTALL_OUTCOME, breaking-changes gate: $BREAKING_OUTCOME, changelog: $CHANGELOG_OUTCOME); see the job log. An earlier result in this comment no longer applies."
+            elif [ "$INSTALL_OUTCOME" != success ] || [ "$BREAKING_COMPLETED" != true ] || [ "$CHANGELOG_OUTCOME" != success ]; then
+              echo "**The comparison did not complete** (install oasdiff: $INSTALL_OUTCOME, breaking-changes analysis completed: ${BREAKING_COMPLETED:-false}, gate: $BREAKING_OUTCOME, changelog: $CHANGELOG_OUTCOME); see the job log. An earlier result in this comment no longer applies."
             elif [ -s changelog.md ]; then
               if [ "$BREAKING_OUTCOME" = failure ]; then
                 echo "**Breaking changes in a frozen document; this PR fails.**"

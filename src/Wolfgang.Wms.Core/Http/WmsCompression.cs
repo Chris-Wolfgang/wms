@@ -60,8 +60,9 @@ public static class WmsCompression
     /// Adds request decompression and response compression, the latter on a branch that a request to a marked
     /// endpoint bypasses: the compression middleware never runs for it, on HTTP or HTTPS, so it installs no
     /// compression feature and nothing downstream has to switch one off, and the request itself is left as the
-    /// client sent it. The opt-out reads the endpoint that routing selected, so call this after routing (which
-    /// <c>WebApplication</c> adds ahead of the first middleware) and before the endpoints.
+    /// client sent it. The opt-out reads the endpoint that routing selected, so call this after routing has run
+    /// (after <c>UseRouting</c>; a <c>WebApplication</c> that never calls it gets that call at the start of its
+    /// pipeline) and before the endpoints execute.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="app"/> is null.</exception>
     public static IApplicationBuilder UseWmsCompression(this IApplicationBuilder app)

@@ -3,7 +3,6 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -122,7 +121,8 @@ public sealed class ConcurrencyTests : IAsyncLifetime
 
     private async Task<HttpResponseMessage> Put(string path, string? ifMatch)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Put, new Uri(path, UriKind.Relative)) { Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json") };
+        using var request = new HttpRequestMessage(HttpMethod.Put, new Uri(path, UriKind.Relative));
+        request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
         if (ifMatch is not null)
         {
             request.Headers.TryAddWithoutValidation("If-Match", ifMatch);

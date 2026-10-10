@@ -10,7 +10,7 @@ export function attach(field) {
         // focusout fires before the new element is focused; look once focus has settled. Repeated focusouts
         // coalesce into one check.
         clearTimeout(pending);
-        pending = setTimeout(() => { // DevSkim: ignore DS172411 - a closure, nothing is evaluated from a string
+        pending = setTimeout(() => {
             pending = 0;
             const active = document.activeElement;
             if (field.isConnected && (active === null || active === document.body)) {

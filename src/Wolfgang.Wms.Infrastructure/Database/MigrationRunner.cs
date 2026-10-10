@@ -198,7 +198,8 @@ public sealed class MigrationRunner
     /// restarted sequence (a sequence's current value is state: the row-version sequence is every client's sync
     /// watermark, and a restart discards it as surely as a drop),
     /// deleted or updated rows, a column narrowed to a smaller length, precision or scale, to fewer integral digits
-    /// (the scale grows by more than the precision), to a bounded precision from an unbounded one, to non-unicode
+    /// (the scale grows by more than the precision does, so precision minus scale shrinks), to a bounded precision
+    /// from an unbounded one, to non-unicode
     /// text, to a type written without its length or precision (the provider's default applies) or to another
     /// type,
     /// and raw SQL (<see cref="MigrationBuilder.Sql"/>), which is not inspected and so is treated as data-losing.
@@ -427,8 +428,9 @@ public sealed class MigrationRunner
             reasons.Add("scale " + fromScale.ToString(CultureInfo.InvariantCulture) + " -> " + scale.ToString(CultureInfo.InvariantCulture));
         }
 
-        // A scale that grows inside the same precision takes the room from the integral digits: decimal(18,2) ->
-        // decimal(18,4) keeps 14 of 16, and a large existing value no longer fits.
+        // A scale that grows by more than the precision does takes the room from the integral digits (precision
+        // minus scale shrinks): decimal(18,2) -> decimal(18,4) keeps 14 of 16, decimal(9,2) -> decimal(11,5) keeps 6
+        // of 7, and a large existing value no longer fits.
         if (newPrecision is { } p && newScale is { } s && oldPrecision is { } fp && oldScale is { } fs && p - s < fp - fs)
         {
             reasons.Add("integral digits " + (fp - fs).ToString(CultureInfo.InvariantCulture) + " -> " + (p - s).ToString(CultureInfo.InvariantCulture));

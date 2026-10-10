@@ -60,7 +60,10 @@ public sealed class LocalLoginGateTests
 
     private static async Task AssertGateAsync(string provider, string connectionString, bool trustServerCertificate)
     {
-        await using (var app = await StartHostAsync(provider, connectionString, trustServerCertificate, forceLocal: false))
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
+        await using (var app = await StartHostAsync(provider, runtime, trustServerCertificate, forceLocal: false))
         {
             using var client = app.GetTestClient();
             var open = await StatusAsync(client);
@@ -104,7 +107,7 @@ public sealed class LocalLoginGateTests
             await AssertRulesAsync(app.Services);
         }
 
-        await using var forced = await StartHostAsync(provider, connectionString, trustServerCertificate, forceLocal: true);
+        await using var forced = await StartHostAsync(provider, runtime, trustServerCertificate, forceLocal: true);
         using var forcedClient = forced.GetTestClient();
         var overridden = await StatusAsync(forcedClient);
         using var admittedByOverride = await LoginAsync(forcedClient);
@@ -199,7 +202,6 @@ public sealed class LocalLoginGateTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
             ["Wms:Auth:ForceLocal"] = forceLocal ? "true" : "false",
         });
         builder.Services.AddWmsApiVersioning();

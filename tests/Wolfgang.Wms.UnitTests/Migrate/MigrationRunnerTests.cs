@@ -95,7 +95,7 @@ public sealed class MigrationRunnerTests
         Assert.Contains(idempotentMarker, script, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(historyTable, script, StringComparison.Ordinal);
         Assert.Contains("_Initial", script, StringComparison.Ordinal);
-        var historyInsert = new Regex(@"INSERT\s+INTO\s+" + Regex.Escape(historyTable), RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
+        var historyInsert = new Regex(@"INSERT\s+INTO\s+" + Regex.Escape(historyTable), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
         Assert.Matches(historyInsert, script);        // the upgrade records each migration it applies
         Assert.DoesNotMatch(historyInsert, delta);    // Initial -> Initial applies nothing, so it writes no history row
         Assert.DoesNotContain("_Initial", delta, StringComparison.Ordinal);

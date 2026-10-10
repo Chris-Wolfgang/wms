@@ -64,11 +64,14 @@ public sealed class OidcClaimEdgeCaseTests
 
     private static async Task AssertClaimEdgeCasesAsync(string provider, string connectionString, bool trustServerCertificate)
     {
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
         await using var mockProvider = MockProvider();
         await mockProvider.StartAsync();
         var authority = $"http://{mockProvider.Hostname}:{mockProvider.GetMappedPublicPort(8080)}/{Issuer}";
 
-        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
+        await using var app = await StartHostAsync(provider, runtime, trustServerCertificate);
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));
         var supervisor = (await client.GetFromJsonAsync<List<RoleInfo>>("/api/v0/auth/roles", Json))!.Single(r => string.Equals(r.Name, "Supervisor", StringComparison.Ordinal));
@@ -228,7 +231,6 @@ public sealed class OidcClaimEdgeCaseTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();
         builder.Services.AddWmsProblemDetails();

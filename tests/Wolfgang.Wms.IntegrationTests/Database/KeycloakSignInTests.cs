@@ -72,11 +72,14 @@ public sealed partial class KeycloakSignInTests
 
     private static async Task AssertKeycloakSignInAsync(string provider, string connectionString, bool trustServerCertificate)
     {
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
         await using var keycloak = Keycloak();
         await keycloak.StartAsync();
         var authority = $"http://{keycloak.Hostname}:{keycloak.GetMappedPublicPort(8080)}/realms/{Realm}";
 
-        await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate);
+        await using var app = await StartHostAsync(provider, runtime, trustServerCertificate);
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));
 
@@ -324,7 +327,6 @@ public sealed partial class KeycloakSignInTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
         });
         builder.Services.AddWmsApiVersioning();
         builder.Services.AddWmsProblemDetails();

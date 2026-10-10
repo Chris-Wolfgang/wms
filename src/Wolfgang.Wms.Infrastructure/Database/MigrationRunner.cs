@@ -192,7 +192,9 @@ public sealed class MigrationRunner
 
 
     /// <summary>
-    /// The Down operations of a migration that may lose data: dropped tables, columns and schemas, deleted rows,
+    /// The Down operations of a migration that may lose data: dropped tables, columns, schemas and sequences
+    /// (a sequence's current value is state: the row-version sequence is every client's sync watermark),
+    /// deleted or updated rows, a column narrowed to a smaller length, precision or scale or to another type,
     /// and raw SQL (<see cref="MigrationBuilder.Sql"/>), which is not inspected and so is treated as data-losing.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="migration"/> is null.</exception>
@@ -206,7 +208,10 @@ public sealed class MigrationRunner
                 DropTableOperation drop => "drop table " + Qualified(drop.Schema, drop.Name),
                 DropColumnOperation drop => "drop column " + Qualified(drop.Schema, drop.Table) + "." + drop.Name,
                 DropSchemaOperation drop => "drop schema " + drop.Name,
+                DropSequenceOperation drop => "drop sequence " + Qualified(drop.Schema, drop.Name),
                 DeleteDataOperation delete => "delete rows from " + Qualified(delete.Schema, delete.Table),
+                UpdateDataOperation update => "update rows in " + Qualified(update.Schema, update.Table),
+                AlterColumnOperation alter when Narrows(alter) => "narrow column " + Qualified(alter.Schema, alter.Table) + "." + alter.Name + " (" + Narrowing(alter) + ")",
                 SqlOperation sql => "raw SQL, not inspected: " + Summary(sql.Sql),
                 _ => null,
             })
@@ -321,6 +326,48 @@ public sealed class MigrationRunner
     private static string? Last(IReadOnlyList<string> migrations)
     {
         return migrations.Count == 0 ? null : migrations[^1];
+    }
+
+
+
+    /// <summary>
+    /// True when the column loses room: a smaller maximum length, precision or scale than before, or another
+    /// store type or CLR type (a conversion the engine may truncate or refuse). Widening and nullability changes
+    /// keep every value and are not flagged.
+    /// </summary>
+    private static bool Narrows(AlterColumnOperation alter)
+    {
+        return Narrowing(alter).Length != 0;
+    }
+
+
+
+    private static string Narrowing(AlterColumnOperation alter)
+    {
+        var old = alter.OldColumn;
+        var reasons = new List<string>(4);
+        if (alter.MaxLength is { } length && (old.MaxLength is null || old.MaxLength > length))
+        {
+            reasons.Add("max length " + (old.MaxLength?.ToString(CultureInfo.InvariantCulture) ?? "unbounded") + " -> " + length.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (alter.Precision is { } precision && old.Precision is { } oldPrecision && oldPrecision > precision)
+        {
+            reasons.Add("precision " + oldPrecision.ToString(CultureInfo.InvariantCulture) + " -> " + precision.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (alter.Scale is { } scale && old.Scale is { } oldScale && oldScale > scale)
+        {
+            reasons.Add("scale " + oldScale.ToString(CultureInfo.InvariantCulture) + " -> " + scale.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if ((old.ColumnType is not null && alter.ColumnType is not null && !string.Equals(old.ColumnType, alter.ColumnType, StringComparison.OrdinalIgnoreCase))
+            || (old.ClrType is not null && alter.ClrType is not null && old.ClrType != alter.ClrType))
+        {
+            reasons.Add("type " + (old.ColumnType ?? old.ClrType?.Name) + " -> " + (alter.ColumnType ?? alter.ClrType?.Name));
+        }
+
+        return string.Join(", ", reasons);
     }
 
 

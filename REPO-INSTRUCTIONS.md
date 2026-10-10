@@ -130,11 +130,12 @@ API, CI/CD). The `Maintenance: <repo>` parent issue is referenced by
 if you skip this step those references point at a non-existent issue.
 
 ```powershell
-pwsh -File ./scripts/Setup-Maintenance.ps1
+# from a checkout of the template repository (the script is template-only and is not kept here)
+pwsh -File ./scripts/Setup-Maintenance.ps1 -Repository Chris-Wolfgang/wms
 ```
 
-This is a one-time step per repo. The script is idempotent - re-running it
-updates the existing parent issue rather than creating duplicates.
+This is a one-time step per repo (done for this repository: the parent issue exists). The script is
+idempotent - re-running it updates the existing parent issue rather than creating duplicates.
 
 Requires `gh auth login` (same prerequisite as the labels script).
 
@@ -221,7 +222,8 @@ needed, enables Pages on it, substitutes the docfx placeholders for the
 current repo, and self-deletes when it succeeds:
 
 ```powershell
-pwsh -File ./scripts/Setup-GitHubPages.ps1
+# from a checkout of the template repository (the script is template-only; it has run for this repository)
+pwsh -File ./scripts/Setup-GitHubPages.ps1 -Repository Chris-Wolfgang/wms
 ```
 
 After this runs, publishing a GitHub Release fires `release.yaml`, which

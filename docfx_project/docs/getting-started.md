@@ -1,53 +1,48 @@
 # Getting Started
 
-This guide will help you quickly get up and running with Wolfgang.Wms.
+From an empty database to a console you can open. Each step links to the page that goes into detail.
 
 ## Prerequisites
 
-<!-- List any prerequisites needed. For example:
-- .NET 10.0 SDK or later (see Supported Frameworks in the README for the runtimes the package targets)
-- Visual Studio 2022 or Visual Studio Code
--->
+- A database server: SQL Server 2022 or later (Express included) or PostgreSQL 16 or later, with a login that may
+  create the schema (the database administrator's) and one for the server that may only read and write data.
+- The .NET 10 runtime on the server for the API, the console and `wms-migrate` (the Windows and container installs
+  bring it with them).
+- Android devices for the floor, when the handheld app is in use.
 
-## Installation
+## 1. Create the database and point the server at it
 
-### Via NuGet Package Manager
+Create an empty database. Then set `Wms:Database:Provider` (`SqlServer` or `PostgreSql`) and
+`Wms:Database:ConnectionString` in `appsettings.json` or the environment; the connection string may be stored
+encrypted. See [Configuration](configuration.md).
+
+## 2. Apply the schema with `wms-migrate`
+
+Run the tool with the administrator's connection string:
 
 ```bash
-dotnet add package Wolfgang.Wms
+wms-migrate --provider SqlServer --connection-string "<connection string>"
+wms-migrate --status --provider SqlServer --connection-string "<connection string>"
 ```
 
-### Via Package Manager Console
+`--status` reports `Reachable: yes` and `Pending (0)` once the schema is in. The server's own account never runs
+migrations, and the API refuses to start while the schema is behind or ahead of its build. See
+[Database migrations](migrate.md).
 
-```powershell
-Install-Package Wolfgang.Wms
-```
+## 3. Start the API and check it
 
-## Quick Start
+Start the API with the server's (data-only) connection string and read `GET /api/v0/system/schema`: `upToDate`
+must be `true`. The order of every first-run step, and what the endpoint reports before each, is in
+[Before the API can serve](bootstrap.md).
 
-<!-- Add a quick start example. For example: -->
+## 4. Open the console
 
-```csharp
-// Add your quick start code example here
-// This should show the simplest way to use your library
+Start the console. Its root page lists the workspaces the signed-in user may enter; see [The console](console.md)
+for the workspaces and how scanning works.
 
-using Wolfgang.Wms;
+## Next steps
 
-// Example usage
-```
-
-## Next Steps
-
-- Explore the [API Reference](../api/index.md) for detailed documentation
-- Read the [Introduction](introduction.md) to learn more about Wolfgang.Wms
-- Check out example projects in the [GitHub repository](https://github.com/Chris-Wolfgang/wms)
-
-## Common Issues
-
-<!-- Add common issues and their solutions here -->
-
-## Additional Resources
-
-- [GitHub Repository](https://github.com/Chris-Wolfgang/wms)
-- [Contributing Guidelines](https://github.com/Chris-Wolfgang/wms/blob/main/CONTRIBUTING.md)
-- [Report an Issue](https://github.com/Chris-Wolfgang/wms/issues)
+- [Your identifiers](identifiers.md) - decide the formats of your SKU codes, barcodes and other identifiers.
+- [Device app version](device-app-version.md) - set the minimum handheld version before devices connect.
+- [Database conventions](database-conventions.md) - for the DBA: how the schema is named and versioned.
+- [API Reference](../api/index.md) - for integrations; the `Wolfgang.Wms.Client` package wraps it.

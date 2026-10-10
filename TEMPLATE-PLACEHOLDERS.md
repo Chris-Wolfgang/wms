@@ -256,6 +256,12 @@ $corePlaceholders = @(
 | 22 | `{{PACKAGE_NAME}}` | Installation command |
 | 35-37 | `{{GITHUB_REPO_URL}}` | Additional resources links (3 occurrences) |
 
+### 8a. docfx_project/docs/index.md
+
+| Line(s) | Placeholder | Context |
+|---------|-------------|---------|
+| 1 | `{{PROJECT_NAME}}` | Documentation section heading (the page is the first entry of `docs/toc.yml`) |
+
 ### 9. docfx_project/api/index.md
 
 | Line(s) | Placeholder | Context |

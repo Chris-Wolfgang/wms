@@ -154,6 +154,47 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                     b.ToTable("audit_header", "core");
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Database.Leader.LeaderLock", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("AcquiredAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("acquired_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("Holder")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("holder");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_leader_lock");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_leader_lock_name");
+
+                    b.ToTable("leader_lock", "wms");
+                });
+
             modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Database.Settings.Setting", b =>
                 {
                     b.Property<long>("Id")

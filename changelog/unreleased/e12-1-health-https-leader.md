@@ -1,0 +1,3 @@
+type: feature
+
+Operations: `/health/live` and `/health/ready` probes (readiness fails when the database is unreachable or not at the build's schema; JSON with one line per check; outside the versioned API, anonymous, plain HTTP allowed); the API refuses plain HTTP from the network with `400 hosting.https_required` instead of redirecting (loopback, the probes and `Wms:Hosting:AllowHttp=true` excepted; the console keeps redirecting); singleton worker jobs run under a database leader lock (`wms.leader_lock`: lease, heartbeat, takeover after expiry) so any number of workers is safe — the integrity verification is the first job under it.

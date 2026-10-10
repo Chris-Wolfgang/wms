@@ -219,26 +219,30 @@ $rulesetConfig = @{
                 # run on every PR to main and report "skipped" (which satisfies the rule) when
                 # detect-projects does not run (a stacked PR, #846); the others run from workflows
                 # triggered by every pull_request event.
+                # Every context is pinned to the GitHub Actions app (integration_id 15368): the code-scanning app
+                # reports a check with the same name for a tool whose SARIF it receives ("zizmor" on every PR,
+                # "CodeQL"), and that check is green once the upload succeeded, whatever the job's gate decided.
+                # Without the pin either app satisfies the context and the gate could be bypassed by its own report.
                 required_status_checks = @(
                     # pr.yaml
-                    @{ context = "Detect .NET Projects" },
-                    @{ context = "Stage 1: Linux Tests (.NET 5.0-10.0) + Coverage Gate" },
-                    @{ context = "Stage 2: Windows Tests (.NET 5.0-10.0, Framework 4.6.2-4.8.1)" },
-                    @{ context = "ReSharper InspectCode" },
-                    @{ context = "AOT Smoke (NativeAOT, Linux)" },
-                    @{ context = "OpenAPI Diff (v0)" },
-                    @{ context = "Security Scan (DevSkim)" },
-                    @{ context = "Secrets Scan (gitleaks)" },
-                    @{ context = "Changelog Fragment Check" },
+                    @{ context = "Detect .NET Projects"; integration_id = 15368 },
+                    @{ context = "Stage 1: Linux Tests (.NET 5.0-10.0) + Coverage Gate"; integration_id = 15368 },
+                    @{ context = "Stage 2: Windows Tests (.NET 5.0-10.0, Framework 4.6.2-4.8.1)"; integration_id = 15368 },
+                    @{ context = "ReSharper InspectCode"; integration_id = 15368 },
+                    @{ context = "AOT Smoke (NativeAOT, Linux)"; integration_id = 15368 },
+                    @{ context = "OpenAPI Diff (v0)"; integration_id = 15368 },
+                    @{ context = "Security Scan (DevSkim)"; integration_id = 15368 },
+                    @{ context = "Secrets Scan (gitleaks)"; integration_id = 15368 },
+                    @{ context = "Changelog Fragment Check"; integration_id = 15368 },
                     # codeql.yaml
-                    @{ context = "Security Scan (CodeQL) (csharp)" },
+                    @{ context = "Security Scan (CodeQL) (csharp)"; integration_id = 15368 },
                     # actions-audit.yaml, semgrep.yaml, license-audit.yaml, sbom.yaml, sourcelink.yaml
-                    @{ context = "actionlint" },
-                    @{ context = "zizmor" },
-                    @{ context = "Semgrep" },
-                    @{ context = "License audit" },
-                    @{ context = "Generate SBOM" },
-                    @{ context = "Verify SourceLink" }
+                    @{ context = "actionlint"; integration_id = 15368 },
+                    @{ context = "zizmor"; integration_id = 15368 },
+                    @{ context = "Semgrep"; integration_id = 15368 },
+                    @{ context = "License audit"; integration_id = 15368 },
+                    @{ context = "Generate SBOM"; integration_id = 15368 },
+                    @{ context = "Verify SourceLink"; integration_id = 15368 }
                 )
             }
         },

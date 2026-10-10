@@ -59,12 +59,15 @@ public sealed class AdminChannelTests
 
     private static async Task AssertChannelAsync(string provider, string connectionString, bool trustServerCertificate)
     {
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
         var ring = Directory.CreateTempSubdirectory("wms-admin-ring-");
         var otherRing = Directory.CreateTempSubdirectory("wms-admin-other-ring-");
         var channel = "wms-admin-test-" + Guid.NewGuid().ToString("N");
         try
         {
-            await using var app = await StartHostAsync(provider, connectionString, trustServerCertificate, ring.FullName, channel);
+            await using var app = await StartHostAsync(provider, runtime, trustServerCertificate, ring.FullName, channel);
             using var client = app.GetTestClient();
             var tool = new Tool(ring.FullName, channel);
 
@@ -138,7 +141,6 @@ public sealed class AdminChannelTests
             ["Wms:Database:Provider"] = provider,
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
-            ["Wms:Database:AutoMigrate"] = "true",
             [KeyRingOptions.PathKey] = keyRing,
             [AdminChannelOptions.NameKey] = channel,
         });

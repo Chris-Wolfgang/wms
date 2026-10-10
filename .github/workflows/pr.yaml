@@ -486,7 +486,8 @@ jobs:
           echo "$OASDIFF_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
           mkdir -p "$RUNNER_TEMP/oasdiff"
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/oasdiff" oasdiff
-          echo "$RUNNER_TEMP/oasdiff" >> "$GITHUB_PATH"
+          # Called by its path below rather than added to GITHUB_PATH (zizmor github-env: a PATH edit in a
+          # pull_request_target job is a code-execution vector, however trusted this one is).
           "$RUNNER_TEMP/oasdiff/oasdiff" --version
 
       - name: Classify the document
@@ -517,15 +518,16 @@ jobs:
           revision="pr/docs/api/openapi-$DOCUMENT.json"
           # Same two calls as the oasdiff-action entrypoint: annotations for every breaking change (never
           # fails), then the gate, which fails a frozen document on an ERR-level change.
-          oasdiff breaking "$base" "$revision" --format githubactions || true
+          "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --format githubactions || true
           if [ "$FROZEN" = true ]; then
-            oasdiff breaking "$base" "$revision" --fail-on ERR
+            "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --fail-on ERR
           fi
 
       - name: Changelog
         if: steps.classify.outputs.state == 'changed'
         shell: bash
-        run: oasdiff changelog "base/docs/api/openapi-$DOCUMENT.json" "pr/docs/api/openapi-$DOCUMENT.json" > changelog.md
+        run: |
+          "$RUNNER_TEMP/oasdiff/oasdiff" changelog "base/docs/api/openapi-$DOCUMENT.json" "pr/docs/api/openapi-$DOCUMENT.json" > changelog.md
 
       - name: Post or update the PR comment
         if: always() && steps.classify.outputs.state != 'unchanged' && steps.classify.outputs.state != 'absent'

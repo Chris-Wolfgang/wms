@@ -3,7 +3,6 @@
 using System.Net;
 using System.Text.Json;
 using DotNet.Testcontainers.Containers;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;

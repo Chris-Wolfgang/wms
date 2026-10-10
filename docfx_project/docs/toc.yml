@@ -34,5 +34,7 @@
     href: reference/error-codes.md
   - name: Modules
     href: reference/modules.md
+  - name: Import formats
+    href: reference/import-formats.md
 - name: Project website
   href: 'https://github.com/Chris-Wolfgang/wms'

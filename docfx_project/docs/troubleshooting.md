@@ -289,6 +289,43 @@ must not exceed `id_to`. After changing the sort, start again from the first pag
 Locations live in the database and `Wms:Database:Provider` is `None` (or not set). Configure the database
 and restart the API.
 
+## Imports (`imports.*`)
+
+<a id="imports-site-not-found"></a>
+### `imports.site_not_found`
+No site has the `siteId` in the route. `GET /sites` lists every site with its id.
+
+<a id="imports-invalid"></a>
+### `imports.invalid`
+The request, not a row, is wrong: the file has no rows or more than 10 000 (split it), `policy` is not one of
+`all_or_nothing`, `accept_valid_rows`, `validate_only`, or `format` is not `json` or `csv`. A row-level
+`imports.invalid` means the row has no key (`code`).
+
+<a id="imports-duplicate-in-file"></a>
+### `imports.duplicate_in_file`
+Row level: the row's key (or, for locations, its barcode) appears in an earlier row of the same file. Keys are
+compared without regard to case. Keep one row per key; the first wins and the later ones fail.
+
+<a id="imports-reference-not-found"></a>
+### `imports.reference_not_found`
+Row level: the row names something the site does not have, such as a `zoneCode` for a location. Load the
+zones file first, or fix the code.
+
+<a id="imports-key-not-found"></a>
+### `imports.key_not_found`
+Row level: `action: Delete` names a key that does not exist in the site. Nothing to retire; remove the row or
+fix the key.
+
+<a id="imports-resolution-zone"></a>
+### `imports.resolution_zone`
+Row level: resolution zones are created and edited in the console or the API only (E16.2). A row with
+`type: Resolution`, or a row whose code is an existing resolution zone, is refused.
+
+<a id="imports-unavailable"></a>
+### `imports.unavailable`
+Imports write to the database and `Wms:Database:Provider` is `None` (or not set). Configure the database and
+restart the API.
+
 ## Settings (`settings.*`)
 
 <a id="settings-unknown-key"></a>

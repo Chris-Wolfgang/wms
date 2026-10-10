@@ -223,8 +223,8 @@ if (-not $SkipTests -and -not $SkipCoverage -and $failed.Count -eq 0) {
         $rgPath = Get-Command reportgenerator -ErrorAction SilentlyContinue
         if (-not $rgPath) {
             Write-Host "Installing ReportGenerator..."
-            dotnet tool update -g dotnet-reportgenerator-globaltool 2>$null
-            if ($LASTEXITCODE -ne 0) { dotnet tool install -g dotnet-reportgenerator-globaltool }
+            # Same pin as .github/workflows/pr.yaml, so a local report matches CI's.
+            dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.11
             # Ensure global tools dir is on PATH for this session. The .NET
             # installer normally adds it to the user's profile, but a fresh
             # shell or a pwsh-invoked-from-script session may not have it yet.

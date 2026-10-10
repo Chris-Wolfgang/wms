@@ -256,7 +256,7 @@ jobs:
             exit 1
           }
           
-          dotnet tool install -g dotnet-reportgenerator-globaltool
+          dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.11   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately
           
           reportgenerator `
             -reports:"TestResults/**/coverage.cobertura.xml" `
@@ -522,7 +522,7 @@ jobs:
         if: steps.check-packages.outputs.has-packages == 'true'
         shell: pwsh
         run: |
-          dotnet tool install --global CycloneDX
+          dotnet tool install --global CycloneDX --version 6.2.0   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; same pin as sbom.yaml
 
           $sbomDir = Join-Path $PWD 'nuget-packages'
           $srcProjects = Get-ChildItem -Path 'src' -Filter '*.csproj' -Recurse -ErrorAction SilentlyContinue
@@ -621,7 +621,7 @@ jobs:
       - name: Install DocFX
         if: steps.check.outputs.found == 'true'
         shell: pwsh
-        run: dotnet tool update docfx --global || dotnet tool install docfx --global
+        run: dotnet tool install --global docfx --version 2.81.0   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; same pin as docfx.yaml
 
       - name: Build DocFX metadata
         if: steps.check.outputs.found == 'true'

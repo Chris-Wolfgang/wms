@@ -84,7 +84,7 @@ jobs:
 
       - name: Install sourcelink tool
         if: steps.detect.outputs.found == 'true'
-        run: dotnet tool install --global sourcelink
+        run: dotnet tool install --global sourcelink --version 3.1.1   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately
 
       - name: Verify SourceLink resolves for every PDB
         if: steps.detect.outputs.found == 'true'

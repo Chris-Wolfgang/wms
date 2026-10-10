@@ -43,7 +43,7 @@ jobs:
 
       - name: Install DocFX
         run: |
-          dotnet tool update docfx --global || dotnet tool install docfx --global
+          dotnet tool install --global docfx --version 2.81.0   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; same pin as docfx.yaml
         shell: pwsh
 
       - name: Build docs for each version

@@ -29,7 +29,7 @@ public sealed class WmsCompressionTests
 
 
     [Fact]
-    public async Task UseWmsCompression_turns_https_compression_off_for_an_opted_out_endpoint_only()
+    public async Task UseWmsCompression_keeps_the_compression_middleware_out_of_an_opted_out_endpoint_only()
     {
         using var provider = BuildProvider();
         var optedOut = new Endpoint(_ => Task.CompletedTask, new EndpointMetadataCollection(DisableResponseCompressionMetadata.Instance), "auth");
@@ -37,11 +37,54 @@ public sealed class WmsCompressionTests
 
         var optedOutMode = await ModeSeenByTheEndpoint(optedOut, provider);
         var ordinaryMode = await ModeSeenByTheEndpoint(ordinary, provider);
-        var noFeatureMode = await ModeSeenByTheEndpoint(optedOut, provider, acceptsCompression: false);
+        var noFeatureMode = await ModeSeenByTheEndpoint(ordinary, provider, acceptsCompression: false);   // the middleware ran and declined: no Accept-Encoding, no feature
 
-        Assert.Equal(HttpsCompressionMode.DoNotCompress, optedOutMode);
+        Assert.Null(optedOutMode);   // the compression middleware was bypassed, so it installed no feature: the opt-out is the one guard
         Assert.Equal(HttpsCompressionMode.Default, ordinaryMode);
         Assert.Null(noFeatureMode);
+    }
+
+
+
+    [Fact]
+    public async Task UseWmsCompression_leaves_an_opted_out_request_as_the_client_sent_it()
+    {
+        using var provider = BuildProvider();
+        var optedOut = new Endpoint(_ => Task.CompletedTask, new EndpointMetadataCollection(DisableResponseCompressionMetadata.Instance), "auth");
+        string? acceptEncodingSeen = null;
+        var app = new ApplicationBuilder(provider);
+        app.UseWmsCompression();
+        app.Run(context =>
+        {
+            acceptEncodingSeen = context.Request.Headers.AcceptEncoding;
+            return Task.CompletedTask;
+        });
+        var pipeline = app.Build();
+        var context = new DefaultHttpContext { RequestServices = provider };
+        context.Request.Headers.AcceptEncoding = "br";
+        context.SetEndpoint(optedOut);
+
+        await pipeline(context);
+
+        Assert.Equal("br", acceptEncodingSeen);
+    }
+
+
+
+    [Theory]
+    [InlineData("http")]
+    [InlineData("https")]
+    public async Task UseWmsCompression_sends_an_opted_out_body_uncompressed_on_either_scheme(string scheme)
+    {
+        using var provider = BuildProvider();
+        var optedOut = new Endpoint(_ => Task.CompletedTask, new EndpointMetadataCollection(DisableResponseCompressionMetadata.Instance), "auth");
+        var ordinary = new Endpoint(_ => Task.CompletedTask, EndpointMetadataCollection.Empty, "list");
+
+        var optedOutEncoding = await ContentEncodingSent(optedOut, provider, scheme);
+        var ordinaryEncoding = await ContentEncodingSent(ordinary, provider, scheme);
+
+        Assert.Equal(string.Empty, optedOutEncoding);
+        Assert.Equal("br", ordinaryEncoding);
     }
 
 
@@ -96,6 +139,34 @@ public sealed class WmsCompressionTests
         await pipeline(context);
 
         return seen;
+    }
+
+
+
+    /// <summary>
+    /// Runs a request through UseWmsCompression to an endpoint that writes a JSON body and reports the
+    /// Content-Encoding the response carries (empty when the body went out as written).
+    /// </summary>
+    private static async Task<string> ContentEncodingSent(Endpoint endpoint, IServiceProvider provider, string scheme)
+    {
+        var app = new ApplicationBuilder(provider);
+        app.UseWmsCompression();
+        app.Run(async context =>
+        {
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("{\"token\":\"" + new string('a', 2048) + "\"}");
+        });
+        var pipeline = app.Build();
+        var context = new DefaultHttpContext { RequestServices = provider };
+        context.Request.Scheme = scheme;
+        context.Request.Headers.AcceptEncoding = "br";
+        using var body = new MemoryStream();
+        context.Response.Body = body;
+        context.SetEndpoint(endpoint);
+
+        await pipeline(context);
+
+        return context.Response.Headers.ContentEncoding.ToString();
     }
 
 

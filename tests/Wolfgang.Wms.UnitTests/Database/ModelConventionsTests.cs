@@ -220,6 +220,26 @@ public sealed class ModelConventionsTests
 
 
 
+    [Theory]
+    [InlineData(SqlServer)]
+    [InlineData(PostgreSql)]
+    public void Verify_reports_a_convention_built_name_longer_than_63_characters_on_both_providers(string provider)
+    {
+        using var context = new LongNamesDbContext(Options<LongNamesDbContext>(provider));
+
+        var violations = ModelConventions.Verify(context.Model);
+
+        Assert.Equal
+        (
+            [
+                "inventory_adjustment_reconciliation_line: index name 'ix_inventory_adjustment_reconciliation_line_warehouse_location_identifier_reconciliation_batch_identifier' is 105 characters; identifiers are at most 63 on both providers (PostgreSQL truncates longer ones silently). Give it a shorter explicit name.",
+            ],
+            violations
+        );
+    }
+
+
+
     [Fact]
     public void Members_when_the_argument_is_null_throw()
     {

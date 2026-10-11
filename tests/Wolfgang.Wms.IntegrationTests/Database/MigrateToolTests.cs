@@ -1,7 +1,9 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Npgsql;
 using Testcontainers.PostgreSql;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Migrate;
@@ -12,7 +14,8 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 /// E4.1 / E4.3 / E4.5 / E4.6 against real engines: <c>wms-migrate</c> reports a never-migrated database as
 /// reachable with nothing applied, installs the schema into it (history table in schema <c>wms</c>), reports
 /// status, goes down to an empty schema and back up (the up → down → up run CI requires on both providers), and
-/// refuses to touch a schema a newer build migrated, all through the tool's own entry point.
+/// refuses to touch a schema a newer build migrated, all through the tool's own entry point. A database that
+/// does not exist is reported as unreachable and never created (E4.5: the DBA creates it, the tool fills it).
 /// </summary>
 public sealed class MigrateToolTests
 {
@@ -33,6 +36,66 @@ public sealed class MigrateToolTests
         await container.StartAsync();
 
         await AssertUpDownUpAsync("PostgreSql", container.GetConnectionString(), []);
+    }
+
+
+
+    [SqlServerFact]
+    public async Task SqlServer_a_database_that_does_not_exist_is_reported_and_never_created()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+        var missing = "wms_missing_" + Guid.NewGuid().ToString("N")[..12];
+        var connectionString = new SqlConnectionStringBuilder(database.ConnectionString) { InitialCatalog = missing }.ConnectionString;
+
+        await AssertMissingDatabaseIsRefusedAsync("SqlServer", connectionString, missing, ["--trust-server-certificate"]);
+
+        await using var server = new SqlConnection(database.ConnectionString);
+        await server.OpenAsync();
+        await using var exists = server.CreateCommand();
+        exists.CommandText = "SELECT DB_ID(@name)";
+        exists.Parameters.AddWithValue("@name", missing);
+        Assert.Equal(DBNull.Value, await exists.ExecuteScalarAsync());
+    }
+
+
+
+    [DockerFact]
+    public async Task PostgreSql_a_database_that_does_not_exist_is_reported_and_never_created()
+    {
+        await using var container = new PostgreSqlBuilder("postgres:16").Build();
+        await container.StartAsync();
+        var missing = "wms_missing_" + Guid.NewGuid().ToString("N")[..12];
+        var connectionString = new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = missing }.ConnectionString;
+
+        await AssertMissingDatabaseIsRefusedAsync("PostgreSql", connectionString, missing, []);
+
+        await using var server = new NpgsqlConnection(container.GetConnectionString());
+        await server.OpenAsync();
+        await using var exists = server.CreateCommand();
+        exists.CommandText = "SELECT count(*) FROM pg_database WHERE datname = @name";
+        exists.Parameters.AddWithValue("name", missing);
+        Assert.Equal(0L, await exists.ExecuteScalarAsync());
+    }
+
+
+
+    private static async Task AssertMissingDatabaseIsRefusedAsync(string provider, string connectionString, string missing, string[] extra)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["Wms:Database:Provider"] = provider,
+                ["Wms:Database:ConnectionString"] = connectionString,
+            })
+            .Build();
+
+        var status = await RunAsync(configuration, ["--status", .. extra]);
+        var apply = await RunAsync(configuration, extra);
+
+        Assert.Equal(MigrateProgram.ExitOk, status.Code);
+        Assert.Contains("Reachable: no: database '" + missing + "' does not exist on the server", status.Output, StringComparison.Ordinal);
+        Assert.Equal(MigrateProgram.ExitRefused, apply.Code);
+        Assert.Contains("does not exist on the server", apply.Error, StringComparison.Ordinal);
     }
 
 

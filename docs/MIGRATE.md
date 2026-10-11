@@ -35,6 +35,12 @@ was applied because the database cannot be reached or its schema is newer than t
 
 ## Rules
 
+- **The database itself must exist** (E4.5): the DBA creates it. `wms-migrate` refuses to start against a
+  database that is not on the server (`--status` reports it unreachable; apply exits `4`) and repeats that check
+  before every migration it applies, so a mistyped name or a not-yet-created database cannot end in a stray
+  database created and migrated under the DBA's login. This is a guard against a wrong name, not against a
+  database dropped while a migration is running: EF would recreate one dropped in the instant between the
+  check and the migration.
 - **Empty database, `CREATE SCHEMA` rights** (E4.5): EF creates schema `wms` together with the history table
   `wms.migrations_history`, before the first migration runs (`IF SCHEMA_ID(N'wms') IS NULL ... CREATE SCHEMA`
   on SQL Server, a `pg_namespace`-guarded `CREATE SCHEMA wms` on PostgreSQL; see any `--script` output). No

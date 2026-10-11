@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -24,6 +25,8 @@ public sealed class MigrationRunner
 
     private readonly WmsDbContext _context;
 
+    private readonly Func<CancellationToken, Task<bool>> _databaseExists;
+
 
 
     /// <summary>
@@ -31,16 +34,35 @@ public sealed class MigrationRunner
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
     public MigrationRunner(WmsDbContext context)
+        : this(context, cancellationToken => context.GetService<IRelationalDatabaseCreator>().ExistsAsync(cancellationToken))
     {
-        ArgumentNullException.ThrowIfNull(context);
-
-        _context = context;
     }
 
 
 
     /// <summary>
-    /// Applied and pending migrations and what this build expects (E4.3).
+    /// Test seam: the runner with the existence check replaced, so a test can make the database vanish between
+    /// the preflight and a migration without dropping it.
+    /// </summary>
+    internal MigrationRunner(WmsDbContext context, Func<CancellationToken, Task<bool>> databaseExists)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(databaseExists);
+
+        _context = context;
+        _databaseExists = databaseExists;
+    }
+
+
+
+    /// <summary>
+    /// Applied and pending migrations and what this build expects (E4.3). A database that does not exist on
+    /// the server is reported as unreachable: the DBA creates the database, the tool only ever fills it, so a
+    /// typo in its name cannot end in a stray database created and migrated under the DBA's login. The
+    /// existence check opens the target database itself and maps the provider's "cannot open" error (EF's
+    /// <c>IRelationalDatabaseCreator.ExistsAsync</c> on both providers), so it needs no access to
+    /// <c>master</c> or <c>postgres</c>; on SQL Server a login that may not open an existing database gets the
+    /// same error as a missing one, and the message says so.
     /// </summary>
     public async Task<MigrationStatus> StatusAsync(CancellationToken cancellationToken)
     {
@@ -48,13 +70,20 @@ public sealed class MigrationRunner
         IReadOnlyList<string> applied;
         try
         {
+            if (!await _databaseExists(cancellationToken).ConfigureAwait(false))
+            {
+                return new MigrationStatus(Reachable: false, Applied: [], Pending: shipped, Expected: Last(shipped))
+                {
+                    Error = MissingDatabaseMessage(),
+                };
+            }
+
             applied = (await _context.Database.GetAppliedMigrationsAsync(cancellationToken).ConfigureAwait(false)).ToList();
         }
         catch (DbException exception)
         {
-            // A reachable server with no history table (or no database yet) is not an error: EF's history
-            // repository checks that both exist and returns no applied migrations. Only a failure to talk to the
-            // server lands here.
+            // A reachable server with no history table is not an error: EF's history repository checks that it
+            // exists and returns no applied migrations. Only a failure to talk to the server lands here.
             return new MigrationStatus(Reachable: false, Applied: [], Pending: shipped, Expected: Last(shipped))
             {
                 Error = exception.Message,
@@ -275,13 +304,31 @@ public sealed class MigrationRunner
 
 
 
-    private static async Task<MigrationResult> RunAsync(IMigrator migrator, MigrationDirection direction, string? from, string? to, IReadOnlyList<string> steps, IReadOnlyList<string> targets, IReadOnlyList<string> destructive, CancellationToken cancellationToken)
+    private string MissingDatabaseMessage()
+    {
+        return $"database '{_context.Database.GetDbConnection().Database}' does not exist on the server, or this login cannot open it; create it or grant the login access first (the DBA's step; wms-migrate does not create it), then run wms-migrate.";
+    }
+
+
+
+    private async Task<MigrationResult> RunAsync(IMigrator migrator, MigrationDirection direction, string? from, string? to, IReadOnlyList<string> steps, IReadOnlyList<string> targets, IReadOnlyList<string> destructive, CancellationToken cancellationToken)
     {
         var done = new List<string>();
         for (var i = 0; i < steps.Count; i++)
         {
             try
             {
+                // Checked again before every migration, not only in the preflight: EF's MigrateAsync creates a
+                // database it cannot find, so one dropped after the preflight would otherwise come back here, empty,
+                // holding this one migration. What this guards is a wrong name or a database not yet created; a
+                // database dropped in the instant between this check and EF's own would still be recreated by EF,
+                // and this tool does not claim otherwise (closing that needs a provider database creator that cannot
+                // create, which EF exposes only as pubternal types).
+                if (!await _databaseExists(cancellationToken).ConfigureAwait(false))
+                {
+                    return new MigrationResult(Direction: direction, From: from, To: to, Steps: done, FailedMigration: steps[i], Error: MissingDatabaseMessage(), DestructiveSteps: destructive);
+                }
+
                 await migrator.MigrateAsync(targets[i], cancellationToken).ConfigureAwait(false);
                 done.Add(steps[i]);
             }

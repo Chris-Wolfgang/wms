@@ -141,6 +141,7 @@ This library uses **`BannedSymbols.txt`** to prohibit synchronous APIs and enfor
 ### Prerequisites
 - [.NET SDK](https://dotnet.microsoft.com/download) - the current release (10.0); see *Runtime and databases* for the targets that are built
 - [PowerShell 7](https://github.com/PowerShell/PowerShell) (`pwsh`) for the scripts under `scripts/`
+- The Android workload, because the solution includes the handheld app (`net10.0-android`): run `dotnet workload restore` once at the repository root before the first restore, as CI does; without it the solution restore fails with NETSDK1147
 
 ### Build Steps
 
@@ -251,6 +252,6 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## 🙏 Acknowledgments
 
-Built on .NET, ASP.NET Core and Blazor, Entity Framework Core, Kiota, Serilog and Testcontainers. The shipped
+Built on .NET, ASP.NET Core and Blazor, Entity Framework Core, Kiota and Testcontainers. The shipped
 components (the NuGet dependencies of every project under `src/`) and their licenses are listed in
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md); test tooling such as Testcontainers is not part of that list.

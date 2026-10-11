@@ -29,9 +29,10 @@ directory and from `Wms__Database__*` environment variables. Flags override them
 | `--connection-string <cs>` | `Wms:Database:ConnectionString` |
 | `--trust-server-certificate` | `Wms:Database:TrustServerCertificate` (SQL Server only) |
 
-The database itself must already exist: your DBA creates it, and `wms-migrate` never does. A database that is
-not on the server is reported as unreachable (`--status`, and exit code `4` on apply), and the tool checks again
-before each migration it applies, so a mistyped name cannot end in a stray database. The account needs the right to create schemas in the database; no server-level right
+The database itself must already exist: your DBA creates it. `wms-migrate` refuses to start against a database
+that is not on the server (`--status` reports it unreachable; apply exits `4`) and checks again before each
+migration it applies, so a mistyped name cannot end in a stray database. Do not drop a database while a
+migration is running: that is the one case the check cannot cover. The account needs the right to create schemas in the database; no server-level right
 is needed. On an empty database the first run creates the schema `wms` and the migrations history table
 `wms.migrations_history`.
 

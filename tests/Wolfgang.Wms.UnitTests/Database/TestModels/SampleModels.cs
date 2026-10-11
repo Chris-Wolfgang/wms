@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -101,6 +102,7 @@ public sealed class Address
 
 public sealed class ContainerLine
 {
+    [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global", Justification = "EF Core reads the owned entity's key; the sample only builds the model.")]
     public long Id { get; set; }
 
     public decimal Qty { get; set; }
@@ -265,6 +267,7 @@ public sealed class BadNote
 
 public sealed class BadItem
 {
+    [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global", Justification = "EF Core sets the key when it materialises the entity; the sample only builds the model.")]
     public long Id { get; set; }
 }
 

@@ -1,7 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using System.Globalization;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 using Wolfgang.Wms.Infrastructure.Database.Conventions;

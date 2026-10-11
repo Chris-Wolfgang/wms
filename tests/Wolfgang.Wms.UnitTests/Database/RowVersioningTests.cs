@@ -30,6 +30,7 @@ public sealed class RowVersioningTests
         Assert.DoesNotContain("''", sql, StringComparison.Ordinal);   // nothing to double: the body has no single quote
         Assert.Contains("UPDATE t SET [row_version] = NEXT VALUE FOR [wms].[row_version_seq]", sql, StringComparison.Ordinal);
         Assert.Contains("INNER JOIN inserted i ON t.[id] = i.[id]", sql, StringComparison.Ordinal);
+        Assert.Contains("IF TRIGGER_NESTLEVEL(@@PROCID) > 1 OR NOT EXISTS (SELECT 1 FROM inserted) RETURN;", sql, StringComparison.Ordinal);
         Assert.Equal("DROP TRIGGER IF EXISTS [picking].[trg_container_row_version];", RowVersioning.DropTriggerSql(RowVersioning.SqlServer, "picking", "container"));
     }
 
@@ -43,7 +44,10 @@ public sealed class RowVersioningTests
         Assert.Contains("CREATE OR REPLACE FUNCTION wms.set_row_version() RETURNS trigger", sql, StringComparison.Ordinal);
         Assert.Contains("NEW.row_version := nextval('wms.row_version_seq');", sql, StringComparison.Ordinal);
         Assert.Contains("CREATE TRIGGER trg_container_row_version BEFORE UPDATE ON picking.container FOR EACH ROW EXECUTE FUNCTION wms.set_row_version();", sql, StringComparison.Ordinal);
-        Assert.Equal("DROP TRIGGER IF EXISTS trg_container_row_version ON picking.container;", RowVersioning.DropTriggerSql(RowVersioning.PostgreSql, "picking", "container"));
+        var drop = RowVersioning.DropTriggerSql(RowVersioning.PostgreSql, "picking", "container");
+        Assert.StartsWith("DROP TRIGGER IF EXISTS trg_container_row_version ON picking.container;", drop, StringComparison.Ordinal);
+        Assert.Contains("IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgfoid = to_regproc('wms.set_row_version')) THEN", drop, StringComparison.Ordinal);
+        Assert.Contains("DROP FUNCTION IF EXISTS wms.set_row_version();", drop, StringComparison.Ordinal);
     }
 
 

@@ -14,8 +14,8 @@ because the API cannot do its normal work until it has happened, or because it m
 ## Checking the database schema
 
 `GET /api/v0/system/schema` is read-only and answers whenever the server is running. The server does not start
-while a configured database is behind or ahead of its version, so a running server answers either with a
-migrated database:
+while a configured database is unreachable, behind or ahead of its version, so the two healthy answers of a
+running server are a migrated database:
 
 ```json
 { "current": "20260920035312_RowVersionSequence", "expected": "20260920035312_RowVersionSequence", "upToDate": true }

@@ -18,8 +18,8 @@ This is the engineering view. The operator-facing page is `docfx_project/docs/bo
 ## What the API says about bootstrap
 
 `GET /api/v0/system/schema` (`Wolfgang.Wms.Core.Schema.SchemaModule`) is read-only. The API refuses to start
-while a configured database is behind or ahead of its build (`SchemaStartupCheck`), so the two responses a
-running API gives are a migrated database:
+while a configured database is unreachable, behind or ahead of its build (`SchemaStartupCheck`), so the two
+healthy responses of a running API are a migrated database:
 
 ```json
 { "current": "20260920035312_RowVersionSequence", "expected": "20260920035312_RowVersionSequence", "upToDate": true }

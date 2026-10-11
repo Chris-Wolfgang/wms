@@ -475,7 +475,7 @@ public sealed class MigrationRunner
     /// </summary>
     private sealed record StoreType(string? Text, string? Family, int? Length, int? Precision, int? Scale, bool Facetless = false, bool Unbounded = false)
     {
-        private static readonly Regex Shape = new(@"^(?<family>[^(]+?)\s*(\((?<facets>[^)]*)\)(?<qualifier>.*))?$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        private static readonly Regex Shape = new(@"^(?<family>[^(]+?)\s*(\((?<facets>[^)]*)\)(?<qualifier>.*))?$", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
 
         public static bool IsDecimal(string family)
         {

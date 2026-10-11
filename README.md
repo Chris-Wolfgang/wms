@@ -56,11 +56,10 @@ dotnet run --project src/Wolfgang.Wms.Migrate -- --provider SqlServer --connecti
 dotnet run --project src/Wolfgang.Wms.Migrate -- --status --provider SqlServer --connection-string "<connection string>"
 
 # the API: the migration flags configured only wms-migrate, so tell the API the same provider and the runtime
-# account's connection string (Wms:Database in appsettings, or the environment as here); with the shipped default,
-# Provider=None, GET /api/v0/system/schema reports no database instead of upToDate
-export Wms__Database__Provider=SqlServer
-export Wms__Database__ConnectionString="<runtime connection string>"
-dotnet run --project src/Wolfgang.Wms.Api
+# account's connection string (Wms:Database in appsettings, the environment, or on the command line as here, which
+# works in Bash and PowerShell alike); with the shipped default, Provider=None, GET /api/v0/system/schema reports
+# no database instead of upToDate
+dotnet run --project src/Wolfgang.Wms.Api -- --Wms:Database:Provider=SqlServer --Wms:Database:ConnectionString="<runtime connection string>"
 
 # the console, in a second terminal (dotnet run keeps the API in the foreground); / lists the workspaces you can enter
 dotnet run --project src/Wolfgang.Wms.Web
@@ -68,8 +67,9 @@ dotnet run --project src/Wolfgang.Wms.Web
 
 `pwsh ./scripts/build-pr.ps1` runs the Windows stage of the PR gate locally (build, tests, coverage, DevSkim,
 gitleaks); the Linux coverage gate, InspectCode, the OpenAPI diff and the AOT smoke run only in CI. The SQL Server
-integration tests use a local instance when `WMS_TEST_SQLSERVER` names one (Express LocalDB works) and containers
-otherwise.
+integration tests use a local instance when `WMS_TEST_SQLSERVER` names one (Express LocalDB works), a container
+when a Linux Docker engine is reachable, and are skipped when neither is, so check the test summary for skips
+before trusting a local run.
 
 ---
 
@@ -80,7 +80,7 @@ settings that make it operational are in progress on the open pull-request stack
 
 | Area | On `main` today | Arrives with |
 |------|-----------------|--------------|
-| Modular monolith | One API, one database, one deployable; a module contract for endpoints and typed keys (ADR 0001), with the schema module as its only registration | the picking module, the first business module |
+| Modular monolith | One API and one database; business modules live inside the hosts (API, console, worker) and are never deployed on their own; a module contract for endpoints and typed keys (ADR 0001), with the schema module as its only registration | the picking module, the first business module |
 | Console | A Blazor Server console with five workspace shells (Configure, Supervise, Resolve, Report, Insights) behind an access gate, and a scan listener that takes tethered-scanner input on every screen; access is a placeholder that opens the free-tier workspaces | license-backed and permission-backed access (E79, E11), the workspace screens |
 | Handheld | An Android (.NET MAUI) app with a landing page and a device-version policy hook that accepts every version | the picking screens and the server-published minimum version (E12) |
 | Two database engines | SQL Server 2022+ (Express included) and PostgreSQL 16+ from one model, with per-provider migrations and a conventions test that proves the schemas match | nothing further |

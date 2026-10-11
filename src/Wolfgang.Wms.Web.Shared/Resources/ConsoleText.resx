@@ -66,6 +66,19 @@
     <value>Scan {0} is not used on this screen.</value>
     <comment>{0} is the scanned text.</comment>
   </data>
+  <data name="layout.scan_failed" xml:space="preserve">
+    <value>Scan {0} could not be handled by this screen.</value>
+    <comment>{0} is the scanned text; the screen's handler failed and the console kept running.</comment>
+  </data>
+  <data name="layout.error.title" xml:space="preserve">
+    <value>This screen hit a problem.</value>
+  </data>
+  <data name="layout.error.detail" xml:space="preserve">
+    <value>The rest of the console keeps working. Retry the screen, or pick another workspace.</value>
+  </data>
+  <data name="layout.error.retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
   <data name="layout.not_licensed.title" xml:space="preserve">
     <value>{0} is not licensed</value>
     <comment>{0} is the workspace title.</comment>

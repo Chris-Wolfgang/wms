@@ -1,6 +1,8 @@
 @inherits LayoutComponentBase
+@using Microsoft.Extensions.Logging
 @inject IWorkspaceAccess Access
 @inject IStringLocalizer<ConsoleText> L
+@inject ILogger<WorkspaceLayout> Logger
 
 <PageTitle>@L[Workspace.TitleKey]</PageTitle>
 
@@ -21,8 +23,23 @@
         {
             <p class="scan-feedback" role="status">@L["layout.scan_unused", _unusedScan]</p>
         }
+        @if (_failedScan is not null)
+        {
+            <p class="scan-feedback" role="alert">@L["layout.scan_failed", _failedScan]</p>
+        }
         <CascadingValue Value="_scans" IsFixed="true">
-            @Body
+            <ErrorBoundary @ref="_boundary">
+                <ChildContent>
+                    @Body
+                </ChildContent>
+                <ErrorContent>
+                    <div class="workspace-error" role="alert">
+                        <h2>@L["layout.error.title"]</h2>
+                        <p>@L["layout.error.detail"]</p>
+                        <button type="button" @onclick="Retry">@L["layout.error.retry"]</button>
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
         </CascadingValue>
     }
     else if (_result == WorkspaceAccessResult.NotLicensed)
@@ -41,6 +58,8 @@
     private readonly ScanDispatcher _scans = new();
     private WorkspaceAccessResult? _result;
     private string? _unusedScan;
+    private string? _failedScan;
+    private ErrorBoundary? _boundary;
 
     /// <inheritdoc/>
     protected override async Task OnInitializedAsync()
@@ -49,9 +68,29 @@
     }
 
     // Every workspace takes tethered-scanner input here; the screen that registered with the cascading
-    // ScanDispatcher handles it, and a scan no screen takes is reported instead of silently dropped (E82.4).
+    // ScanDispatcher handles it, and a scan no screen takes is reported instead of silently dropped (E82.4). A
+    // screen whose handler throws is reported the same way: an exception leaving this handler would end the
+    // circuit, and with it the scanner, the screen and any form in progress. The failure goes to the log with the
+    // workspace and the exception, so it is not invisible beyond the message; the scanned value is shown to the
+    // user but not logged (a scan is whatever a label carries).
     private async Task OnScanAsync(string scan)
     {
-        _unusedScan = await _scans.DispatchAsync(scan) ? null : scan;
+        _failedScan = null;
+        try
+        {
+            _unusedScan = await _scans.DispatchAsync(scan) ? null : scan;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            LogScanFailed(Logger, Workspace.Name, exception);
+            _unusedScan = null;
+            _failedScan = scan;
+        }
+    }
+
+    // The screen that failed is rendered again; the chrome, the scanner and the other workspaces never went away.
+    private void Retry()
+    {
+        _boundary?.Recover();
     }
 }

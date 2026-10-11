@@ -33,6 +33,13 @@ page, it returns to the scan field, so the next scan is not lost; typing in anot
 interrupted. If the screen you are on does not use scans, the console says so ("Scan … is
 not used on this screen.") instead of silently dropping the scan.
 
+## When a screen fails
+
+A fault in one screen does not take the console down. The workspace shows a message in place of that screen
+with a **Retry** button that renders the screen again; the workspace header, the scanner and the other
+workspaces keep working. A scan that the screen could not handle is reported next to the scan field ("Scan …
+could not be handled by this screen.") and the next scan clears the message.
+
 ## Language
 
 The console's text comes from resource files, and the language follows the user's language choice, then the

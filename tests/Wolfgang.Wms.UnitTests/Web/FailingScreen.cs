@@ -6,8 +6,9 @@ using Microsoft.AspNetCore.Components.Rendering;
 namespace Wolfgang.Wms.UnitTests.Web;
 
 /// <summary>
-/// A screen that throws the first time it renders and renders a marker afterwards: the body a
-/// <c>WorkspaceLayout</c> error boundary must contain and then recover.
+/// A screen that throws the first time it renders and renders a marker afterwards. It stands in for the body of
+/// a <c>WorkspaceLayout</c>: the layout's error boundary must contain the first render's failure (the chrome and
+/// the scanner stay up) and, on Retry, render the screen again so the marker appears.
 /// </summary>
 public sealed class FailingScreen : ComponentBase
 {

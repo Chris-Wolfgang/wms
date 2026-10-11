@@ -256,6 +256,12 @@ $corePlaceholders = @(
 | 22 | `{{PACKAGE_NAME}}` | Installation command |
 | 35-37 | `{{GITHUB_REPO_URL}}` | Additional resources links (3 occurrences) |
 
+### 8a. docfx_project/docs/index.md
+
+| Line(s) | Placeholder | Context |
+|---------|-------------|---------|
+| 1 | `{{PROJECT_NAME}}` | Documentation section heading (the page is the first entry of `docs/toc.yml`) |
+
 ### 9. docfx_project/api/index.md
 
 | Line(s) | Placeholder | Context |
@@ -335,6 +341,7 @@ If you must replace manually:
      - `docfx_project/api/index.md`
      - `docfx_project/api/README.md`
      - `docfx_project/docs/toc.yml`
+     - `docfx_project/docs/index.md`
      - `docfx_project/docs/introduction.md`
      - `docfx_project/docs/getting-started.md`
 

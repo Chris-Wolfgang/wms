@@ -51,14 +51,14 @@ You can contribute in several ways:
      (see [docs/WORKFLOW_SECURITY.md](docs/WORKFLOW_SECURITY.md)).
    - **Changelog Fragment Check** — a PR that touches `src/` must add a fragment (see below).
    - **ReSharper InspectCode** — error-severity findings fail; warnings go to the Security tab.
-   - **Stage 1 (Linux), Stage 2 (Windows), Stage 3 (macOS)** — build and test every target framework
+   - **Stage 1 (Linux), Stage 2 (Windows)** — build and test every target framework
      of every test project, with coverage gates of **90 % line coverage for `src/`** and
      **100 % for `tests/`**. A framework on which zero tests ran fails the stage.
    - **Security Scan (DevSkim)** and **Security Scan (CodeQL)** (`codeql.yaml`).
    - **actionlint** and **zizmor** (`actions-audit.yaml`) on the workflow files themselves.
    - License audit and SBOM generation for the dependency closure (`license-audit.yaml`, `sbom.yaml`).
 
-   The branch ruleset **requires** Detect .NET Projects, the three test stages, DevSkim, CodeQL,
+   The branch ruleset **requires** Detect .NET Projects, the two test stages, DevSkim, CodeQL,
    gitleaks and the Changelog Fragment Check to pass before merging. InspectCode, actionlint/zizmor,
    the license audit and the SBOM are advisory — they annotate the PR and the Security tab but do
    not block the merge on their own. If a check fails, read its log, fix, and push.
@@ -224,7 +224,7 @@ dotnet test --collect:"XPlat Code Coverage"
 
 ```powershell
 # Mirrors pr.yaml's Windows stage on this machine: build, every-TFM tests, coverage gates
-# (90 % src / 100 % tests), DevSkim, gitleaks. The Linux and macOS stages only run in CI.
+# (90 % src / 100 % tests), DevSkim, gitleaks. The Linux stage only runs in CI.
 pwsh ./scripts/build-pr.ps1
 
 # Skip the security scans or the coverage gate while iterating

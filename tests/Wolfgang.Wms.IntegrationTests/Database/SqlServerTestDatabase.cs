@@ -85,7 +85,28 @@ public sealed class SqlServerTestDatabase : IAsyncDisposable
             return new SqlServerTestDatabase(new SqlConnectionStringBuilder(instance) { InitialCatalog = name }.ConnectionString, container: null, instance, name);
         }
 
-        var container = new MsSqlBuilder(image).Build();
+        return await StartInContainerAsync(image, name, Guid.NewGuid().ToString("N"), cancellationToken);
+    }
+
+
+
+    /// <summary>
+    /// The label every container of this factory carries, with <c>runId</c> as its value, so a test can ask Docker
+    /// whether a run's container is gone after <see cref="StartInContainerAsync"/> failed.
+    /// </summary>
+    internal const string RunLabel = "wms.test.database.run";
+
+
+
+    /// <summary>
+    /// The container path of <see cref="StartAsync"/> regardless of <see cref="EnvironmentVariable"/>: a container
+    /// of <paramref name="image"/> labelled <see cref="RunLabel"/>=<paramref name="runId"/>, then the database
+    /// <paramref name="name"/> in it. A container whose database could not be created is disposed before the
+    /// exception leaves.
+    /// </summary>
+    internal static async Task<SqlServerTestDatabase> StartInContainerAsync(string image, string name, string runId, CancellationToken cancellationToken)
+    {
+        var container = new MsSqlBuilder(image).WithLabel(RunLabel, runId).Build();
         await container.StartAsync(cancellationToken);
         try
         {

@@ -141,7 +141,7 @@ This library uses **`BannedSymbols.txt`** to prohibit synchronous APIs and enfor
 ### Prerequisites
 - [.NET SDK](https://dotnet.microsoft.com/download) - the current release (10.0); see *Runtime and databases* for the targets that are built
 - [PowerShell 7](https://github.com/PowerShell/PowerShell) (`pwsh`) for the scripts under `scripts/`
-- The Android workload, because the solution includes the handheld app (`net10.0-android`): run `dotnet workload restore` once at the repository root before the first restore, as CI does; without it the solution restore fails with NETSDK1147
+- For the handheld app (`net10.0-android`, part of the solution): the Android workload (`dotnet workload restore` once at the repository root before the first restore, as CI does; without it the solution restore fails with NETSDK1147), plus a JDK and the Android SDK, which the workload does not install. With a JDK on `JAVA_HOME`, `dotnet build src/Wolfgang.Wms.Android -t:InstallAndroidDependencies -p:AcceptAndroidSDKLicenses=True` fetches the SDK components; see [.NET MAUI installation](https://learn.microsoft.com/dotnet/maui/get-started/installation). To work on the server only, build its projects individually (`dotnet build src/Wolfgang.Wms.Api`, and so on) instead of the solution
 
 ### Build Steps
 

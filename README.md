@@ -62,7 +62,7 @@ export Wms__Database__Provider=SqlServer
 export Wms__Database__ConnectionString="<runtime connection string>"
 dotnet run --project src/Wolfgang.Wms.Api
 
-# the console; / lists the workspaces you can enter
+# the console, in a second terminal (dotnet run keeps the API in the foreground); / lists the workspaces you can enter
 dotnet run --project src/Wolfgang.Wms.Web
 ```
 
@@ -135,7 +135,7 @@ This library uses **`BannedSymbols.txt`** to prohibit synchronous APIs and enfor
 ## 🛠️ Building from Source
 
 ### Prerequisites
-- [.NET SDK](https://dotnet.microsoft.com/download) - the current release (10.0); see *Supported Frameworks* for the targets that are built
+- [.NET SDK](https://dotnet.microsoft.com/download) - the current release (10.0); see *Runtime and databases* for the targets that are built
 - [PowerShell 7](https://github.com/PowerShell/PowerShell) (`pwsh`) for the scripts under `scripts/`
 
 ### Build Steps
@@ -247,5 +247,6 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## 🙏 Acknowledgments
 
-Built on .NET, ASP.NET Core and Blazor, Entity Framework Core, Kiota, Serilog and Testcontainers; the full list of
-third-party components and their licenses is in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+Built on .NET, ASP.NET Core and Blazor, Entity Framework Core, Kiota, Serilog and Testcontainers. The shipped
+components (the NuGet dependencies of every project under `src/`) and their licenses are listed in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md); test tooling such as Testcontainers is not part of that list.

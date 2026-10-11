@@ -26,7 +26,7 @@ its landing page; the picking screens arrive with the picking module):
    ([docs/BOOTSTRAP.md](docs/BOOTSTRAP.md)); then open the console.
 
 The package meant for others to reference is `Wolfgang.Wms.Client`, the generated API client for devices and
-integrations, published with each release (#983 makes the release pack only it). The server is not a package: today it is built from source (the Quick Start below), the worker
+integrations, to be published on its own with each release once #983 merges (today the release workflow packs every project under `src/`). The server is not a package: today it is built from source (the Quick Start below), the worker
 image and the Windows install arrive with E14/E15, and a downloadable bundle lands before v1.0 (#847).
 
 ---

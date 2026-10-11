@@ -59,7 +59,7 @@ public sealed class MigrationRunner
             {
                 return new MigrationStatus(Reachable: false, Applied: [], Pending: shipped, Expected: Last(shipped))
                 {
-                    Error = $"database '{_context.Database.GetDbConnection().Database}' does not exist on the server, or this login cannot open it; create it or grant the login access first (the DBA's step; wms-migrate never creates a database), then run wms-migrate.",
+                    Error = MissingDatabaseMessage(),
                 };
             }
 
@@ -289,13 +289,28 @@ public sealed class MigrationRunner
 
 
 
-    private static async Task<MigrationResult> RunAsync(IMigrator migrator, MigrationDirection direction, string? from, string? to, IReadOnlyList<string> steps, IReadOnlyList<string> targets, IReadOnlyList<string> destructive, CancellationToken cancellationToken)
+    private string MissingDatabaseMessage()
+    {
+        return $"database '{_context.Database.GetDbConnection().Database}' does not exist on the server, or this login cannot open it; create it or grant the login access first (the DBA's step; wms-migrate never creates a database), then run wms-migrate.";
+    }
+
+
+
+    private async Task<MigrationResult> RunAsync(IMigrator migrator, MigrationDirection direction, string? from, string? to, IReadOnlyList<string> steps, IReadOnlyList<string> targets, IReadOnlyList<string> destructive, CancellationToken cancellationToken)
     {
         var done = new List<string>();
         for (var i = 0; i < steps.Count; i++)
         {
             try
             {
+                // Checked again before every migration, not only in the preflight: EF's MigrateAsync creates a
+                // database it cannot find, so one dropped after the preflight would otherwise come back here, empty,
+                // holding this one migration. The instant between this check and EF's own is the window left.
+                if (!await _context.GetService<IRelationalDatabaseCreator>().ExistsAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    return new MigrationResult(Direction: direction, From: from, To: to, Steps: done, FailedMigration: steps[i], Error: MissingDatabaseMessage(), DestructiveSteps: destructive);
+                }
+
                 await migrator.MigrateAsync(targets[i], cancellationToken).ConfigureAwait(false);
                 done.Add(steps[i]);
             }

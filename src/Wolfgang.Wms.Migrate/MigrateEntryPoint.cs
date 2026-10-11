@@ -19,12 +19,34 @@ public static class MigrateEntryPoint
     public static async Task<int> Main(string[] args)
     {
         using var cancellation = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cancellation.Cancel();
-        };
+        using var ctrlC = new CancelKeyPressSubscription(cancellation);   // disposed first: the static event never keeps a handler over a disposed source
 
         return await MigrateProgram.RunAsync(args, Console.Out, Console.Error, configuration: null, cancellation.Token).ConfigureAwait(false);
+    }
+
+
+
+    /// <summary>
+    /// Cancels the token source it is given on Ctrl+C for as long as it lives; disposing it unsubscribes from
+    /// <see cref="Console.CancelKeyPress"/>, which is static and would otherwise outlive the source.
+    /// </summary>
+    private sealed class CancelKeyPressSubscription : IDisposable
+    {
+        private readonly ConsoleCancelEventHandler _handler;
+
+        public CancelKeyPressSubscription(CancellationTokenSource source)
+        {
+            _handler = (_, e) =>
+            {
+                e.Cancel = true;
+                source.Cancel();
+            };
+            Console.CancelKeyPress += _handler;
+        }
+
+        public void Dispose()
+        {
+            Console.CancelKeyPress -= _handler;
+        }
     }
 }

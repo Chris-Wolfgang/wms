@@ -25,6 +25,8 @@ public sealed class MigrationRunner
 
     private readonly WmsDbContext _context;
 
+    private readonly Func<CancellationToken, Task<bool>> _databaseExists;
+
 
 
     /// <summary>
@@ -32,10 +34,23 @@ public sealed class MigrationRunner
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
     public MigrationRunner(WmsDbContext context)
+        : this(context, cancellationToken => context.GetService<IRelationalDatabaseCreator>().ExistsAsync(cancellationToken))
+    {
+    }
+
+
+
+    /// <summary>
+    /// Test seam: the runner with the existence check replaced, so a test can make the database vanish between
+    /// the preflight and a migration without dropping it.
+    /// </summary>
+    internal MigrationRunner(WmsDbContext context, Func<CancellationToken, Task<bool>> databaseExists)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(databaseExists);
 
         _context = context;
+        _databaseExists = databaseExists;
     }
 
 
@@ -55,7 +70,7 @@ public sealed class MigrationRunner
         IReadOnlyList<string> applied;
         try
         {
-            if (!await _context.GetService<IRelationalDatabaseCreator>().ExistsAsync(cancellationToken).ConfigureAwait(false))
+            if (!await _databaseExists(cancellationToken).ConfigureAwait(false))
             {
                 return new MigrationStatus(Reachable: false, Applied: [], Pending: shipped, Expected: Last(shipped))
                 {
@@ -309,7 +324,7 @@ public sealed class MigrationRunner
                 // database dropped in the instant between this check and EF's own would still be recreated by EF,
                 // and this tool does not claim otherwise (closing that needs a provider database creator that cannot
                 // create, which EF exposes only as pubternal types).
-                if (!await _context.GetService<IRelationalDatabaseCreator>().ExistsAsync(cancellationToken).ConfigureAwait(false))
+                if (!await _databaseExists(cancellationToken).ConfigureAwait(false))
                 {
                     return new MigrationResult(Direction: direction, From: from, To: to, Steps: done, FailedMigration: steps[i], Error: MissingDatabaseMessage(), DestructiveSteps: destructive);
                 }

@@ -43,6 +43,8 @@ public sealed class WorkspacePageGateTests
     /// subset (a page that failed to load would then escape the scan) but reported with the loader errors, so the
     /// failure says which assembly and why instead of surfacing as an unexplained exception.
     /// </summary>
+    /// <exception cref="InvalidOperationException">The assembly's types could not be loaded; the message names the
+    /// assembly and the loader errors.</exception>
     private static IEnumerable<Type> TypesOf(Assembly assembly)
     {
         try

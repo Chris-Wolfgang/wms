@@ -80,7 +80,7 @@ settings that make it operational are in progress on the open pull-request stack
 
 | Area | On `main` today | Arrives with |
 |------|-----------------|--------------|
-| Modular monolith | One API and one database; business modules live inside the hosts (API, console, worker) and are never deployed on their own; a module contract for endpoints and typed keys (ADR 0001), with the schema module as its only registration | the picking module, the first business module |
+| Modular monolith | One API and one database; business modules live inside the API and the worker and are never deployed on their own (the console talks to the API over HTTP and hosts none, ADR 0001); a module contract for endpoints and typed keys (ADR 0001), with the schema module as its only registration | the picking module, the first business module |
 | Console | A Blazor Server console with five workspace shells (Configure, Supervise, Resolve, Report, Insights) behind an access gate, and a scan listener that takes tethered-scanner input on every screen; access is a placeholder that opens the free-tier workspaces | license-backed and permission-backed access (E79, E11), the workspace screens |
 | Handheld | An Android (.NET MAUI) app with a landing page and a device-version policy hook that accepts every version | the picking screens and the server-published minimum version (E12) |
 | Two database engines | SQL Server 2022+ (Express included) and PostgreSQL 16+ from one model, with per-provider migrations and a conventions test that proves the schemas match | nothing further |

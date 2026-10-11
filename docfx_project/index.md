@@ -17,12 +17,14 @@ app, starting with the picking module. These pages cover installing, configuring
 
 An installed application, not a library: see [Getting Started](docs/getting-started.md) for the path from an empty
 database to a console you can open. The package meant for others to reference is `Wolfgang.Wms.Client`, the
-generated API client.
+generated API client. The product is in its foundation phase: these pages say on each topic what is in place
+today and what is still arriving.
 
 ## Documentation Sections
 
 ### 📖 [Documentation](docs/index.md)
-Operator pages: configuration, migrations, first-run order, the console, identifiers and the handheld version gate.
+Operator pages: configuration, migrations, first-run order, the console, identifiers and how the handheld app's
+version is handled.
 
 ### 📚 [API Reference](api/index.md)
 Complete API documentation automatically generated from source code XML comments.

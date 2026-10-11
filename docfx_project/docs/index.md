@@ -5,8 +5,8 @@ app, starting with the picking module. These pages are for the people who instal
 
 ## Start here
 
-- [Introduction](introduction.md) - what the product is and what is in it today
-- [Getting Started](getting-started.md) - from an empty database to a console you can sign in to
+- [Introduction](introduction.md) - what the product is, what is in it today and what is still arriving
+- [Getting Started](getting-started.md) - from an empty database to a console you can open
 
 ## Operating the server
 
@@ -18,7 +18,8 @@ app, starting with the picking module. These pages are for the people who instal
 ## Using the console and devices
 
 - [The console](console.md) - workspaces, scanning, and what a user sees
-- [Device app version](device-app-version.md) - the minimum handheld version the server enforces
+- [Device app version](device-app-version.md) - how the server reads the handheld app's version today (every
+  version is accepted; a server-published minimum is planned)
 - [Your identifiers](identifiers.md) - identifier formats, masks and GS1 validation
 
 ## Reference

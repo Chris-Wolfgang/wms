@@ -20,8 +20,9 @@ and integrations.
   Insights) and a scan listener that takes a tethered scanner's input on every screen, the screen that owns it
   handling it. Access is a placeholder that opens the free-tier workspaces to anyone; there is no sign-in yet.
   See [The console](console.md).
-- **The handheld app.** An Android app with a landing page. It reports its version to the server, which today
-  accepts every version; see [Device app version](device-app-version.md).
+- **The handheld app.** An Android app with a landing page and nothing behind it yet: it talks to no endpoint.
+  On the server, the version-policy hook exists and accepts every version; see
+  [Device app version](device-app-version.md) for what that will become.
 - **The API.** Versioned under `/api/v0` and documented by a committed OpenAPI document. Today it serves the root
   and the schema-status endpoint; the conventions the module endpoints will follow (keyset paging, ETags with
   `If-Match`, idempotency keys, problem details with stable error codes) are implemented as primitives and

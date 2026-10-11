@@ -34,12 +34,25 @@ public static class MigrateEntryPoint
     {
         private readonly ConsoleCancelEventHandler _handler;
 
+        private readonly Lock _gate = new();
+
+        private bool _disposed;
+
         public CancelKeyPressSubscription(CancellationTokenSource source)
         {
+            // The gate closes the race between a Ctrl+C already being handled and the run finishing: a handler
+            // holding it completes Cancel before Dispose can proceed, and one arriving after Dispose finds the
+            // flag set and never touches the source, which the caller disposes next.
             _handler = (_, e) =>
             {
                 e.Cancel = true;
-                source.Cancel();
+                lock (_gate)
+                {
+                    if (!_disposed)
+                    {
+                        source.Cancel();
+                    }
+                }
             };
             Console.CancelKeyPress += _handler;
         }
@@ -47,6 +60,10 @@ public static class MigrateEntryPoint
         public void Dispose()
         {
             Console.CancelKeyPress -= _handler;
+            lock (_gate)
+            {
+                _disposed = true;
+            }
         }
     }
 }

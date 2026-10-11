@@ -51,15 +51,19 @@ This project is **not yet licensed**. All rights reserved pending license select
 The shortest path on a development machine, with a database already created:
 
 ```bash
-# the schema, with the DBA's connection string (SqlServer or PostgreSql)
-dotnet run --project src/Wolfgang.Wms.Migrate -- --provider SqlServer --connection-string "<connection string>"
-dotnet run --project src/Wolfgang.Wms.Migrate -- --status --provider SqlServer --connection-string "<connection string>"
+# The provider and the connection strings go in the environment, never on a command line (shell history and
+# process listings keep a password). Bash shown; in PowerShell: $env:Wms__Database__Provider = 'SqlServer'.
+export Wms__Database__Provider=SqlServer            # or PostgreSql
+export Wms__Database__ConnectionString="<DBA connection string>"
 
-# the API: the migration flags configured only wms-migrate, so tell the API the same provider and the runtime
-# account's connection string (Wms:Database in appsettings, the environment, or on the command line as here, which
-# works in Bash and PowerShell alike); with the shipped default, Provider=None, GET /api/v0/system/schema reports
-# no database instead of upToDate
-dotnet run --project src/Wolfgang.Wms.Api -- --Wms:Database:Provider=SqlServer --Wms:Database:ConnectionString="<runtime connection string>"
+# the schema; wms-migrate reads Wms:Database from the environment like the API does
+dotnet run --project src/Wolfgang.Wms.Migrate
+dotnet run --project src/Wolfgang.Wms.Migrate -- --status
+
+# the API, with the runtime account's connection string in the same variable (the migration needed the DBA's);
+# with the shipped default, Provider=None, GET /api/v0/system/schema reports no database instead of upToDate
+export Wms__Database__ConnectionString="<runtime connection string>"
+dotnet run --project src/Wolfgang.Wms.Api
 
 # the console, in a second terminal (dotnet run keeps the API in the foreground); / lists the workspaces you can enter
 dotnet run --project src/Wolfgang.Wms.Web

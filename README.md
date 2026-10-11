@@ -55,7 +55,11 @@ The shortest path on a development machine, with a database already created:
 dotnet run --project src/Wolfgang.Wms.Migrate -- --provider SqlServer --connection-string "<connection string>"
 dotnet run --project src/Wolfgang.Wms.Migrate -- --status --provider SqlServer --connection-string "<connection string>"
 
-# the API (reads Wms:Database from appsettings or the environment); GET /api/v0/system/schema says upToDate
+# the API: the migration flags configured only wms-migrate, so tell the API the same provider and the runtime
+# account's connection string (Wms:Database in appsettings, or the environment as here); with the shipped default,
+# Provider=None, GET /api/v0/system/schema reports no database instead of upToDate
+export Wms__Database__Provider=SqlServer
+export Wms__Database__ConnectionString="<runtime connection string>"
 dotnet run --project src/Wolfgang.Wms.Api
 
 # the console; / lists the workspaces you can enter

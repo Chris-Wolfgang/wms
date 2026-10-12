@@ -149,12 +149,12 @@ public static class SettingsModule
 
         if (!CascadeModeExtensions.TryParseMode(body.Mode, out var mode))
         {
-            throw new SettingException(SettingErrorCodes.ModeNotAllowed, $"'{body.Mode}' is not a cascade mode (value, per_site, per_zone, per_sku).");
+            throw new SettingException(SettingErrorCodes.ModeNotAllowed, $"'{body.Mode}' is not a cascade mode (value, per_site, per_zone, per_sku).", key, body.Mode, scope.Type.StoredName());
         }
 
         if (!registry.TryGet(key, out var registered))
         {
-            throw new SettingException(SettingErrorCodes.UnknownKey, $"'{key}' is not a registered setting.");
+            throw new SettingException(SettingErrorCodes.UnknownKey, $"'{key}' is not a registered setting.", key);
         }
 
         return mode == CascadeMode.Value && body.Value is not null

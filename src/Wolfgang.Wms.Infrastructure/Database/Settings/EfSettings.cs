@@ -88,7 +88,7 @@ public sealed class EfSettings : ISettings
         ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);
         if (!CascadeModeExtensions.AllowedAt(scope.Type, key.Scopes).Contains(mode))
         {
-            throw new SettingException(SettingErrorCodes.ModeNotAllowed, $"{key.Name} cannot be delegated {mode.StoredName()} at the {scope.Type.StoredName()} scope.");
+            throw new SettingException(SettingErrorCodes.ModeNotAllowed, $"{key.Name} cannot be delegated {mode.StoredName()} at the {scope.Type.StoredName()} scope.", key.Name, mode.StoredName(), scope.Type.StoredName());
         }
 
         if (mode == CascadeMode.Value)
@@ -231,7 +231,7 @@ public sealed class EfSettings : ISettings
             if (row is not null && CascadeModeExtensions.TryParseMode(row.CascadeMode, out var mode) && mode.DelegatesTo() is { } target
                 && target != scope.Type && CascadeModeExtensions.IsBelow(target, scope.Type))
             {
-                throw new SettingException(SettingErrorCodes.DecidedElsewhere, $"{key.Name} is decided {mode.StoredName()} (set by {ancestor}); it cannot be configured at the {scope.Type.StoredName()} scope.");
+                throw new SettingException(SettingErrorCodes.DecidedElsewhere, $"{key.Name} is decided {mode.StoredName()} (set by {ancestor}); it cannot be configured at the {scope.Type.StoredName()} scope.", key.Name, mode.StoredName(), ancestor, scope.Type.StoredName());
             }
 
             parent = await _hierarchy.ParentAsync(ancestor, cancellationToken).ConfigureAwait(false);

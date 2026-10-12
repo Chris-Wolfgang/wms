@@ -24,7 +24,7 @@ public static class MigrateProgram
     /// <summary>A downgrade needs <c>--confirm-data-loss</c>.</summary>
     public const int ExitConfirmationRequired = 3;
 
-    /// <summary>Nothing was applied: the database cannot be reached or its schema is newer than this build.</summary>
+    /// <summary>Nothing was applied: the database cannot be reached, its schema is newer than this build, or its migrations history has a gap.</summary>
     public const int ExitRefused = 4;
 
 

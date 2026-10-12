@@ -104,7 +104,8 @@ public static class AuthProviderEndpoints
 
         if (body is null)
         {
-            throw new AuthException(AuthErrorCodes.MappingRejected, "A body with group and roleId is required.");
+            const string reason = "A body with group and roleId is required.";
+            throw new AuthException(AuthErrorCodes.MappingRejected, reason, reason);
         }
 
         var mapping = await mappings.AddAsync(name, body, http.User.Identity?.Name ?? SettingsModule.AnonymousUser, cancellationToken).ConfigureAwait(false);

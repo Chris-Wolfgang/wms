@@ -98,7 +98,8 @@ public sealed partial class EfExternalAccounts : IExternalAccounts
 
         if (name.Length > User.UserNameLength || await _context.Users.AnyAsync(u => u.UserNameNormalized == EfLocalAccounts.Normalize(name), cancellationToken).ConfigureAwait(false))
         {
-            throw new AuthException(AuthErrorCodes.ProviderFailed, $"The sign-in name '{name}' cannot be used; ask an administrator to free it.");
+            var reason = $"The sign-in name '{name}' cannot be used; ask an administrator to free it.";
+            throw new AuthException(AuthErrorCodes.ProviderFailed, reason, reason);
         }
 
         user.UserName = name;

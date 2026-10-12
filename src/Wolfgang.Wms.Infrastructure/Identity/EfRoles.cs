@@ -143,7 +143,7 @@ public sealed class EfRoles : IRoles
 
         if (!await _context.Users.AnyAsync(u => u.Id == userId, cancellationToken).ConfigureAwait(false))
         {
-            throw new AuthException(RoleErrorCodes.UserNotFound, $"User {userId} does not exist.");
+            throw new AuthException(RoleErrorCodes.UserNotFound, $"User {userId} does not exist.", userId);
         }
 
         var role = await RequireRoleAsync(roleId, track: false, cancellationToken).ConfigureAwait(false);
@@ -171,7 +171,7 @@ public sealed class EfRoles : IRoles
         ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);
 
         var assignment = await _context.Set<UserRole>().SingleOrDefaultAsync(a => a.Id == assignmentId, cancellationToken).ConfigureAwait(false)
-            ?? throw new AuthException(RoleErrorCodes.AssignmentNotFound, $"Assignment {assignmentId} does not exist.");
+            ?? throw new AuthException(RoleErrorCodes.AssignmentNotFound, $"Assignment {assignmentId} does not exist.", assignmentId);
         _context.Set<UserRole>().Remove(assignment);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -265,7 +265,7 @@ public sealed class EfRoles : IRoles
             var unknown = names.FirstOrDefault(n => _catalog.Find(n) is null);
             if (unknown is not null)
             {
-                throw new AuthException(RoleErrorCodes.UnknownPermission, $"'{unknown}' is not a permission in the catalog.");
+                throw new AuthException(RoleErrorCodes.UnknownPermission, $"'{unknown}' is not a permission in the catalog.", unknown);
             }
         }
 
@@ -280,7 +280,7 @@ public sealed class EfRoles : IRoles
     {
         var query = _context.Set<Role>().Include(r => r.Permissions);
         var role = await (track ? query : query.AsNoTracking()).SingleOrDefaultAsync(r => r.Id == roleId, cancellationToken).ConfigureAwait(false);
-        return role ?? throw new AuthException(RoleErrorCodes.RoleNotFound, $"Role {roleId} does not exist.");
+        return role ?? throw new AuthException(RoleErrorCodes.RoleNotFound, $"Role {roleId} does not exist.", roleId);
     }
 
 
@@ -290,7 +290,7 @@ public sealed class EfRoles : IRoles
         var normalized = Normalize(name);
         if (await _context.Set<Role>().AnyAsync(r => r.NameNormalized == normalized && r.Id != exceptRoleId, cancellationToken).ConfigureAwait(false))
         {
-            throw new AuthException(RoleErrorCodes.RoleNameTaken, $"A role named '{name.Trim()}' already exists.");
+            throw new AuthException(RoleErrorCodes.RoleNameTaken, $"A role named '{name.Trim()}' already exists.", name.Trim());
         }
     }
 
@@ -300,7 +300,7 @@ public sealed class EfRoles : IRoles
     {
         if (role.BuiltInKey is not null)
         {
-            throw new AuthException(RoleErrorCodes.BuiltInRoleReadOnly, $"'{role.Name}' is a built-in role; copy it to make an editable one.");
+            throw new AuthException(RoleErrorCodes.BuiltInRoleReadOnly, $"'{role.Name}' is a built-in role; copy it to make an editable one.", role.Name);
         }
     }
 
@@ -310,18 +310,25 @@ public sealed class EfRoles : IRoles
     {
         if (string.IsNullOrWhiteSpace(draft.Name) || draft.Name.Trim().Length > Role.NameLength)
         {
-            throw new AuthException(RoleErrorCodes.InvalidRole, $"A role needs a name of 1 to {Role.NameLength} characters.");
+            throw Invalid($"A role needs a name of 1 to {Role.NameLength} characters.");
         }
 
         if (string.IsNullOrWhiteSpace(draft.Description) || draft.Description.Trim().Length > Role.DescriptionLength)
         {
-            throw new AuthException(RoleErrorCodes.InvalidRole, $"A role needs a description of 1 to {Role.DescriptionLength} characters.");
+            throw Invalid($"A role needs a description of 1 to {Role.DescriptionLength} characters.");
         }
 
         if (draft.Permissions is null)
         {
-            throw new AuthException(RoleErrorCodes.InvalidRole, "A role needs a list of permissions (it may be empty).");
+            throw Invalid("A role needs a list of permissions (it may be empty).");
         }
+    }
+
+
+
+    private static AuthException Invalid(string reason)
+    {
+        return new AuthException(RoleErrorCodes.InvalidRole, reason, reason);
     }
 
 

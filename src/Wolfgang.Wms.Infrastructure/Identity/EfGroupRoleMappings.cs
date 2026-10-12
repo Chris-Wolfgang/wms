@@ -57,14 +57,16 @@ public sealed class EfGroupRoleMappings : IGroupRoleMappings
         var group = draft.Group?.Trim() ?? string.Empty;
         if (group.Length is 0 or > GroupRoleMapping.GroupLength)
         {
-            throw new AuthException(AuthErrorCodes.MappingRejected, $"The group must be 1 to {GroupRoleMapping.GroupLength} characters.");
+            var reason = $"The group must be 1 to {GroupRoleMapping.GroupLength} characters.";
+            throw new AuthException(AuthErrorCodes.MappingRejected, reason, reason);
         }
 
         var role = await _context.Roles.SingleOrDefaultAsync(r => r.Id == draft.RoleId, cancellationToken).ConfigureAwait(false)
-            ?? throw new AuthException(RoleErrorCodes.RoleNotFound, $"Role {draft.RoleId} does not exist.");
+            ?? throw new AuthException(RoleErrorCodes.RoleNotFound, $"Role {draft.RoleId} does not exist.", draft.RoleId);
         if (await _context.GroupRoleMappings.AnyAsync(m => m.Provider == provider && m.GroupKey == group && m.RoleId == draft.RoleId && m.SiteId == draft.SiteId, cancellationToken).ConfigureAwait(false))
         {
-            throw new AuthException(AuthErrorCodes.MappingRejected, "That group is already mapped to that role at that scope.");
+            const string reason = "That group is already mapped to that role at that scope.";
+            throw new AuthException(AuthErrorCodes.MappingRejected, reason, reason);
         }
 
         var mapping = new GroupRoleMapping { Provider = provider, GroupKey = group, RoleId = role.Id, SiteId = draft.SiteId, UpdatedAt = _timeProvider.GetUtcNow(), UpdatedBy = updatedBy, Role = role };
@@ -83,7 +85,7 @@ public sealed class EfGroupRoleMappings : IGroupRoleMappings
         ArgumentNullException.ThrowIfNull(updatedBy);
 
         var mapping = await _context.GroupRoleMappings.SingleOrDefaultAsync(m => m.Id == mappingId, cancellationToken).ConfigureAwait(false)
-            ?? throw new AuthException(AuthErrorCodes.MappingNotFound, $"Mapping {mappingId} does not exist.");
+            ?? throw new AuthException(AuthErrorCodes.MappingNotFound, $"Mapping {mappingId} does not exist.", mappingId);
         _context.GroupRoleMappings.Remove(mapping);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }

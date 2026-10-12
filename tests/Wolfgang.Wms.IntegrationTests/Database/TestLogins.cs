@@ -58,7 +58,8 @@ internal static class TestLogins
 
     /// <summary>
     /// Grants the runtime login read and write on every table of the application's schemas (the ones that exist
-    /// now): SQL Server through <c>db_datareader</c> / <c>db_datawriter</c>, PostgreSQL per schema.
+    /// now): SQL Server through <c>db_datareader</c> / <c>db_datawriter</c>, PostgreSQL per schema, with use of
+    /// the schema's sequences (<c>wms.row_version_seq</c> feeds every <c>row_version</c> default, E5.1).
     /// </summary>
     public static async Task GrantDataAsync(string provider, string adminConnectionString, string runtimeConnectionString, CancellationToken cancellationToken = default)
     {
@@ -100,7 +101,7 @@ internal static class TestLogins
 
         foreach (var schema in schemas)
         {
-            await ExecuteAsync(pg, string.Format(CultureInfo.InvariantCulture, "GRANT USAGE ON SCHEMA \"{0}\" TO \"{1}\"; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA \"{0}\" TO \"{1}\"", schema, role), cancellationToken);
+            await ExecuteAsync(pg, string.Format(CultureInfo.InvariantCulture, "GRANT USAGE ON SCHEMA \"{0}\" TO \"{1}\"; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA \"{0}\" TO \"{1}\"; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA \"{0}\" TO \"{1}\"", schema, role), cancellationToken);
         }
     }
 

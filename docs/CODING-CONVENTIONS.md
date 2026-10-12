@@ -188,7 +188,10 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
   the API client (`Wolfgang.Wms.Client`, E82.8) is the only other project it may reference, added when the
   workspace first calls the API (`ConsoleUsesApiOnlyTests` holds the console to an explicit project list).
 - Every workspace is a license feature (`workspace.<name>`) and a permission (`workspace.<name>.enter`)
-  defined once in `Workspaces`; the entry gate is `IWorkspaceAccess` consulted by `WorkspaceLayout`; the
+  defined once in `Workspaces`; the entry gate is `IWorkspaceAccess` consulted by `WorkspaceLayout`, which
+  every page under a workspace's `Pages/` inherits from that folder's `_Imports.razor` (prefer that over a
+  per-page `@layout`; either way the layout must derive from `WorkspaceLayout`, which is what
+  `WorkspacePageGateTests` holds every routable workspace component to); the
   free tier is Configure, Supervise, Resolve and Report; Insights is paid. A single-role user lands in their
   workspace; others pick on `/`.
 - Components are render-mode-agnostic: API client only, no server services, no `DbContext`
@@ -278,10 +281,12 @@ default shape for anything that crosses the API or the journal.
   cannot be fixed on our side). It is rooted, not trimmed, at publish, and nothing that references it publishes
   NativeAOT, so the AOT smoke job does not cover it.
 - Minimal APIs only (no MVC); endpoints compile to typed request delegates (`EnableRequestDelegateGenerator`);
-  JSON uses source-generated `JsonSerializerContext`s; EF Core uses compiled models.
+  JSON uses source-generated `JsonSerializerContext`s. EF Core will use compiled models once the model
+  settles (an E2/E3 follow-up); nothing on `main` uses one yet.
 - Publish shape: API and worker publish JIT + ReadyToRun until EF Core supports NativeAOT, then flip the flag
-  with no code change; the simulator and the CLI publish NativeAOT from day one (`PublishAot`); the CLI's
-  `migrate` subcommand, which needs EF, ships as a separate JIT executable; MAUI uses its platform defaults;
+  with no code change; the simulator publishes NativeAOT from day one (`PublishAot`), as will the `wms` CLI
+  when it arrives (E82.6); `wms-migrate`, which needs EF, is its own JIT executable and not a CLI subcommand
+  ([MIGRATE.md](MIGRATE.md)); MAUI uses its platform defaults;
   the Blazor Server console is excluded. `Wolfgang.Wms.Infrastructure` (EF Core: reflection-based, not
   trim/AOT-clean) has the analyzers off and is rooted (not trimmed) at publish.
 - One assembly per project, single-file publish for distribution; self-contained runtime for the Windows

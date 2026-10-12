@@ -2,7 +2,6 @@
 
 using Microsoft.EntityFrameworkCore;
 using Wolfgang.Wms.Core.Imports;
-using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Core.Zones;
 using Wolfgang.Wms.Infrastructure.Database;
 
@@ -25,13 +24,12 @@ public sealed class EfImports : IImports
     /// Creates the importer.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public EfImports(WmsDbContext context, TimeProvider timeProvider, ISettings settings, IOpenZoneGroups openGroups)
+    public EfImports(WmsDbContext context, TimeProvider timeProvider, IOpenZoneGroups openGroups)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         ArgumentNullException.ThrowIfNull(timeProvider);
-        ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(openGroups);
-        _zones = new ZoneImporter(context, timeProvider, settings, openGroups);
+        _zones = new ZoneImporter(context, timeProvider, openGroups);
         _locations = new LocationImporter(context, timeProvider);
     }
 

@@ -69,7 +69,6 @@ public sealed class EfCopies : ICopies
         RequireDistinct(locationCopies);
 
         await WriteAsync(site, zoneCopies, locationCopies, cancellationToken).ConfigureAwait(false);
-        await _settings.PopulateAsync(SettingScopeRef.Site(site.Id), updatedBy, cancellationToken).ConfigureAwait(false);
         if (request.Settings)
         {
             await CopySettingsAsync(SettingScopeRef.Site(source.Id), SettingScopeRef.Site(site.Id), updatedBy, cancellationToken).ConfigureAwait(false);
@@ -77,7 +76,6 @@ public sealed class EfCopies : ICopies
 
         foreach (var (sourceZone, copy) in zoneCopies)
         {
-            await _settings.PopulateAsync(SettingScopeRef.Zone(copy.Id), updatedBy, cancellationToken).ConfigureAwait(false);
             if (request.Settings)
             {
                 await CopySettingsAsync(SettingScopeRef.Zone(sourceZone.Id), SettingScopeRef.Zone(copy.Id), updatedBy, cancellationToken).ConfigureAwait(false);
@@ -115,7 +113,6 @@ public sealed class EfCopies : ICopies
 
         var locationCopies = await PlanZoneLocationsAsync(source, request, targetSiteId, updatedBy, cancellationToken).ConfigureAwait(false);
         await WriteAsync(site: null, [(source, copy)], locationCopies, cancellationToken).ConfigureAwait(false);
-        await _settings.PopulateAsync(SettingScopeRef.Zone(copy.Id), updatedBy, cancellationToken).ConfigureAwait(false);
         if (request.Settings)
         {
             await CopySettingsAsync(SettingScopeRef.Zone(source.Id), SettingScopeRef.Zone(copy.Id), updatedBy, cancellationToken).ConfigureAwait(false);

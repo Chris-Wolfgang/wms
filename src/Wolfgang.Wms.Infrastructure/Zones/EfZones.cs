@@ -1,9 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Microsoft.EntityFrameworkCore;
-using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Core.Zones;
-using Wolfgang.Wms.Domain.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
 
 namespace Wolfgang.Wms.Infrastructure.Zones;
@@ -18,7 +16,6 @@ public sealed class EfZones : IZones
     private readonly WmsDbContext _context;
     private readonly TimeProvider _timeProvider;
     private readonly IOpenZoneGroups _openGroups;
-    private readonly ISettings _settings;
 
 
 
@@ -26,12 +23,11 @@ public sealed class EfZones : IZones
     /// Creates the store.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public EfZones(WmsDbContext context, TimeProvider timeProvider, IOpenZoneGroups openGroups, ISettings settings)
+    public EfZones(WmsDbContext context, TimeProvider timeProvider, IOpenZoneGroups openGroups)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _openGroups = openGroups ?? throw new ArgumentNullException(nameof(openGroups));
-        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
 
@@ -70,7 +66,6 @@ public sealed class EfZones : IZones
         row.Apply(draft, _timeProvider.GetUtcNow(), updatedBy);
         await _context.Zones.AddAsync(row, cancellationToken).ConfigureAwait(false);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await _settings.PopulateAsync(SettingScopeRef.Zone(row.Id), updatedBy, cancellationToken).ConfigureAwait(false);   // E16.4: the new zone starts with its site's effective values
         return row.ToInfo();
     }
 

@@ -33,7 +33,6 @@ public sealed class SettingConfiguration : IEntityTypeConfiguration<Setting>
         builder.ToTable(Table, Schema);
         builder.Property(s => s.ScopeType).HasMaxLength(Setting.ScopeTypeLength).IsRequired();
         builder.Property(s => s.Key).HasMaxLength(Setting.KeyLength).IsRequired();
-        builder.Property(s => s.EffectiveValue).IsRequired();
         builder.Property(s => s.UpdatedBy).HasMaxLength(Setting.UpdatedByLength).IsRequired();
         builder.Property(s => s.CascadeMode).HasMaxLength(Setting.CascadeModeLength).IsRequired().HasDefaultValue("value");
         // Serves: the accessor's lookup of one setting at one scope, and the uniqueness E6.2 requires.

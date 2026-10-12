@@ -152,7 +152,6 @@ public sealed class LicenseStateTests
         Assert.False(lifetime.ApplicationStopped.IsCancellationRequested);
         await Assert.ThrowsAsync<NotSupportedException>(() => settings.ResetAsync(LicenseSettings.Keys, scope, "u", CancellationToken.None));
         await Assert.ThrowsAsync<NotSupportedException>(() => settings.SetModeAsync(LicenseSettings.Keys, scope, CascadeMode.Value, "u", CancellationToken.None));
-        await Assert.ThrowsAsync<NotSupportedException>(() => settings.PopulateAsync(scope, "u", CancellationToken.None));
         await Assert.ThrowsAsync<NotSupportedException>(() => settings.ListAsync(scope, CancellationToken.None));
         await Assert.ThrowsAsync<NotSupportedException>(() => settings.SetTextAsync("license.keys", scope, "x", "u", CancellationToken.None));
     }

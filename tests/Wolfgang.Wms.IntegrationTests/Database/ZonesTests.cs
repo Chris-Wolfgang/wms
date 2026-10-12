@@ -5,7 +5,6 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -172,7 +171,6 @@ public sealed class ZonesTests
         var children = await hierarchy.ChildrenAsync(SettingScopeRef.Site(siteId), CancellationToken.None);
         var parent = await hierarchy.ParentAsync(SettingScopeRef.Zone(zoneId), CancellationToken.None);
         var orphan = await hierarchy.ParentAsync(SettingScopeRef.Zone(zoneId + 1000), CancellationToken.None);
-        var createdNow = await settings.PopulateAsync(SettingScopeRef.Zone(zoneId), "admin", CancellationToken.None);
         await settings.SetAsync(LeaseTimeout, SettingScopeRef.Organization, TimeSpan.FromMinutes(45), "admin", CancellationToken.None);
         var effective = await settings.GetAsync(LeaseTimeout, SettingScopeRef.Zone(zoneId), CancellationToken.None);
         await settings.SetAsync(LeaseTimeout, SettingScopeRef.Site(siteId), TimeSpan.FromMinutes(50), "admin", CancellationToken.None);
@@ -185,11 +183,11 @@ public sealed class ZonesTests
         Assert.Contains(SettingScopeRef.Zone(zoneId), children);
         Assert.Equal(SettingScopeRef.Site(siteId), parent);
         Assert.Null(orphan);
-        Assert.Equal(0, createdNow);   // E16.4: the create populated the zone's scope already
         Assert.Equal(TimeSpan.FromMinutes(45), effective);
         Assert.Equal(HttpStatusCode.Created, later.StatusCode);
-        Assert.Equal(TimeSpan.FromMinutes(50), inherited);   // E16.4: a new zone starts with its site's effective value
+        Assert.Equal(TimeSpan.FromMinutes(50), inherited);   // a new zone resolves its site's value; it holds no row of its own (ADR 0009)
         Assert.Equal("00:50:00", rows.Single(v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal)).EffectiveValue);
+        Assert.All(rows, v => Assert.Null(v.RowVersion));
     }
 
 

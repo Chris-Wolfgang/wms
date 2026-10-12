@@ -64,38 +64,44 @@ validator) or null, and the registry's `Check(name, scope, text)` maps failures 
 
 ## Storage (E6.2)
 
-Values live in `core.setting`, one row per (scope type, scope id, key), on both engines through the normal
-migrations (`wms migrate`):
+Values live in `core.setting`, on both engines through the normal migrations (`wms migrate`). **A row records
+a decision** (ADR 0009): there is one row per (scope type, scope id, key) only where an administrator set a value
+or a cascade mode at that scope. A scope that inherits has no row; what applies there is resolved on read
+(E6.3), never stored.
 
 | Column | Meaning |
 |--------|---------|
 | `scope_type`, `scope_id` | The `SettingScopeRef`: `organization` (id 0), `site`, `zone` or `sku` and the row id. |
 | `key` | The registered setting name. |
-| `configured_value` | What an administrator set at this scope as stored text; null when the scope inherits. |
-| `effective_value` | What applies at this scope after the cascade (E7.1); always present. |
+| `configured_value` | What an administrator set at this scope as stored text; null only while the scope delegates (`cascade_mode`, E7.2). |
+| `cascade_mode` | `value`, or `per_site` / `per_zone` / `per_sku` when the scope hands the decision down (E7.2). |
 | `row_version` | The E6.2 "version": sequence-backed, reassigned by the trigger on every write; the concurrency token, the `ETag` and the device sync watermark. |
-| `updated_by`, `updated_at` | Who wrote the row last (a user id, or the service identity for a cascade) and when (UTC). |
-| `deleted_at` | Soft delete, so a reset reaches devices as a delta (E5.3). |
+| `updated_by`, `updated_at` | Who made the decision last and when (UTC). |
+| `deleted_at` | Soft delete: a reset removes the decision, and the deleted row reaches devices as a delta (E5.3); writing at the scope again revives it. |
 
 The unique index `ux_setting_scope_type_scope_id_key` serves the accessor's lookup and enforces one row per
 scope and key. Nothing writes the table directly: the accessor (E6.3) validates against the registry, writes
-the row, recomputes descendants and audits the change.
+the one row and audits the change. The row count is the number of decisions, not scopes × keys: an
+installation with thousands of SKUs holds a few hundred rows, and a site-level change is one row written and
+one audit entry.
 
 ## Reading and writing (E6.3)
 
 `ISettings` (`Wolfgang.Wms.Core.Settings`) is the one way to read or change a setting; the console, the API
 and the CLI all go through it, and nothing writes `core.setting` directly.
 
-- `GetAsync(key, scope)` returns the effective value at a scope: its own configured value, else the nearest
-  ancestor's, else the key's default; `T` is inferred from the key. Reads are served from a per-instance
-  snapshot of `core.setting` (`SettingsCache`, ADR 0003) reloaded only when the table's highest
-  `row_version` moves, probed at most every 5 seconds, and dropped outright by this instance's own writes.
+- `GetAsync(key, scope)` resolves the effective value at a scope: the scope's own configured value, else the
+  nearest ancestor's (organisation → site → zone, or organisation → site → SKU), else the key's default; a
+  scope that delegates holds no value and is passed over like one that inherits. `T` is inferred from the key.
+  Reads are served from a per-instance snapshot of the decision rows (`SettingsCache`, ADR 0003) reloaded
+  only when the table's highest `row_version` moves, probed at most every 5 seconds, and dropped outright by
+  this instance's own writes; a cold read is one query over the scope's ancestor chain.
 - `SetAsync(key, scope, value, updatedBy)` checks the key is registered, the scope allowed and the value
-  accepted by the validator, stores the invariant text as `configured_value` and `effective_value`, walks
-  the hierarchy down rewriting the effective value of descendants that inherit (a descendant with its own
-  configured value keeps it and shields its subtree, E7.1/E7.2), saves it all in one transaction and
-  invalidates the cache. `ResetAsync` clears the configured value so the scope inherits again and cascades
-  the inherited value the same way. `SetTextAsync`/`FindAsync` are the same operations by name for the API.
+  accepted by the validator, stores the invariant text as `configured_value` in that scope's one row, and
+  invalidates the cache. Nothing else is written: descendants that inherit see the change through resolution,
+  and a descendant with its own configured value keeps it and shields its subtree (E7.1). `ResetAsync` removes
+  the decision (the row is soft-deleted) so the scope and its inheriting descendants resolve the nearest
+  ancestor's value again. `SetTextAsync`/`FindAsync` are the same operations by name for the API.
 - Failures are `SettingException`s carrying an error code; the module's exception handler answers the
   matching problem: `settings.unknown_key` (404), `settings.unknown_scope` (400), `settings.scope_not_allowed`
   (400), `settings.invalid_value` (400), `settings.store_unavailable` (503, before a database is configured;
@@ -133,8 +139,9 @@ stories; ordering within a transaction and a WMS correlation on the header are u
 
 ## Cascade modes and inheritance on creation (E7)
 
-A change at a parent flows down in one transaction (E7.1): every descendant that inherits gets the new
-effective value, and a descendant with its own configured value keeps it and shields its subtree.
+A change at a parent applies to every descendant that inherits the moment it is saved (E7.1): the descendant
+resolves the new value on its next read, and one with its own configured value keeps it and shields its
+subtree. Nothing is written below the scope that changed (ADR 0009).
 
 A scope can also hand the decision down instead of holding a value (E7.2). `PUT` with `{ "mode": "per_site" }`
 (or `per_zone`, `per_sku`) sets the scope's `cascadeMode`: it drops its own configured value, inherits for
@@ -146,16 +153,15 @@ level and everything above it write normally, and a value written at a delegatin
 `value`. The console shows overridden children greyed with their retained values (`configuredValue` is
 present while `inheritedFrom` is null).
 
-`ISettings.PopulateAsync(scope)` (E7.3) gives a newly created site, zone or SKU a row for every setting (the
-sites and zones stores call it the moment a row is created, E16.4)
-allowed there, carrying the inherited effective value, so no record is ever unresolved; the create paths of
-those entities call it when they arrive. SKU-scoped keys (E7.4) declare `SettingScopes.OrganizationToSku`
-and cascade organisation → site → SKU through the same code; the hierarchy answers SKU parents once SKUs are
-entities.
+A newly created site, zone or SKU gets no setting rows (E7.3 as decided in ADR 0009): it resolves every
+setting from its ancestors and the defaults until an administrator decides something there, so a new scope is
+never unresolved and never carries copies that could go stale. SKU-scoped keys (E7.4) declare
+`SettingScopes.OrganizationToSku` and resolve organisation → site → SKU through the same code; the hierarchy
+answers SKU parents once SKUs are entities.
 
 ## Scopes (E6.2, E7)
 
 A value lives at a `SettingScopeRef`: a scope type (`organization`, `site`, `zone`, `sku`) and the id of the
-site, zone or SKU (0 for the single organisation). Values cascade organisation → site → zone, or
-organisation → site → SKU for product policies; a child without its own configured value takes its parent's
-effective value. The cascade follows in E7.
+site, zone or SKU (0 for the single organisation). Values resolve organisation → site → zone, or
+organisation → site → SKU for product policies; a child without its own decision takes the nearest ancestor's
+value, computed when it is read (ADR 0009). The delegation modes are E7.

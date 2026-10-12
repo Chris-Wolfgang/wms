@@ -9,12 +9,12 @@ using Wolfgang.Wms.Domain.Settings;
 namespace Wolfgang.Wms.Infrastructure.Database.Settings;
 
 /// <summary>
-/// <see cref="ISettings"/> over <c>core.setting</c> (E6.3, E7). Reads come from the cached snapshot: a
-/// scope's own row, else the nearest ancestor's configured value, else the key's default. A write validates
-/// against the registry, refuses a scope an ancestor has delegated past (E7.2), upserts the scope's row
-/// (configured and effective), walks the hierarchy down rewriting the effective value of descendants that
-/// inherit (a descendant with its own configured value keeps it, E7.1), saves everything in one transaction
-/// and invalidates the cache. Secret-kind values are stored encrypted (<c>enc:v1:</c>, E8.3) through
+/// <see cref="ISettings"/> over <c>core.setting</c> (E6.3, E7, ADR 0009). A row is a decision; the value at any
+/// scope is resolved from the cached snapshot of those rows: the scope's own configured value, else the nearest
+/// ancestor's, else the key's default. A write validates against the registry, refuses a scope an ancestor
+/// has delegated past (E7.2), upserts that one row and invalidates the cache; descendants that inherit see
+/// the change through resolution (a descendant with its own configured value keeps it, E7.1), and a reset
+/// soft-deletes the row. Secret-kind values are stored encrypted (<c>enc:v1:</c>, E8.3) through
 /// <see cref="ISecretProtector"/> and decrypted only for the typed read; every DTO masks them.
 /// </summary>
 public sealed class EfSettings : ISettings
@@ -103,42 +103,10 @@ public sealed class EfSettings : ISettings
 
         await RequireDecidedHereAsync(key, scope, cancellationToken).ConfigureAwait(false);
         var row = await RowAsync(scope, key.Name, cancellationToken).ConfigureAwait(false) ?? Add(scope, key.Name);
-        var inherited = await InheritedFromStoreAsync(key, scope, cancellationToken).ConfigureAwait(false);
         row.ConfiguredValue = null;
         row.CascadeMode = mode.StoredName();
-        Touch(row, inherited, updatedBy, _timeProvider.GetUtcNow());
-        await CascadeAsync(key, scope, inherited, updatedBy, row.UpdatedAt, cancellationToken).ConfigureAwait(false);
+        Touch(row, updatedBy, _timeProvider.GetUtcNow());
         return await CommitAsync(key, scope, cancellationToken).ConfigureAwait(false);
-    }
-
-
-
-    /// <inheritdoc/>
-    public async Task<int> PopulateAsync(SettingScopeRef scope, string updatedBy, CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);
-
-        var created = 0;
-        var now = _timeProvider.GetUtcNow();
-        foreach (var key in _registry.All.Where(k => k.AllowsScope(scope.Type)))
-        {
-            if (await RowAsync(scope, key.Name, cancellationToken).ConfigureAwait(false) is not null)
-            {
-                continue;
-            }
-
-            var row = Add(scope, key.Name);
-            Touch(row, await InheritedFromStoreAsync(key, scope, cancellationToken).ConfigureAwait(false), updatedBy, now);
-            created++;
-        }
-
-        if (created > 0)
-        {
-            await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            _cache.Invalidate();
-        }
-
-        return created;
     }
 
 
@@ -196,12 +164,10 @@ public sealed class EfSettings : ISettings
             text = _protector.Protect(text);   // E8.3: encrypted at rest in the same text column
         }
 
-        var now = _timeProvider.GetUtcNow();
         var row = await RowAsync(scope, key.Name, cancellationToken).ConfigureAwait(false) ?? Add(scope, key.Name);
         row.ConfiguredValue = text;
         row.CascadeMode = CascadeMode.Value.StoredName();
-        Touch(row, text, updatedBy, now);
-        await CascadeAsync(key, scope, text, updatedBy, now, cancellationToken).ConfigureAwait(false);
+        Touch(row, updatedBy, _timeProvider.GetUtcNow());   // descendants see the change through resolution (ADR 0009)
         return await CommitAsync(key, scope, cancellationToken).ConfigureAwait(false);
     }
 
@@ -217,11 +183,12 @@ public sealed class EfSettings : ISettings
             return await ValueOfAsync(key, scope, await SnapshotAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         }
 
-        var inherited = await InheritedFromStoreAsync(key, scope, cancellationToken).ConfigureAwait(false);
+        // No value and no delegation is no decision, so the row goes: soft-deleted, which is how a device sees
+        // it leave (E5.3); a later write at this scope revives it. Descendants resolve the inherited value.
         row.ConfiguredValue = null;
         row.CascadeMode = CascadeMode.Value.StoredName();
-        Touch(row, inherited, updatedBy, _timeProvider.GetUtcNow());
-        await CascadeAsync(key, scope, inherited, updatedBy, row.UpdatedAt, cancellationToken).ConfigureAwait(false);
+        Touch(row, updatedBy, _timeProvider.GetUtcNow());
+        row.DeletedAt = row.UpdatedAt;
         return await CommitAsync(key, scope, cancellationToken).ConfigureAwait(false);
     }
 
@@ -250,64 +217,11 @@ public sealed class EfSettings : ISettings
 
 
 
-    /// <summary>
-    /// Rewrites the effective value of every descendant that inherits; a descendant with its own configured
-    /// value keeps it and shields its subtree (E7.1, E7.2). A delegating descendant inherits for display and
-    /// passes the value on to the children that have not decided.
-    /// </summary>
-    private async Task CascadeAsync(SettingKey key, SettingScopeRef scope, string effective, string updatedBy, DateTimeOffset now, CancellationToken cancellationToken)
-    {
-        foreach (var child in await _hierarchy.ChildrenAsync(scope, cancellationToken).ConfigureAwait(false))
-        {
-            if (!key.AllowsScope(child.Type))
-            {
-                continue;
-            }
-
-            var row = await RowAsync(child, key.Name, cancellationToken).ConfigureAwait(false);
-            if (row?.ConfiguredValue is not null)
-            {
-                continue;
-            }
-
-            if (row is not null)
-            {
-                Touch(row, effective, updatedBy, now);
-            }
-
-            await CascadeAsync(key, child, effective, updatedBy, now, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-
-
     private async Task<SettingValue> CommitAsync(SettingKey key, SettingScopeRef scope, CancellationToken cancellationToken)
     {
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         _cache.Invalidate();
         return await ValueOfAsync(key, scope, await SnapshotAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
-    }
-
-
-
-    /// <summary>
-    /// The value a scope inherits, read from the store (not the snapshot) so a write sees the current state.
-    /// </summary>
-    private async Task<string> InheritedFromStoreAsync(SettingKey key, SettingScopeRef scope, CancellationToken cancellationToken)
-    {
-        var parent = await _hierarchy.ParentAsync(scope, cancellationToken).ConfigureAwait(false);
-        while (parent is { } ancestor)
-        {
-            var row = await RowAsync(ancestor, key.Name, cancellationToken).ConfigureAwait(false);
-            if (row?.ConfiguredValue is not null)
-            {
-                return row.EffectiveValue;
-            }
-
-            parent = await _hierarchy.ParentAsync(ancestor, cancellationToken).ConfigureAwait(false);
-        }
-
-        return key.DefaultText;
     }
 
 
@@ -321,7 +235,7 @@ public sealed class EfSettings : ISettings
         var own = snapshot.Find(scope, key.Name);
         if (own?.ConfiguredValue is not null)
         {
-            return (own.EffectiveValue, null);
+            return (own.ConfiguredValue, null);
         }
 
         var parent = await _hierarchy.ParentAsync(scope, cancellationToken).ConfigureAwait(false);
@@ -330,13 +244,13 @@ public sealed class EfSettings : ISettings
             var row = snapshot.Find(ancestor, key.Name);
             if (row?.ConfiguredValue is not null)
             {
-                return (own?.EffectiveValue ?? row.EffectiveValue, ancestor.ToString());
+                return (row.ConfiguredValue, ancestor.ToString());
             }
 
             parent = await _hierarchy.ParentAsync(ancestor, cancellationToken).ConfigureAwait(false);
         }
 
-        return (own?.EffectiveValue ?? key.DefaultText, SettingValue.DefaultSource);
+        return (key.DefaultText, SettingValue.DefaultSource);
     }
 
 
@@ -377,9 +291,8 @@ public sealed class EfSettings : ISettings
 
 
 
-    private static void Touch(Setting row, string effective, string updatedBy, DateTimeOffset now)
+    private static void Touch(Setting row, string updatedBy, DateTimeOffset now)
     {
-        row.EffectiveValue = effective;
         row.UpdatedBy = updatedBy;
         row.UpdatedAt = now;
         row.DeletedAt = null;

@@ -51,7 +51,7 @@ public sealed class SettingStorageTests
         Assert.True(organisation.RowVersion > 0 && site.RowVersion > organisation.RowVersion, "insert assigns increasing row versions");
 
         var inserted = site.RowVersion;
-        site.EffectiveValue = "00:12:00";
+        site.ConfiguredValue = "00:12:00";
         await context.SaveChangesAsync();
         Assert.True(site.RowVersion > inserted, $"the trigger must reassign row_version on update; got {site.RowVersion} after {inserted}");
 
@@ -81,7 +81,6 @@ public sealed class SettingStorageTests
             ScopeId = scopeId,
             Key = key,
             ConfiguredValue = value,
-            EffectiveValue = value,
             UpdatedBy = "test",
             UpdatedAt = DateTimeOffset.UtcNow,
         };

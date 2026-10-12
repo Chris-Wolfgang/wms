@@ -5,7 +5,6 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -80,7 +79,7 @@ public sealed class EfSettingsTests
         await AssertValidationAndSecretsAsync(client);
         await AssertTypedAccessAndCacheAsync(app.Services);
         await AssertCascadeModesAsync(client);
-        await AssertPopulateAsync(app.Services);
+        await AssertNoRowWithoutADecisionAsync(app.Services);
     }
 
 
@@ -130,25 +129,21 @@ public sealed class EfSettingsTests
 
 
     /// <summary>
-    /// E7.3: a new site gets a row per setting allowed there with the inherited value; a second call adds
-    /// nothing; the organisation-only secret is skipped.
+    /// ADR 0009: a scope that only inherits has no row; every value there is resolved from the nearest decision
+    /// (the organisation's lease timeout, the defaults for the rest) and carries no row version or author.
     /// </summary>
-    private static async Task AssertPopulateAsync(IServiceProvider services)
+    private static async Task AssertNoRowWithoutADecisionAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var settings = scope.ServiceProvider.GetRequiredService<ISettings>();
 
-        var created = await settings.PopulateAsync(SettingScopeRef.Site(9), "creator", CancellationToken.None);
-        var again = await settings.PopulateAsync(SettingScopeRef.Site(9), "creator", CancellationToken.None);
         var values = await settings.ListAsync(SettingScopeRef.Site(9), CancellationToken.None);
+        var leaseTimeout = values.Single(v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal));
 
-        Assert.Equal(2, created);   // lease_timeout and level; sample.password is organisation-only
-        Assert.Equal(0, again);
-        Assert.Equal("00:25:00", values.Single(v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal)).EffectiveValue);
-        Assert.NotNull(values.Single(v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal)).RowVersion);
-        Assert.Null(values.Single(v => string.Equals(v.Name, "sample.password", StringComparison.Ordinal)).RowVersion);
-        Assert.Equal("creator", values.Single(v => string.Equals(v.Name, "sample.level", StringComparison.Ordinal)).UpdatedBy);
-        await Assert.ThrowsAsync<ArgumentException>(() => settings.PopulateAsync(SettingScopeRef.Site(9), " ", CancellationToken.None));
+        Assert.Equal("00:25:00", leaseTimeout.EffectiveValue);
+        Assert.Equal("organization", leaseTimeout.InheritedFrom);
+        Assert.All(values, v => Assert.Null(v.RowVersion));
+        Assert.All(values, v => Assert.Null(v.UpdatedBy));
         var mode = await Assert.ThrowsAsync<SettingException>(() => settings.SetModeAsync(Password, SettingScopeRef.Organization, CascadeMode.PerSite, "creator", CancellationToken.None));
         Assert.Equal(SettingErrorCodes.ModeNotAllowed, mode.Code);
         await Assert.ThrowsAsync<ArgumentException>(() => settings.SetModeAsync(LeaseTimeout, SettingScopeRef.Organization, CascadeMode.PerSite, " ", CancellationToken.None));
@@ -198,22 +193,23 @@ public sealed class EfSettingsTests
         Assert.Equal("00:10:00", zone10.EffectiveValue);
         Assert.Equal("site:1", zone10.InheritedFrom);
 
-        // site 2 gets a row that inherits (write, then reset) so the cascade has a materialised row to rewrite.
+        // site 2 writes, then resets: the decision row goes with the reset, and the site resolves again.
         using var site2Write = await PutAsync(client, "site/2", "sample.lease_timeout", "00:05:00", ifMatch: null);
         var site2Row = (await site2Write.Content.ReadFromJsonAsync<SettingValue>(Json))!;
         using var site2Reset = await client.SendAsync(Request(HttpMethod.Delete, "site/2", "sample.lease_timeout", null, site2Row.Etag));
         Assert.Equal(HttpStatusCode.OK, site2Reset.StatusCode);
         var site2AfterReset = (await site2Reset.Content.ReadFromJsonAsync<SettingValue>(Json))!;
         Assert.Null(site2AfterReset.ConfiguredValue);
+        Assert.Null(site2AfterReset.RowVersion);   // no decision, no row (ADR 0009)
         Assert.Equal("00:31:00", site2AfterReset.EffectiveValue);
 
         using var organisationChange = await PutAsync(client, "organization/0", "sample.lease_timeout", "00:20:00", ifMatch: organisationEtag);
         Assert.Equal(HttpStatusCode.OK, organisationChange.StatusCode);
         Assert.Equal("00:10:00", (await GetAsync(client, "site/1", "sample.lease_timeout")).EffectiveValue);   // shielded by its own value
         Assert.Equal("00:10:00", (await GetAsync(client, "zone/10", "sample.lease_timeout")).EffectiveValue);
-        var site2Cascaded = await GetAsync(client, "site/2", "sample.lease_timeout");
-        Assert.Equal("00:20:00", site2Cascaded.EffectiveValue);
-        Assert.NotEqual(site2AfterReset.Etag, site2Cascaded.Etag);   // the materialised row was rewritten in the same transaction
+        var site2Resolved = await GetAsync(client, "site/2", "sample.lease_timeout");
+        Assert.Equal("00:20:00", site2Resolved.EffectiveValue);
+        Assert.Null(site2Resolved.RowVersion);   // the organisation's one row changed; site 2 resolved it, nothing was rewritten
 
         var site1Row = await GetAsync(client, "site/1", "sample.lease_timeout");
         using var site1Reset = await client.SendAsync(Request(HttpMethod.Delete, "site/1", "sample.lease_timeout", null, site1Row.Etag));
@@ -275,7 +271,6 @@ public sealed class EfSettingsTests
         var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
         var storedPassword = await context.Settings.SingleAsync(s => s.Key == "sample.password");
         Assert.StartsWith("enc:v1:", storedPassword.ConfiguredValue, StringComparison.Ordinal);   // E8.3: encrypted at rest
-        Assert.StartsWith("enc:v1:", storedPassword.EffectiveValue, StringComparison.Ordinal);
         Assert.NotEmpty(await context.DataProtectionKeys.ToListAsync());   // E8.6: the ring lives in the database
         Assert.Throws<ArgumentException>(() => MaxRowVersionSource.Sql(context, typeof(string)));
         Assert.Contains("row_version", MaxRowVersionSource.Sql(context, typeof(Setting)), StringComparison.Ordinal);

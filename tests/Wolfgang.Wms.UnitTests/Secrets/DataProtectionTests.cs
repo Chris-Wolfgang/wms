@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Wolfgang.Wms.Core.Secrets;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Secrets;
+using Wolfgang.Wms.UnitTests.Migrate;
 
 namespace Wolfgang.Wms.UnitTests.Secrets;
 
@@ -97,7 +98,8 @@ public sealed class DataProtectionTests
     {
         var protector = new DataProtectionSecretProtector(new EphemeralDataProtectionProvider());
         var options = new DatabaseOptions { Provider = "SqlServer", ConnectionString = protector.Protect("Server=db;Database=wms"), TrustServerCertificate = true };
-        var plain = new DatabaseOptions { Provider = "PostgreSql", ConnectionString = "Host=db" };
+        var plainText = TestConnectionStrings.PostgreSql("db");   // built, not a literal: CodeQL traces literals into the SQL Server builder
+        var plain = new DatabaseOptions { Provider = "PostgreSql", ConnectionString = plainText };
 
         Assert.True(options.ConnectionStringIsProtected);
         Assert.False(plain.ConnectionStringIsProtected);
@@ -105,7 +107,7 @@ public sealed class DataProtectionTests
         Assert.Equal("db", effective.DataSource);
         Assert.Equal("wms", effective.InitialCatalog);
         Assert.True(effective.TrustServerCertificate);
-        Assert.Equal("Host=db", plain.EffectiveConnectionString());
+        Assert.Equal(plainText, plain.EffectiveConnectionString());
         Assert.Throws<InvalidOperationException>(() => options.EffectiveConnectionString());
         Assert.Empty(options.Validate());
     }

@@ -57,14 +57,17 @@ public sealed class ConsoleHostTests : IClassFixture<WebApplicationFactory<App>>
 
 
     [Fact]
-    public async Task The_production_pipeline_serves_the_console_with_hsts_and_the_exception_handler()
+    public async Task The_production_pipeline_serves_the_console_with_hsts_over_https()
     {
         using var production = _factory.WithWebHostBuilder(builder => builder.UseEnvironment("Production"));
-        using var client = production.CreateClient();
+        // UseHsts emits Strict-Transport-Security only on an https request to a non-loopback host (localhost is on its
+        // default exclusion list); the factory's default client speaks http to localhost.
+        using var client = production.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://console.wms.test/") });
 
         using var response = await client.GetAsync(new Uri("/configure", UriKind.Relative));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("max-age=", response.Headers.GetValues("Strict-Transport-Security").Single(), StringComparison.Ordinal);
     }
 
 

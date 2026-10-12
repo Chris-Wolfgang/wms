@@ -240,10 +240,13 @@ public sealed class MigrationRunnerTests
 
         var status = await MigrateProgram.RunAsync(["--status"], output, error, Configuration("PostgreSql", TestConnectionStrings.PostgreSql("nowhere")), cancellation.Token);
         var apply = await MigrateProgram.RunAsync([], output, error, Configuration("SqlServer", UnreachableSqlServer), cancellation.Token);
+        var script = await MigrateProgram.RunAsync(["--script", "--provider", "PostgreSql"], output, error, new ConfigurationBuilder().Build(), cancellation.Token);
 
         Assert.Equal(MigrateProgram.ExitCancelled, status);
         Assert.Equal(MigrateProgram.ExitCancelled, apply);
-        Assert.Equal("Cancelled." + Environment.NewLine + "Cancelled." + Environment.NewLine, error.ToString());
+        Assert.Equal(MigrateProgram.ExitCancelled, script);
+        Assert.Equal(string.Empty, output.ToString());   // no script reached standard output
+        Assert.Equal("Cancelled." + Environment.NewLine + "Cancelled." + Environment.NewLine + "Cancelled." + Environment.NewLine, error.ToString());
     }
 
 

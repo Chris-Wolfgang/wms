@@ -15,7 +15,8 @@ public static class MigrateProgram
     /// <summary>Everything ran.</summary>
     public const int ExitOk = 0;
 
-    /// <summary>A migration failed; its name is in the output.</summary>
+    /// <summary>A migration failed (its name is in the output), or the tool failed before one could run: the provider
+    /// could not be loaded, EF rejected the model or an unexpected I/O error occurred (the message is in the output).</summary>
     public const int ExitMigrationFailed = 1;
 
     /// <summary>Usage or configuration error.</summary>
@@ -291,7 +292,12 @@ public static class MigrateProgram
 
     private static async Task<int> ScriptCoreAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, TextWriter error, CancellationToken cancellationToken)
     {
+        // Generation is synchronous, so the token is checked on both sides of it: Ctrl+C (which the entry point
+        // turns into a cancellation instead of a process kill) must end with exit 130 and no script, not a full
+        // script and exit 0.
+        cancellationToken.ThrowIfCancellationRequested();
         var script = runner.Script(command.From, command.To, command.ConfirmDataLoss);
+        cancellationToken.ThrowIfCancellationRequested();
         if (script.Sql is null)
         {
             await WriteConfirmationRequiredAsync(error, "This downgrade script loses data", script.DestructiveSteps).ConfigureAwait(false);
@@ -300,7 +306,7 @@ public static class MigrateProgram
 
         if (command.Output is null)
         {
-            await output.WriteAsync(script.Sql).ConfigureAwait(false);
+            await output.WriteAsync(script.Sql.AsMemory(), cancellationToken).ConfigureAwait(false);
             return ExitOk;
         }
 

@@ -93,9 +93,12 @@ and the CLI all go through it, and nothing writes `core.setting` directly.
 - `GetAsync(key, scope)` resolves the effective value at a scope: the scope's own configured value, else the
   nearest ancestor's (organisation → site → zone, or organisation → site → SKU), else the key's default; a
   scope that delegates holds no value and is passed over like one that inherits. `T` is inferred from the key.
-  Reads are served from a per-instance snapshot of the decision rows (`SettingsCache`, ADR 0003) reloaded
-  only when the table's highest `row_version` moves, probed at most every 5 seconds, and dropped outright by
-  this instance's own writes; a cold read is one query over the scope's ancestor chain.
+  A cold read is one query over the scope's ancestor chain; a warm read is a dictionary hit, because the
+  store is decorated by `CachedSettings` (ADR 0003), which memoises what the store resolves until the
+  settings or zones tables' highest `row_version` moves (probed at most every 5 seconds) or this instance
+  saves a setting or a zone, whichever store saved it (the `OwnWritesInvalidation` interceptor).
+  `ProtectedSettings` sits outside the cache and keeps secret-kind values encrypted at rest (E8.3), so the
+  cache holds ciphertext.
 - `SetAsync(key, scope, value, updatedBy)` checks the key is registered, the scope allowed and the value
   accepted by the validator, stores the invariant text as `value` in that scope's one row, and
   invalidates the cache. Nothing else is written: descendants that inherit see the change through resolution,

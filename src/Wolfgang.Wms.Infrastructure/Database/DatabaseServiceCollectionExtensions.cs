@@ -10,6 +10,7 @@ using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Infrastructure.Database.Auditing;
+using Wolfgang.Wms.Infrastructure.Database.Caching;
 using Wolfgang.Wms.Infrastructure.Database.Settings;
 using Wolfgang.Wms.Core.Secrets;
 using Wolfgang.Wms.Infrastructure.Secrets;
@@ -104,7 +105,7 @@ public static class DatabaseServiceCollectionExtensions
             var database = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
             // The protector is resolved only for an encrypted string: the database ring (E8.6) would need this very context.
             Configure(builder, database, database.ConnectionStringIsProtected ? provider.GetRequiredService<ISecretProtector>() : null);
-            builder.AddInterceptors(provider.GetRequiredService<IntegritySigningInterceptor>());
+            builder.AddInterceptors(provider.GetRequiredService<IntegritySigningInterceptor>(), provider.GetRequiredService<OwnWritesInvalidation>());   // ADR 0003: own saves drop the caches that watch them
         });
         services.RemoveAll<ISchemaVersionSource>();
         services.AddScoped<ISchemaVersionSource, MigrationsSchemaVersionSource>();
@@ -117,9 +118,15 @@ public static class DatabaseServiceCollectionExtensions
         services.TryAddSingleton(provider => new SettingRegistry(provider.GetRequiredService<ModuleCollection>()));   // hosts without the settings module (the worker) still get the accessor
         services.TryAddSingleton(provider => new PermissionCatalog(provider.GetRequiredService<ModuleCollection>()));   // the roles store's catalog, for hosts without the auth module
         services.TryAddSingleton<IRowVersionSource, MaxRowVersionSource>();   // E1.12: the caches' one invalidation signal
+        services.TryAddSingleton<OwnWritesInvalidation>();
         services.TryAddSingleton<SettingsCache>();
+        services.AddSingleton<IWatchingCache>(provider => provider.GetRequiredService<SettingsCache>());
         services.RemoveAll<ISettings>();
-        services.AddScoped<ISettings, EfSettings>();   // E6.3: the stored accessor replaces the defaults-only one
+        services.AddScoped<EfSettings>();
+        services.AddScoped<ISettings>(provider => new ProtectedSettings(   // E6.3, E8.3: secrets protected outside, resolutions memoised inside, the store underneath
+            new CachedSettings(provider.GetRequiredService<EfSettings>(), provider.GetRequiredService<SettingsCache>()),
+            provider.GetRequiredService<SettingRegistry>(),
+            provider.GetRequiredService<ISecretProtector>()));
         AddMasterData(services);   // E16: the organization, the sites and the zones, and the settings cascade over them
         services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead
         AddIdentity(services, configuration);   // E9, E10: accounts, roles, sessions, integrity
@@ -180,8 +187,11 @@ public static class DatabaseServiceCollectionExtensions
         services.AddHostedService<BootstrapAdminCheck>();   // E9.1: after the schema check, the administrator exists
         services.RemoveAll<IRoles>();
         services.AddScoped<IRoles, EfRoles>();   // E10.2: the stored roles replace the placeholder
+        services.TryAddSingleton<SessionRevocationsCache>();
+        services.AddSingleton<IWatchingCache>(provider => provider.GetRequiredService<SessionRevocationsCache>());
         services.RemoveAll<ISessionRevocations>();
-        services.AddScoped<ISessionRevocations, EfSessionRevocations>();   // E10.5: per-user "sessions valid after"
+        services.AddScoped<EfSessionRevocations>();
+        services.AddScoped<ISessionRevocations>(provider => new CachedSessionRevocations(provider.GetRequiredService<EfSessionRevocations>(), provider.GetRequiredService<SessionRevocationsCache>()));   // E10.5: per-user "sessions valid after", memoised per instance
         services.RemoveAll<ISessionGrants>();
         services.AddScoped<ISessionGrants, EfSessionGrants>();   // E10.4: a session's grants recomputed on every request
         services.RemoveAll<IExternalAccounts>();

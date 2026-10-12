@@ -58,12 +58,12 @@ public sealed class EfSettings : ISettings
         Require(key);
         if (!key.AllowsScope(scope.Type))
         {
-            throw new SettingException(SettingErrorCodes.ScopeNotAllowed, $"{key.Name} cannot be configured at the {scope.Type.StoredName()} scope.");
+            throw new SettingException(SettingErrorCodes.ScopeNotAllowed, $"{key.Name} cannot be configured at the {scope.Type.StoredName()} scope.", key.Name, scope.Type.StoredName());
         }
 
         if (key.Validate(value) is { } reason)
         {
-            throw new SettingException(SettingErrorCodes.InvalidValue, reason);
+            throw new SettingException(SettingErrorCodes.InvalidValue, reason, reason);
         }
 
         return WriteAsync(key, scope, key.Codec.Format(value), updatedBy, cancellationToken);
@@ -115,7 +115,7 @@ public sealed class EfSettings : ISettings
 
         if (_registry.Check(name, scope.Type, text) is { } failure)
         {
-            throw new SettingException(failure.Code, failure.Detail);
+            throw new SettingException(failure.Code, failure.Detail, [.. failure.Arguments]);
         }
 
         return WriteAsync(Registered(name), scope, text, updatedBy, cancellationToken);
@@ -293,7 +293,7 @@ public sealed class EfSettings : ISettings
 
     private SettingKey Registered(string? name)
     {
-        return _registry.TryGet(name, out var key) ? key : throw new SettingException(SettingErrorCodes.UnknownKey, $"'{name}' is not a registered setting.");
+        return _registry.TryGet(name, out var key) ? key : throw new SettingException(SettingErrorCodes.UnknownKey, $"'{name}' is not a registered setting.", name ?? string.Empty);
     }
 
 
@@ -303,7 +303,7 @@ public sealed class EfSettings : ISettings
         ArgumentNullException.ThrowIfNull(key);
         if (!_registry.Contains(key))
         {
-            throw new SettingException(SettingErrorCodes.UnknownKey, $"'{key.Name}' is not a registered setting.");
+            throw new SettingException(SettingErrorCodes.UnknownKey, $"'{key.Name}' is not a registered setting.", key.Name);
         }
     }
 }

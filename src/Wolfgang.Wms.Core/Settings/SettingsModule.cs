@@ -86,7 +86,7 @@ public static class SettingsModule
     {
         if (!SettingScopeExtensions.TryParseScope(scopeType, out var type))
         {
-            throw new SettingException(SettingErrorCodes.UnknownScope, $"'{scopeType}' is not a setting scope (organization, site, zone, sku).");
+            throw new SettingException(SettingErrorCodes.UnknownScope, $"'{scopeType}' is not a setting scope (organization, site, zone, sku).", scopeType ?? string.Empty);
         }
 
         return new SettingScopeRef(type, type == SettingScope.Organization ? 0 : scopeId);

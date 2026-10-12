@@ -22,7 +22,7 @@ public sealed class SettingExceptionHandler : IExceptionHandler
             return false;
         }
 
-        await ApiProblems.Problem(failure.Code, failure.Message).ExecuteAsync(httpContext).ConfigureAwait(false);
+        await ApiProblems.Problem(failure.Code, failure.Message, [.. failure.Arguments]).ExecuteAsync(httpContext).ConfigureAwait(false);
         return true;
     }
 }

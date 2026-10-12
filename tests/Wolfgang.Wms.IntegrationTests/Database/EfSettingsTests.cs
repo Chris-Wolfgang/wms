@@ -277,8 +277,8 @@ public sealed class EfSettingsTests
         Assert.StartsWith("enc:v1:", storedPassword.ConfiguredValue, StringComparison.Ordinal);   // E8.3: encrypted at rest
         Assert.StartsWith("enc:v1:", storedPassword.EffectiveValue, StringComparison.Ordinal);
         Assert.NotEmpty(await context.DataProtectionKeys.ToListAsync());   // E8.6: the ring lives in the database
-        Assert.Throws<ArgumentException>(() => MaxRowVersionSource.Sql(context, typeof(string)));
-        Assert.Contains("row_version", MaxRowVersionSource.Sql(context, typeof(Setting)), StringComparison.Ordinal);
+        Assert.Throws<ArgumentException>(() => MaxRowVersionSource.CreateSqlCommandText(context, typeof(string)));
+        Assert.Contains("row_version", MaxRowVersionSource.CreateSqlCommandText(context, typeof(Setting)), StringComparison.Ordinal);
     }
 
 

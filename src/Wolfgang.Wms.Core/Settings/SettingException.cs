@@ -13,25 +13,29 @@ namespace Wolfgang.Wms.Core.Settings;
 public sealed class SettingException : Exception
 {
     /// <summary>
-    /// Creates the exception for <paramref name="code"/> with a user-facing detail.
+    /// Creates the exception for <paramref name="code"/> with a user-facing detail and the values for the code's
+    /// message template, which the problem response's title is formatted from.
     /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="code"/> is null.</exception>
-    public SettingException(ErrorCode code, string detail)
+    /// <exception cref="ArgumentNullException"><paramref name="code"/> or <paramref name="arguments"/> is null.</exception>
+    public SettingException(ErrorCode code, string detail, params object[] arguments)
         : base(detail)
     {
         Code = code ?? throw new ArgumentNullException(nameof(code));
+        Arguments = arguments ?? throw new ArgumentNullException(nameof(arguments));
     }
 
 
 
     /// <summary>
-    /// Creates the exception for <paramref name="code"/> with a user-facing detail and a cause.
+    /// Creates the exception for <paramref name="code"/> with a user-facing detail, a cause and the values for the
+    /// code's message template.
     /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="code"/> is null.</exception>
-    public SettingException(ErrorCode code, string detail, Exception innerException)
+    /// <exception cref="ArgumentNullException"><paramref name="code"/> or <paramref name="arguments"/> is null.</exception>
+    public SettingException(ErrorCode code, string detail, Exception innerException, params object[] arguments)
         : base(detail, innerException)
     {
         Code = code ?? throw new ArgumentNullException(nameof(code));
+        Arguments = arguments ?? throw new ArgumentNullException(nameof(arguments));
     }
 
 
@@ -40,4 +44,11 @@ public sealed class SettingException : Exception
     /// The error code the API answers with.
     /// </summary>
     public ErrorCode Code { get; }
+
+
+
+    /// <summary>
+    /// The values for <see cref="Code"/>'s message template, in placeholder order (<c>{0}</c>, <c>{1}</c>…).
+    /// </summary>
+    public IReadOnlyList<object> Arguments { get; }
 }

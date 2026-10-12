@@ -67,7 +67,7 @@ public sealed class DefaultSettings : ISettings
     {
         if (!_registry.TryGet(name, out var key))
         {
-            throw new SettingException(SettingErrorCodes.UnknownKey, $"'{name}' is not a registered setting.");
+            throw new SettingException(SettingErrorCodes.UnknownKey, $"'{name}' is not a registered setting.", name);
         }
 
         return Task.FromResult(Default(key, scope));
@@ -80,7 +80,7 @@ public sealed class DefaultSettings : ISettings
     {
         if (!_registry.TryGet(name, out _))
         {
-            throw new SettingException(SettingErrorCodes.UnknownKey, $"'{name}' is not a registered setting.");
+            throw new SettingException(SettingErrorCodes.UnknownKey, $"'{name}' is not a registered setting.", name);
         }
 
         throw Unavailable();
@@ -107,7 +107,7 @@ public sealed class DefaultSettings : ISettings
         ArgumentNullException.ThrowIfNull(key);
         if (!_registry.Contains(key))
         {
-            throw new SettingException(SettingErrorCodes.UnknownKey, $"'{key.Name}' is not a registered setting.");
+            throw new SettingException(SettingErrorCodes.UnknownKey, $"'{key.Name}' is not a registered setting.", key.Name);
         }
     }
 }

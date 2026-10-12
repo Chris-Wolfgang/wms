@@ -90,7 +90,7 @@ public sealed class DefaultSettingsTests
         context.Response.Body = new MemoryStream();
         var inner = new InvalidOperationException("cause");
 
-        var handled = await handler.TryHandleAsync(context, new SettingException(SettingErrorCodes.UnknownKey, "'x' is not a registered setting."), CancellationToken.None);
+        var handled = await handler.TryHandleAsync(context, new SettingException(SettingErrorCodes.UnknownKey, "'x' is not a registered setting.", "x"), CancellationToken.None);
         var ignored = await handler.TryHandleAsync(context, inner, CancellationToken.None);
         var withCause = new SettingException(SettingErrorCodes.InvalidValue, "bad", inner);
 
@@ -101,6 +101,10 @@ public sealed class DefaultSettingsTests
         Assert.Equal("bad", withCause.Message);
         Assert.Throws<ArgumentNullException>(() => new SettingException(null!, "d"));
         Assert.Throws<ArgumentNullException>(() => new SettingException(null!, "d", inner));
+        Assert.Throws<ArgumentNullException>(() => new SettingException(SettingErrorCodes.UnknownKey, "d", (object[])null!));
+        Assert.Throws<ArgumentNullException>(() => new SettingException(SettingErrorCodes.UnknownKey, "d", inner, null!));
+        Assert.Equal(["x"], new SettingException(SettingErrorCodes.UnknownKey, "d", "x").Arguments);
+        Assert.Empty(withCause.Arguments);
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await handler.TryHandleAsync(null!, inner, CancellationToken.None));
     }
 

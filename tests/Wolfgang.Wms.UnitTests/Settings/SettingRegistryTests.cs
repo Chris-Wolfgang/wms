@@ -65,7 +65,9 @@ public sealed class SettingRegistryTests
         Assert.Null(registry.Check("picking.max_totes", SettingScope.Zone, "3"));
         Assert.Equal(SettingErrorCodes.UnknownKey, registry.Check("picking.nope", SettingScope.Site, "3")?.Code);
         Assert.Equal(SettingErrorCodes.ScopeNotAllowed, registry.Check("feature.bulk_picking", SettingScope.Zone, "true")?.Code);
-        Assert.Equal((SettingErrorCodes.InvalidValue, "must be positive"), registry.Check("picking.max_totes", SettingScope.Site, "0"));
+        var invalid = registry.Check("picking.max_totes", SettingScope.Site, "0");
+        Assert.Equal((SettingErrorCodes.InvalidValue, "must be positive"), (invalid?.Code, invalid?.Detail));
+        Assert.Equal(["must be positive"], invalid?.Arguments);
         Assert.Equal(SettingErrorCodes.InvalidValue, registry.Check("picking.max_totes", SettingScope.Site, "many")?.Code);
         Assert.Equal(404, SettingErrorCodes.UnknownKey.HttpStatus);
     }

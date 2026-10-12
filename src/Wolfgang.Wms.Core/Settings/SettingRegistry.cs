@@ -97,23 +97,23 @@ public sealed class SettingRegistry
 
     /// <summary>
     /// Checks a write (E6.1, E6.3): the key must be registered, allow <paramref name="scope"/>, and accept
-    /// <paramref name="text"/>. Returns the error code and a detail for the problem response, or null when
-    /// the write is valid.
+    /// <paramref name="text"/>. Returns the error code, a detail and the code's template arguments for the problem
+    /// response, or null when the write is valid.
     /// </summary>
-    public (ErrorCode Code, string Detail)? Check(string? name, SettingScope scope, string? text)
+    public (ErrorCode Code, string Detail, object[] Arguments)? Check(string? name, SettingScope scope, string? text)
     {
         if (!TryGet(name, out var key))
         {
-            return (SettingErrorCodes.UnknownKey, $"'{name}' is not a registered setting.");
+            return (SettingErrorCodes.UnknownKey, $"'{name}' is not a registered setting.", [name ?? string.Empty]);
         }
 
         if (!key.AllowsScope(scope))
         {
-            return (SettingErrorCodes.ScopeNotAllowed, $"{key.Name} cannot be configured at the {scope.StoredName()} scope.");
+            return (SettingErrorCodes.ScopeNotAllowed, $"{key.Name} cannot be configured at the {scope.StoredName()} scope.", [key.Name, scope.StoredName()]);
         }
 
         var reason = key.Validate(text);
-        return reason is null ? null : (SettingErrorCodes.InvalidValue, reason);
+        return reason is null ? null : (SettingErrorCodes.InvalidValue, reason, [reason]);
     }
 
 

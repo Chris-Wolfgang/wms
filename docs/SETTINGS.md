@@ -73,7 +73,7 @@ or a cascade mode at that scope. A scope that inherits has no row; what applies 
 |--------|---------|
 | `scope_type`, `scope_id` | The `SettingScopeRef`: `organization` (id 0), `site`, `zone` or `sku` and the row id. |
 | `key` | The registered setting name. |
-| `configured_value` | What an administrator set at this scope as stored text; null only while the scope delegates (`cascade_mode`, E7.2). |
+| `value` | What an administrator set at this scope as stored text; null only while the scope delegates (`cascade_mode`, E7.2). |
 | `cascade_mode` | `value`, or `per_site` / `per_zone` / `per_sku` when the scope hands the decision down (E7.2). |
 | `row_version` | The E6.2 "version": sequence-backed, reassigned by the trigger on every write; the concurrency token, the `ETag` and the device sync watermark. |
 | `updated_by`, `updated_at` | Who made the decision last and when (UTC). |
@@ -97,7 +97,7 @@ and the CLI all go through it, and nothing writes `core.setting` directly.
   only when the table's highest `row_version` moves, probed at most every 5 seconds, and dropped outright by
   this instance's own writes; a cold read is one query over the scope's ancestor chain.
 - `SetAsync(key, scope, value, updatedBy)` checks the key is registered, the scope allowed and the value
-  accepted by the validator, stores the invariant text as `configured_value` in that scope's one row, and
+  accepted by the validator, stores the invariant text as `value` in that scope's one row, and
   invalidates the cache. Nothing else is written: descendants that inherit see the change through resolution,
   and a descendant with its own configured value keeps it and shields its subtree (E7.1). `ResetAsync` removes
   the decision (the row is soft-deleted) so the scope and its inheriting descendants resolve the nearest

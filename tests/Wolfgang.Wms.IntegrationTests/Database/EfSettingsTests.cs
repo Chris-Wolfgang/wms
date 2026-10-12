@@ -270,7 +270,7 @@ public sealed class EfSettingsTests
 
         var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
         var storedPassword = await context.Settings.SingleAsync(s => s.Key == "sample.password");
-        Assert.StartsWith("enc:v1:", storedPassword.ConfiguredValue, StringComparison.Ordinal);   // E8.3: encrypted at rest
+        Assert.StartsWith("enc:v1:", storedPassword.Value, StringComparison.Ordinal);   // E8.3: encrypted at rest
         Assert.NotEmpty(await context.DataProtectionKeys.ToListAsync());   // E8.6: the ring lives in the database
         Assert.Throws<ArgumentException>(() => MaxRowVersionSource.Sql(context, typeof(string)));
         Assert.Contains("row_version", MaxRowVersionSource.Sql(context, typeof(Setting)), StringComparison.Ordinal);

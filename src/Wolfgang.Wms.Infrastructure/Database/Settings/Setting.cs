@@ -5,8 +5,8 @@ using Wolfgang.Wms.Infrastructure.Database.Sync;
 namespace Wolfgang.Wms.Infrastructure.Database.Settings;
 
 /// <summary>
-/// One row of <c>core.setting</c> (E6.2): a decision about a setting at one scope (ADR 0009). <c>configured_value</c>
-/// is what an administrator set here (null only while the scope delegates, <c>cascade_mode</c>); a scope that
+/// One row of <c>core.setting</c> (E6.2): a decision about a setting at one scope (ADR 0009). <c>value</c> is
+/// what an administrator set here (null only while the scope delegates, <c>cascade_mode</c>); a scope that
 /// inherits has no row, its value is resolved on read. Row-versioned (the sync watermark and the concurrency
 /// token) and soft-deleted (a reset travels to devices as a delta), so it is a synced master table.
 /// </summary>
@@ -70,7 +70,7 @@ public sealed class Setting : ISyncedEntity
     /// The value configured at this scope as stored text; null only while the scope delegates
     /// (<see cref="CascadeMode"/>). A scope that inherits has no row at all (ADR 0009).
     /// </summary>
-    public string? ConfiguredValue { get; set; }
+    public string? Value { get; set; }
 
 
 

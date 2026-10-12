@@ -212,10 +212,6 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasDefaultValue("value")
                         .HasColumnName("cascade_mode");
 
-                    b.Property<string>("ConfiguredValue")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("configured_value");
-
                     b.Property<DateTime?>("DeletedAt")
                         .HasPrecision(3)
                         .HasColumnType("datetime2(3)")
@@ -254,6 +250,10 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)")
                         .HasColumnName("updated_by");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("value");
 
                     b.HasKey("Id")
                         .HasName("pk_setting");

@@ -85,7 +85,7 @@ public sealed class SettingsAuditTests
         Assert.All(headers, h => Assert.Contains("setting", h.EntityTable, StringComparison.Ordinal));
         Assert.Equal(headers[0].EntityKey, headers[1].EntityKey);
         Assert.NotEqual(headers[0].TransactionId, headers[1].TransactionId);
-        Assert.Contains(headers[1].Details, d => string.Equals(d.ColumnName, "configured_value", StringComparison.Ordinal) && string.Equals(d.ValueText, "5", StringComparison.Ordinal));
+        Assert.Contains(headers[1].Details, d => string.Equals(d.ColumnName, "value", StringComparison.Ordinal) && string.Equals(d.ValueText, "5", StringComparison.Ordinal));
         Assert.Contains("on_behalf_of_user_id", columns);
         Assert.Contains("audited_at_utc", columns);
         Assert.DoesNotContain(columns, c => c.Any(char.IsUpper));

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
+namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
 {
     /// <inheritdoc />
     public partial class SettingsStoreDecisionsOnly : Migration
@@ -19,16 +19,28 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.SqlServer.Migrations
                 name: "effective_value",
                 schema: "core",
                 table: "setting");
+
+            migrationBuilder.RenameColumn(
+                name: "configured_value",
+                schema: "core",
+                table: "setting",
+                newName: "value");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.RenameColumn(
+                name: "value",
+                schema: "core",
+                table: "setting",
+                newName: "configured_value");
+
             migrationBuilder.AddColumn<string>(
                 name: "effective_value",
                 schema: "core",
                 table: "setting",
-                type: "nvarchar(max)",
+                type: "text",
                 nullable: false,
                 defaultValue: "");
             // The decision rows get their own value back as the effective one; the inherited copies are not

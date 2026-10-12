@@ -12,7 +12,7 @@ using Wolfgang.Wms.Infrastructure.Database;
 namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
 {
     [DbContext(typeof(WmsDbContext))]
-    [Migration("20261012145245_SettingsStoreDecisionsOnly")]
+    [Migration("20261012162422_SettingsStoreDecisionsOnly")]
     partial class SettingsStoreDecisionsOnly
     {
         /// <inheritdoc />
@@ -215,10 +215,6 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         .HasDefaultValue("value")
                         .HasColumnName("cascade_mode");
 
-                    b.Property<string>("ConfiguredValue")
-                        .HasColumnType("text")
-                        .HasColumnName("configured_value");
-
                     b.Property<DateTimeOffset?>("DeletedAt")
                         .HasPrecision(3)
                         .HasColumnType("timestamp(3) with time zone")
@@ -257,6 +253,10 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("updated_by");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("text")
+                        .HasColumnName("value");
 
                     b.HasKey("Id")
                         .HasName("pk_setting");

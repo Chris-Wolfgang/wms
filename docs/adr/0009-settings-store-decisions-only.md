@@ -25,8 +25,9 @@ source of truth; the walk was.
 ## Decision
 
 - **A row records a decision, nothing else.** `core.setting` holds one row per (scope, key) *only where an
-  administrator set a value or a cascade mode there*: `configured_value` (null only while the row delegates) and
-  `cascade_mode` (E7.2). The `effective_value` column is gone. A reset removes the decision: the row is
+  administrator set a value or a cascade mode there*: `value` (null only while the row delegates) and
+  `cascade_mode` (E7.2). The `effective_value` column is gone, and `configured_value`, named in contrast to it,
+  is `value`; the API keeps `configuredValue` beside `effectiveValue`, where the contrast still exists. A reset removes the decision: the row is
   soft-deleted (`deleted_at`), which is how devices see it go (E5.3); writing at that scope again revives it.
 - **The effective value is a function, computed on read.** `Resolve(key, scope)` walks the scope's ancestor
   chain, nearest first, and answers the first configured value it meets, else the key's default (E6.1). A

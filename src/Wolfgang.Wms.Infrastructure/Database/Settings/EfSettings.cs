@@ -103,7 +103,7 @@ public sealed class EfSettings : ISettings
 
         await RequireDecidedHereAsync(key, scope, cancellationToken).ConfigureAwait(false);
         var row = await RowAsync(scope, key.Name, cancellationToken).ConfigureAwait(false) ?? Add(scope, key.Name);
-        row.ConfiguredValue = null;
+        row.Value = null;
         row.CascadeMode = mode.StoredName();
         Touch(row, updatedBy, _timeProvider.GetUtcNow());
         return await CommitAsync(key, scope, cancellationToken).ConfigureAwait(false);
@@ -165,7 +165,7 @@ public sealed class EfSettings : ISettings
         }
 
         var row = await RowAsync(scope, key.Name, cancellationToken).ConfigureAwait(false) ?? Add(scope, key.Name);
-        row.ConfiguredValue = text;
+        row.Value = text;
         row.CascadeMode = CascadeMode.Value.StoredName();
         Touch(row, updatedBy, _timeProvider.GetUtcNow());   // descendants see the change through resolution (ADR 0009)
         return await CommitAsync(key, scope, cancellationToken).ConfigureAwait(false);
@@ -178,14 +178,14 @@ public sealed class EfSettings : ISettings
         ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);
 
         var row = await RowAsync(scope, key.Name, cancellationToken).ConfigureAwait(false);
-        if (row is null || (row.ConfiguredValue is null && string.Equals(row.CascadeMode, CascadeMode.Value.StoredName(), StringComparison.Ordinal)))
+        if (row is null || (row.Value is null && string.Equals(row.CascadeMode, CascadeMode.Value.StoredName(), StringComparison.Ordinal)))
         {
             return await ValueOfAsync(key, scope, await SnapshotAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         }
 
         // No value and no delegation is no decision, so the row goes: soft-deleted, which is how a device sees
         // it leave (E5.3); a later write at this scope revives it. Descendants resolve the inherited value.
-        row.ConfiguredValue = null;
+        row.Value = null;
         row.CascadeMode = CascadeMode.Value.StoredName();
         Touch(row, updatedBy, _timeProvider.GetUtcNow());
         row.DeletedAt = row.UpdatedAt;
@@ -233,18 +233,18 @@ public sealed class EfSettings : ISettings
     private async Task<(string Text, string? InheritedFrom)> EffectiveAsync(SettingKey key, SettingScopeRef scope, SettingsSnapshot snapshot, CancellationToken cancellationToken)
     {
         var own = snapshot.Find(scope, key.Name);
-        if (own?.ConfiguredValue is not null)
+        if (own?.Value is not null)
         {
-            return (own.ConfiguredValue, null);
+            return (own.Value, null);
         }
 
         var parent = await _hierarchy.ParentAsync(scope, cancellationToken).ConfigureAwait(false);
         while (parent is { } ancestor)
         {
             var row = snapshot.Find(ancestor, key.Name);
-            if (row?.ConfiguredValue is not null)
+            if (row?.Value is not null)
             {
-                return (row.ConfiguredValue, ancestor.ToString());
+                return (row.Value, ancestor.ToString());
             }
 
             parent = await _hierarchy.ParentAsync(ancestor, cancellationToken).ConfigureAwait(false);
@@ -260,7 +260,7 @@ public sealed class EfSettings : ISettings
         var row = snapshot.Find(scope, key.Name);
         var (text, inheritedFrom) = await EffectiveAsync(key, scope, snapshot, cancellationToken).ConfigureAwait(false);
         var mode = CascadeModeExtensions.TryParseMode(row?.CascadeMode, out var parsed) ? parsed : CascadeMode.Value;
-        return SettingValue.Create(key, scope, row?.ConfiguredValue, text, inheritedFrom, mode, row?.RowVersion, row?.UpdatedBy, row?.UpdatedAt);
+        return SettingValue.Create(key, scope, row?.Value, text, inheritedFrom, mode, row?.RowVersion, row?.UpdatedBy, row?.UpdatedAt);
     }
 
 

@@ -43,19 +43,26 @@ public sealed partial class SchemaStartupCheck : IHostedService
 
     /// <inheritdoc/>
     /// <exception cref="InvalidOperationException">The database is unreachable, behind this build, or ahead of it;
-    /// or the provider is no longer <c>None</c> but no database was registered.</exception>
+    /// or the provider is no longer <c>None</c> but no database was registered, or is <c>None</c> now although one was.</exception>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         var options = _options.Value;   // the validated options; ValidateOnStart has already run
+        using var scope = _scopes.CreateScope();
         if (options.ParsedProvider is DatabaseProvider.None)
         {
+            // The reverse of the check below: a real provider when AddWmsDatabase ran (context and runner registered),
+            // None by now. Starting would succeed and the first request that builds a WmsDbContext would fail.
+            if (scope.ServiceProvider.GetService<IServiceProviderIsService>() is { } registry && registry.IsService(typeof(MigrationRunner)))
+            {
+                throw new InvalidOperationException($"{DatabaseOptions.SectionName}:Provider is None but a database was registered: the provider was set when AddWmsDatabase ran and was changed afterwards. Set it in configuration before the host is built.");
+            }
+
             LogNoDatabase(_logger);
             return;
         }
 
-        using var scope = _scopes.CreateScope();
         var runner = scope.ServiceProvider.GetService<MigrationRunner>()
-            ?? throw new InvalidOperationException($"{DatabaseOptions.SectionName}:Provider is {options.Provider} but no database was registered: the provider was None (or unset) when AddWmsDatabase ran and was changed afterwards. Set it in configuration before the host is built.");
+            ?? throw new InvalidOperationException($"{DatabaseOptions.SectionName}:Provider is {options.Provider} but no database was registered: the provider was None, unset or not a supported provider when AddWmsDatabase ran and was changed afterwards. Set it in configuration before the host is built.");
         var status = await runner.StatusAsync(cancellationToken).ConfigureAwait(false);
 
         var refusal = MigrationRunner.Refusal(status);

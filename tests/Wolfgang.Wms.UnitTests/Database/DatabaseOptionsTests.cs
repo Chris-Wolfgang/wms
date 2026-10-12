@@ -18,6 +18,10 @@ namespace Wolfgang.Wms.UnitTests.Database;
 
 public sealed class DatabaseOptionsTests
 {
+    private const string LogProbe = "logprobe-logprobe";
+
+
+
     [Theory]
     [InlineData("SqlServer", DatabaseProvider.SqlServer)]
     [InlineData("sqlserver", DatabaseProvider.SqlServer)]
@@ -187,10 +191,28 @@ public sealed class DatabaseOptionsTests
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => check.StartAsync(CancellationToken.None));
 
-        Assert.StartsWith("Wms:Database:Provider is SqlServer but no database was registered: the provider was None (or unset) when AddWmsDatabase ran", exception.Message, StringComparison.Ordinal);
+        Assert.StartsWith("Wms:Database:Provider is SqlServer but no database was registered: the provider was None, unset or not a supported provider when AddWmsDatabase ran", exception.Message, StringComparison.Ordinal);
         Assert.Throws<ArgumentNullException>(() => new SchemaStartupCheck(null!, Options.Create(new DatabaseOptions()), NullLogger<SchemaStartupCheck>.Instance));
         Assert.Throws<ArgumentNullException>(() => new SchemaStartupCheck(services.GetRequiredService<IServiceScopeFactory>(), null!, NullLogger<SchemaStartupCheck>.Instance));
         Assert.Throws<ArgumentNullException>(() => new SchemaStartupCheck(services.GetRequiredService<IServiceScopeFactory>(), Options.Create(new DatabaseOptions()), null!));
+    }
+
+
+
+    [Fact]
+    public async Task A_provider_changed_to_None_after_registration_fails_startup_instead_of_failing_the_first_request()
+    {
+        // SqlServer when AddWmsDatabase ran (context and runner registered), None by the time the host starts.
+        using var services = Build("SqlServer", "Server=localhost;Database=wms;Encrypt=True", s => s.PostConfigure<DatabaseOptions>(o =>
+        {
+            o.Provider = "None";
+            o.ConnectionString = null;
+        }));
+        var check = Assert.Single(services.GetServices<IHostedService>().OfType<SchemaStartupCheck>());
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => check.StartAsync(CancellationToken.None));
+
+        Assert.StartsWith("Wms:Database:Provider is None but a database was registered", exception.Message, StringComparison.Ordinal);
     }
 
 
@@ -203,7 +225,7 @@ public sealed class DatabaseOptionsTests
             DataSource = "127.0.0.1,1",
             InitialCatalog = "wms",
             UserID = "x",
-            Password = "x",
+            Password = LogProbe,
             Encrypt = SqlConnectionEncryptOption.Mandatory,
             ConnectTimeout = 1,
             ConnectRetryCount = 0,
@@ -220,7 +242,7 @@ public sealed class DatabaseOptionsTests
         var entry = Assert.Single(logger.Entries);
         Assert.Equal(LogLevel.Warning, entry.Level);
         Assert.StartsWith("The migrations history could not be read, so the schema endpoint reports no current migration: ", entry.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain("Password", entry.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(LogProbe, entry.Message, StringComparison.Ordinal);   // the value, not the word
         Assert.Null(logger.BeginScope("scope"));
     }
 

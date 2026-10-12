@@ -83,6 +83,9 @@ public sealed class LocalAccountsUnitTests
         Assert.False(await handler.TryHandleAsync(context, new InvalidOperationException(), CancellationToken.None));
         Assert.Throws<ArgumentNullException>(() => new AuthException(null!, "d"));
         Assert.Equal("cause", new AuthException(AuthErrorCodes.Forbidden, "d", new InvalidOperationException("cause")).InnerException?.Message);
+        Assert.Throws<ArgumentNullException>(() => new AuthException(AuthErrorCodes.LockedOut, "d", (object[])null!));
+        Assert.Throws<ArgumentNullException>(() => new AuthException(AuthErrorCodes.LockedOut, "d", new InvalidOperationException("cause"), null!));
+        Assert.Equal(["tomorrow"], new AuthException(AuthErrorCodes.LockedOut, "d", "tomorrow").Arguments);
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await handler.TryHandleAsync(null!, login, CancellationToken.None));
     }
 

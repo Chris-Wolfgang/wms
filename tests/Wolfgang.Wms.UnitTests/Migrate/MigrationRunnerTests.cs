@@ -424,6 +424,8 @@ public sealed class MigrationRunnerTests
             Unknown = ["20991231000000_FromTheFuture"],
         };
         var behind = new MigrationStatus(Reachable: true, Applied: [], Pending: ["20260920025830_Initial"], Expected: "20260920025830_Initial");
+        // Initial applied, RowVersionSequence pending: an ordinary database one release behind, not a gap.
+        var partlyBehind = new MigrationStatus(Reachable: true, Applied: ["20260920025830_Initial"], Pending: ["20260920035312_RowVersionSequence"], Expected: "20260920035312_RowVersionSequence");
         // RowVersionSequence applied, Initial not: a hand-edited or partially restored history.
         var gapped = new MigrationStatus(Reachable: true, Applied: ["20260920035312_RowVersionSequence"], Pending: ["20260920025830_Initial"], Expected: "20260920035312_RowVersionSequence");
 
@@ -432,6 +434,8 @@ public sealed class MigrationRunnerTests
         Assert.Null(MigrationRunner.Refusal(behind));
         Assert.Equal(["20260920025830_Initial"], gapped.Gaps);
         Assert.Empty(behind.Gaps);
+        Assert.Empty(partlyBehind.Gaps);
+        Assert.Null(MigrationRunner.Refusal(partlyBehind));
         Assert.Empty(unreachable.Gaps);
         Assert.Equal("The migrations history is inconsistent: 20260920025830_Initial not applied although the later migration 20260920035312_RowVersionSequence is. Nothing is applied in either direction; repair wms.migrations_history from the backup or with the DBA, then run wms-migrate.", MigrationRunner.Refusal(gapped));
         Assert.Throws<ArgumentNullException>(() => MigrationRunner.Refusal(null!));

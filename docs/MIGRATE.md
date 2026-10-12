@@ -22,7 +22,7 @@ Declarative: you name a target, never a direction; the tool states the direction
 | Command | Does |
 |---------|------|
 | `wms-migrate` | apply every pending migration, one at a time |
-| `wms-migrate --to <target>` | move up **or** down to `<target>`: a migration id (`20260920025830_Initial` on SQL Server; ids differ per provider), its name (`Initial`), its timestamp prefix, or `0` for an empty schema. A name or prefix that matches more than one migration is a usage error listing the matches; give the full id. Release versions resolve to that release's last migration once releases exist (the `release` skill records the map). |
+| `wms-migrate --to <target>` | move up **or** down to `<target>`: a migration id (`20260920025830_Initial` on SQL Server; ids differ per provider), its name in any case (`Initial`, `initial`), its timestamp prefix, or `0` for an empty schema. A name or prefix that matches more than one migration is a usage error listing the matches; give the full id. Release versions resolve to that release's last migration once releases exist (the `release` skill records the map). |
 | `wms-migrate --status` | applied and pending migrations, the version this build expects, whether the database is reachable (with the reason when not) and whether it is ahead of the build |
 | `wms-migrate --script [--from <m>] [--to <m>] [--output <file>]` | idempotent, provider-specific SQL for a DBA to review and run; needs **no** database connection and no connection string (only `--provider`); `--from` emits a delta; a downgrade script starts with a `-- Downgrade` header listing every data-losing step |
 | `--output <file>` | `--script` only; rejected without it |

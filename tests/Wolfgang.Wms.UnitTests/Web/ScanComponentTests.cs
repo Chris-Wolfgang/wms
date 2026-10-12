@@ -153,6 +153,7 @@ public sealed class ScanComponentTests : IDisposable
     public async Task WorkspaceLayout_reports_a_scan_whose_handler_threw_and_keeps_the_chrome()
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.Allowed));
+        _context.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();   // E9.3: no window, no banner
         var layout = _context.Render<TestLayout>(p => p.Add(x => x.Body, Screen<ThrowingScreen>()));
 
         await Scan(layout, "TOTE-0017");
@@ -176,6 +177,7 @@ public sealed class ScanComponentTests : IDisposable
     public async Task WorkspaceLayout_lets_a_cancelled_scan_handler_propagate_instead_of_reporting_it()
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.Allowed));
+        _context.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();   // E9.3: no window, no banner
         var layout = _context.Render<TestLayout>(p => p.Add(x => x.Body, Screen<CancellingScreen>()));
 
         await Scan(layout, "TOTE-0017");

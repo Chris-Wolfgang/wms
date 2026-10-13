@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Diagnostics.CodeAnalysis;
 using Wolfgang.Wms.Domain.Keys;
 
 namespace Wolfgang.Wms.Core.Identity;
@@ -8,6 +9,7 @@ namespace Wolfgang.Wms.Core.Identity;
 /// A sign-in or account operation the store refuses (E9), carrying the error code the API answers with
 /// (<see cref="AuthExceptionHandler"/>).
 /// </summary>
+[SuppressMessage("Roslynator", "RCS1194:Implement exception constructors", Justification = "Every AuthException carries the error code the API answers with; the standard constructors would create one without it.")]
 public sealed class AuthException : Exception
 {
     /// <summary>

@@ -51,9 +51,37 @@ permission at site A never grants it at site B (E10.3). The local administrator 
 other users' grants come from their roles (E10.2). A missing session answers `401 auth.not_signed_in`, a
 missing permission `403 auth.forbidden`; `GET /auth/me` lists the session's grants.
 
+## Roles and assignments (E10.2, E10.3)
+
+A role is a named set of catalog permissions. Five built-in roles exist from the first start and follow the
+catalog on every start: each permission names the built-in roles that hold it by default
+(`Permission.DefaultRoles`), so a new module's permissions land in the right roles without a migration;
+**Administrator** holds `*`. Built-in roles are read-only: copy one (`POST /auth/roles/{id}/copy`) to get an
+editable role, then change its name, description and permissions. **Resolver** holds only the resolution
+lane's permissions (as those modules declare them), never settings or master data; **Support** and
+**Viewer** read.
+
+| Endpoint | Meaning |
+|----------|---------|
+| `GET /auth/roles`, `GET /auth/roles/{id}` | Roles, built-in first (`builtIn` carries the key). `auth.roles.read`. |
+| `POST /auth/roles` `{ name, description, permissions[] }` | A role from catalog permissions; `400 auth.unknown_permission`, `409 auth.role_name_taken`. `auth.roles.write`. |
+| `PUT /auth/roles/{id}` (If-Match) | Replaces name, description and permissions; `409 auth.built_in_role_read_only`. |
+| `POST /auth/roles/{id}/copy` `{ name }` | An editable copy; the administrator's copy lists every permission explicitly so it can be trimmed. |
+| `DELETE /auth/roles/{id}` | Deletes a custom role and its assignments. |
+| `GET /auth/users/{userId}/roles` | The user's assignments, active and expired. |
+| `POST /auth/users/{userId}/roles` `{ roleId, siteId?, expiresAt? }` | Assigns the role everywhere (`siteId` null) or at one site, optionally until a date; the same role at the same scope is replaced. |
+| `DELETE /auth/assignments/{id}` | Removes an assignment. |
+
+Permissions are evaluated per site (E10.3): a user has an action at a site only if a role assigned to them
+*for that site* (or everywhere) grants it; holding a permission at site A never grants it at site B. At
+sign-in the active assignments become grants (`name@organization`, `name@site:3`); an expired assignment
+grants nothing and is listed as expired. The local administrator additionally holds `*@organization` and is
+assigned Administrator on every start. Sites are not entities yet, so a site id is a plain number until
+they arrive.
+
 ## What comes next
 
 - E9.3: local sign-in disabled once SSO is verified and re-enabled for a timed window from the host only.
-- E10.2–E10.6: roles built from the catalog, site-scoped assignments with expiry, integrity signatures,
-  session lifetimes as settings, hardening.
+- E10.4–E10.6: integrity signatures, session lifetimes as settings, hardening; a periodic job that audits
+  expired assignments.
 - E11: OIDC and other providers behind one interface, chosen in the console.

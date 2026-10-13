@@ -61,6 +61,20 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
 
 
 
+    /// <summary>
+    /// <c>core.role</c> (E10.2): roles built from the permission catalog.
+    /// </summary>
+    public DbSet<Role> Roles => Set<Role>();
+
+
+
+    /// <summary>
+    /// <c>core.user_role</c> (E10.3): role assignments per user, everywhere or per site.
+    /// </summary>
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
+
+
+
     /// <inheritdoc/>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -77,6 +91,10 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
         base.OnModelCreating(modelBuilder);   // E6.4: core.audit_header / core.audit_detail
         modelBuilder.ApplyConfiguration(new SettingConfiguration());   // E6.2
         modelBuilder.ApplyConfiguration(new UserConfiguration());   // E9
+        var roles = new RoleConfiguration();   // E10.2, E10.3
+        modelBuilder.ApplyConfiguration<Role>(roles);
+        modelBuilder.ApplyConfiguration<RolePermission>(roles);
+        modelBuilder.ApplyConfiguration<UserRole>(roles);
         modelBuilder.Entity<DataProtectionKey>().ToTable("data_protection_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E8.6: library-owned, in wms like the migrations history
         modelBuilder.Entity<DataProtectionKey>().Property(k => k.FriendlyName).HasMaxLength(256);
         ModelConventions.Apply(modelBuilder, Database.ProviderName);

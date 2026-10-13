@@ -81,6 +81,7 @@ public sealed class AuthProvidersEndpointsTests : IClassFixture<WebApplicationFa
         var offered = await client.GetFromJsonAsync<List<AuthProviderInfo>>("/api/v0/auth/providers", Json);
         using var challenge = await client.GetAsync(new Uri("/api/v0/auth/teapot/challenge?returnUrl=/console", UriKind.Relative));
         using var offsite = await client.GetAsync(new Uri("/api/v0/auth/teapot/challenge?returnUrl=//evil.example", UriKind.Relative));
+        using var backslash = await client.GetAsync(new Uri("/api/v0/auth/teapot/challenge?returnUrl=%2F%5Cevil.example", UriKind.Relative));   // /\evil.example: browsers read it as //evil.example
         using var check = await client.SendAsync(TestAuth.As(HttpMethod.Post, "/api/v0/auth/providers/teapot/check", "auth.providers.manage@organization"));
         using var scope = factory.Services.CreateScope();
         var authenticated = await scope.ServiceProvider.GetRequiredService<IAuthenticationService>().AuthenticateAsync(new Microsoft.AspNetCore.Http.DefaultHttpContext { RequestServices = scope.ServiceProvider }, "teapot");
@@ -95,6 +96,7 @@ public sealed class AuthProvidersEndpointsTests : IClassFixture<WebApplicationFa
         Assert.Equal((HttpStatusCode)418, challenge.StatusCode);
         Assert.Equal("/console", challenge.Headers.GetValues("X-Redirect").Single());
         Assert.Equal("/", offsite.Headers.GetValues("X-Redirect").Single());   // only local return URLs
+        Assert.Equal("/", backslash.Headers.GetValues("X-Redirect").Single());
         Assert.Equal(["local"], withdrawn!.Select(p => p.Name));
         Assert.Equal(HttpStatusCode.NotFound, gone.StatusCode);
         Assert.Equal("short and stout", (await check.Content.ReadFromJsonAsync<AuthProviderHealth>(Json))!.Detail);

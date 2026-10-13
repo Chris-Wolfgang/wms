@@ -128,6 +128,27 @@ transaction as the change. Deleted rows keep their last values. The same store s
 stories; ordering within a transaction and a WMS correlation on the header are upstream requests
 (Chris-Wolfgang/AuditTrail#344, #345; DATABASE-CONVENTIONS.md, "Audit tables").
 
+## Cascade modes and inheritance on creation (E7)
+
+A change at a parent flows down in one transaction (E7.1): every descendant that inherits gets the new
+effective value, and a descendant with its own configured value keeps it and shields its subtree.
+
+A scope can also hand the decision down instead of holding a value (E7.2). `PUT` with `{ "mode": "per_site" }`
+(or `per_zone`, `per_sku`) sets the scope's `cascadeMode`: it drops its own configured value, inherits for
+display, and the scopes it delegates to decide. `allowedModes` on every `SettingValue` lists what the key
+permits there: an organisation may delegate to any scope type below it that the key allows, a site to zones
+or SKUs, a zone or a SKU only holds a value. While an ancestor delegates past a scope (organisation
+`per_zone` and a write at a site), the write is refused with `settings.decided_elsewhere` (409); the deciding
+level and everything above it write normally, and a value written at a delegating scope switches it back to
+`value`. The console shows overridden children greyed with their retained values (`configuredValue` is
+present while `inheritedFrom` is null).
+
+`ISettings.PopulateAsync(scope)` (E7.3) gives a newly created site, zone or SKU a row for every setting
+allowed there, carrying the inherited effective value, so no record is ever unresolved; the create paths of
+those entities call it when they arrive. SKU-scoped keys (E7.4) declare `SettingScopes.OrganizationToSku`
+and cascade organisation → site → SKU through the same code; the hierarchy answers SKU parents once SKUs are
+entities.
+
 ## Scopes (E6.2, E7)
 
 A value lives at a `SettingScopeRef`: a scope type (`organization`, `site`, `zone`, `sku`) and the id of the

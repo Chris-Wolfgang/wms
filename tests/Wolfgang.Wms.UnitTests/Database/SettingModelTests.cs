@@ -24,12 +24,13 @@ public sealed class SettingModelTests
         Assert.Equal("core", entity.GetSchema());
         Assert.Equal
         (
-            ["configured_value", "deleted_at", "effective_value", "id", "key", "row_version", "scope_id", "scope_type", "updated_at", "updated_by"],
+            ["cascade_mode", "configured_value", "deleted_at", "effective_value", "id", "key", "row_version", "scope_id", "scope_type", "updated_at", "updated_by"],
             entity.GetProperties().Select(p => p.GetColumnName()).Order(StringComparer.Ordinal)
         );
         Assert.Equal(Setting.ScopeTypeLength, entity.FindProperty(nameof(Setting.ScopeType))!.GetMaxLength());
         Assert.Equal(Setting.KeyLength, entity.FindProperty(nameof(Setting.Key))!.GetMaxLength());
         Assert.Equal(Setting.UpdatedByLength, entity.FindProperty(nameof(Setting.UpdatedBy))!.GetMaxLength());
+        Assert.Equal("value", entity.FindProperty(nameof(Setting.CascadeMode))!.GetDefaultValue());
         Assert.False(entity.FindProperty(nameof(Setting.EffectiveValue))!.IsNullable);
         Assert.True(entity.FindProperty(nameof(Setting.ConfiguredValue))!.IsNullable);
         Assert.Equal(["ix_setting_row_version", "ux_setting_scope_type_scope_id_key"], entity.GetIndexes().Select(i => i.GetDatabaseName()).Order(StringComparer.Ordinal));

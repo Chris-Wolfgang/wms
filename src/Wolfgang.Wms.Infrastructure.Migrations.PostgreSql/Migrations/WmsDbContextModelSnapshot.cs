@@ -139,6 +139,14 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("CascadeMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("value")
+                        .HasColumnName("cascade_mode");
+
                     b.Property<string>("ConfiguredValue")
                         .HasColumnType("text")
                         .HasColumnName("configured_value");

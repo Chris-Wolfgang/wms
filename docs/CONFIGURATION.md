@@ -108,14 +108,16 @@ origins, no path), applied on the next request; nothing is allowed until an orig
 Both are on the host root (not under `/api/v<n>`), anonymous, answer JSON (`status`, `totalDuration`,
 `checks[]` with `name`, `status`, `description`, `duration`) with `Cache-Control: no-store`, and accept
 plain HTTP. Readiness fails when the database cannot be reached, is behind this build (pending migrations)
-or ahead of it; the description names the schema version or the migrations involved. A host without a
-database configured has no readiness checks and answers 200.
+or ahead of it; the description names the schema version or the migrations involved. A check that throws
+without a description of its own shows `The check failed; see the server log.`: an anonymous probe never
+returns an exception's message, which is logged on the server instead. A host without a database
+configured has no readiness checks and answers 200.
 
 ## HTTPS (E12.5)
 
 The API refuses plain HTTP with `400 hosting.https_required` rather than redirecting, so a POST body is
 never lost to a redirect. Exempt: requests from the loopback address (a developer, a local probe), the
-health probes, and `Wms:Hosting:AllowHttp=true` (a lab; never production). Behind a reverse proxy set
+two health probes (exactly `/health/live` and `/health/ready`, nothing else below `/health`), and `Wms:Hosting:AllowHttp=true` (a lab; never production). Behind a reverse proxy set
 `Wms:Hosting:BehindProxy` so the forwarded scheme counts. The console redirects to HTTPS instead
 (`UseHttpsRedirection`, HSTS outside Development); when the proxy terminates TLS, redirect there and keep
 the console's redirect as a backstop.

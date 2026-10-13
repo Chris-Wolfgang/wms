@@ -88,7 +88,7 @@ public static class WmsHealth
                 writer.WriteStartObject();
                 writer.WriteString("name", name);
                 writer.WriteString("status", entry.Status.ToString());
-                writer.WriteString("description", entry.Description ?? entry.Exception?.Message ?? string.Empty);
+                writer.WriteString("description", Describe(entry));
                 writer.WriteString("duration", entry.Duration.ToString("c", System.Globalization.CultureInfo.InvariantCulture));
                 writer.WriteEndObject();
             }
@@ -99,4 +99,23 @@ public static class WmsHealth
 
         await context.Response.Body.WriteAsync(buffer.GetBuffer().AsMemory(0, (int)buffer.Length), context.RequestAborted).ConfigureAwait(false);
     }
+
+
+
+    /// <summary>
+    /// What an anonymous caller may read about a check: its own curated description, never an exception's message
+    /// (a provider exception can name hosts, schemas or configuration). The health-check service already logs the
+    /// exception on the server.
+    /// </summary>
+    internal static string Describe(HealthReportEntry entry)
+    {
+        return entry.Description ?? (entry.Exception is null ? string.Empty : FailedDescription);
+    }
+
+
+
+    /// <summary>
+    /// The description a probe shows for a check that threw and gave no description of its own.
+    /// </summary>
+    public const string FailedDescription = "The check failed; see the server log.";
 }

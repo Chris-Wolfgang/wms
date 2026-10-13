@@ -113,4 +113,11 @@ public sealed class RolesUnitTests
         var failure = await Assert.ThrowsAsync<AuthException>(action);
         Assert.Equal(AuthErrorCodes.Unavailable, failure.Code);
     }
+
+
+
+    private static Task AssertUnavailableAsync<T>(Func<Task<T>> call)
+    {
+        return AssertUnavailableAsync(async () => { _ = await call(); });   // a block body, so the lambda is Func<Task>; only the refusal matters
+    }
 }

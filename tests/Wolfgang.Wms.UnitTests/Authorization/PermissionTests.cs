@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Modules;
@@ -94,7 +93,7 @@ public sealed class PermissionTests
         Assert.Null(catalog.Find("nope"));
         Assert.Null(catalog.Find(null));
         Assert.NotNull(policy);
-        Assert.Contains(policy!.Requirements, r => r is PermissionRequirement { Permission.Name: "settings.write" });
+        Assert.Contains(policy.Requirements, r => r is PermissionRequirement { Permission.Name: "settings.write" });
         Assert.Null(unknown);
         Assert.Null(other);
         Assert.NotNull(await provider.GetDefaultPolicyAsync());

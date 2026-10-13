@@ -131,14 +131,10 @@ public static class ModelConventions
         {
             var storeObject = StoreObjectIdentifier.Create(entity, StoreObjectType.Table) ?? StoreObjectIdentifier.Table(entity.ShortName());
             var table = storeObject.Name;
-            if (string.IsNullOrEmpty(storeObject.Schema) || DefaultSchemas.Contains(storeObject.Schema, StringComparer.OrdinalIgnoreCase))
+            VerifyTableNames(entity, storeObject, violations);
+            if (IsLibraryOwned(entity.ClrType))
             {
-                violations.Add($"{table}: no module schema (tables never land in {string.Join('/', DefaultSchemas)}).");
-            }
-
-            if (!SnakeCase.Is(table))
-            {
-                violations.Add($"{table}: table name is not snake_case.");
+                continue;   // a library's tables keep the library's shape; only schema and naming are ours
             }
 
             VerifyKeys(entity, storeObject, violations);
@@ -262,6 +258,31 @@ public static class ModelConventions
 
 
 
+    private static void VerifyTableNames(IEntityType entity, StoreObjectIdentifier storeObject, List<string> violations)
+    {
+        var table = storeObject.Name;
+        if (string.IsNullOrEmpty(storeObject.Schema) || DefaultSchemas.Contains(storeObject.Schema, StringComparer.OrdinalIgnoreCase))
+        {
+            violations.Add($"{table}: no module schema (tables never land in {string.Join('/', DefaultSchemas)}).");
+        }
+
+        if (!SnakeCase.Is(table))
+        {
+            violations.Add($"{table}: table name is not snake_case.");
+        }
+
+        foreach (var property in entity.GetProperties())
+        {
+            var column = property.GetColumnName(storeObject) ?? property.GetColumnName();
+            if (!SnakeCase.Is(column))
+            {
+                violations.Add($"{table}.{column}: column name is not snake_case.");
+            }
+        }
+    }
+
+
+
     private static int OwnershipDepth(IReadOnlyEntityType entity)
     {
         var ownership = entity.FindOwnership();
@@ -296,6 +317,19 @@ public static class ModelConventions
             property.SetValueConverter(new UtcDateTimeOffsetConverter());
             property.SetPrecision(TimestampPrecision);
         }
+    }
+
+
+
+    /// <summary>
+    /// True for an entity a library maps into the model (E6.4: AuditTrail's tables), which keeps the
+    /// library's keys and column types; the conventions still name it and place it in a module schema.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="clrType"/> is null.</exception>
+    public static bool IsLibraryOwned(Type clrType)
+    {
+        ArgumentNullException.ThrowIfNull(clrType);
+        return !(clrType.Assembly.GetName().Name ?? string.Empty).StartsWith("Wolfgang.Wms", StringComparison.Ordinal);
     }
 
 
@@ -380,11 +414,6 @@ public static class ModelConventions
         var table = storeObject.Name;
         var column = property.GetColumnName(storeObject);
         var type = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
-        if (!SnakeCase.Is(column))
-        {
-            violations.Add($"{table}.{column}: column name is not snake_case.");
-        }
-
         if (type == typeof(Guid))
         {
             violations.Add($"{table}.{column}: GUID columns are not allowed; identifiers are server-assigned long.");

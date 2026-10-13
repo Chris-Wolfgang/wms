@@ -115,6 +115,19 @@ and the CLI all go through it, and nothing writes `core.setting` directly.
 `{scope}` is `organization` (id 0), `site`, `zone` or `sku`. Writes record the caller as `updatedBy`
 (`anonymous` until E9).
 
+## Audit (E6.4)
+
+Every change to `core.setting` is recorded by the AuditTrail library, not a hand-written table: `WmsDbContext`
+derives from `AuditingDbContext` (Model 1, required because the connection retries on transient failures),
+so each save writes one `core.audit_header` row per changed row (`user_id` = the host's application name,
+`on_behalf_of_user_id` = the signed-in user, entity, key, `I`/`U`/`D`, `transaction_id` shared by everything
+one save changed, `audited_at_utc`) and one `core.audit_detail` row per changed column, in the same
+transaction as the change. Deleted rows keep their last values. The same store serves every audited table
+(master data, roles, leases, API keys, validation profiles); high-volume picking tables opt out with
+`[NotAudited]`. The console's audit viewer, grouping headers by transaction, arrives with the console
+stories; ordering within a transaction and a WMS correlation on the header are upstream requests
+(Chris-Wolfgang/AuditTrail#344, #345; DATABASE-CONVENTIONS.md, "Audit tables").
+
 ## Scopes (E6.2, E7)
 
 A value lives at a `SettingScopeRef`: a scope type (`organization`, `site`, `zone`, `sku`) and the id of the

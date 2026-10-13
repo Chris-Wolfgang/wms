@@ -90,6 +90,10 @@ public sealed class IntegrityTests
             using var login = await client.PostAsync(new Uri("/api/v0/auth/local/login", UriKind.Relative), Body(new LocalLoginRequest("bob", Password)));
             Assert.Equal(HttpStatusCode.Forbidden, login.StatusCode);
             Assert.Equal("auth.integrity_failure", (await JsonDocument.ParseAsync(await login.Content.ReadAsStreamAsync())).RootElement.GetProperty("code").GetString());
+            await TamperAsync(first.Services, "UPDATE core.\"user\" SET display_name = password_hash, password_hash = NULL WHERE id = " + bob);   // a nulled hash is an integrity failure too, not a wrong password
+            using var nulled = await client.PostAsync(new Uri("/api/v0/auth/local/login", UriKind.Relative), Body(new LocalLoginRequest("bob", Password)));
+            Assert.Equal("auth.integrity_failure", (await JsonDocument.ParseAsync(await nulled.Content.ReadAsStreamAsync())).RootElement.GetProperty("code").GetString());
+            await TamperAsync(first.Services, "UPDATE core.\"user\" SET password_hash = display_name WHERE id = " + bob);
             var result = await first.Services.GetRequiredService<IntegrityVerificationJob>().RunOnceAsync(CancellationToken.None);
             Assert.Equal(3, result.Failed);
             Assert.Same(result, first.Services.GetRequiredService<IntegrityVerificationJob>().LastResult);

@@ -169,6 +169,6 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
 
 
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Integrity key created in wms.integrity_key; back it up with the database and the key ring.")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Integrity key created in wms.integrity_key; back it up with the database and the key ring. Expected once per database: on any other start, treat it as an incident.")]
     private static partial void LogKeyCreated(ILogger logger);
 }

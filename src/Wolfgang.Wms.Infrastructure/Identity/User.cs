@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Globalization;
 using Wolfgang.AuditTrail;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Integrity;
@@ -98,10 +99,10 @@ public sealed class User : IVersionedEntity, ISignedEntity
 
 
     /// <summary>
-    /// E10.4: the fields a sign-in or an authorisation decision depends on.
+    /// E10.4: the fields a sign-in or an authorisation decision depends on, the lockout state included.
     /// </summary>
     public string CanonicalContent()
     {
-        return string.Join('\n', "user", UserNameNormalized, PasswordHash ?? string.Empty, MustChangePassword ? "1" : "0", IsDisabled ? "1" : "0", IsLocalAdmin ? "1" : "0", SignedContent.Timestamp(SessionsValidAfter));
+        return string.Join('\n', "user", UserNameNormalized, PasswordHash ?? string.Empty, MustChangePassword ? "1" : "0", IsDisabled ? "1" : "0", IsLocalAdmin ? "1" : "0", SignedContent.Timestamp(SessionsValidAfter), FailedLoginCount.ToString(CultureInfo.InvariantCulture), SignedContent.Timestamp(LockedUntil));
     }
 }

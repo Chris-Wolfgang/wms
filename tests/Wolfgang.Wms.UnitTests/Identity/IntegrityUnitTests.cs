@@ -26,15 +26,15 @@ public sealed class IntegrityUnitTests
     [Fact]
     public void Canonical_content_covers_the_decision_fields_and_orders_permissions()
     {
-        var user = new User { Id = 7, UserNameNormalized = "ALICE", PasswordHash = "hash", MustChangePassword = true, IsDisabled = false, IsLocalAdmin = true, SessionsValidAfter = new DateTimeOffset(2026, 9, 20, 8, 0, 0, 123, TimeSpan.FromHours(2)).AddTicks(4567), DisplayName = "changes freely" };
+        var user = new User { Id = 7, UserNameNormalized = "ALICE", PasswordHash = "hash", MustChangePassword = true, IsDisabled = false, IsLocalAdmin = true, SessionsValidAfter = new DateTimeOffset(2026, 9, 20, 8, 0, 0, 123, TimeSpan.FromHours(2)).AddTicks(4567), FailedLoginCount = 3, LockedUntil = new DateTimeOffset(2026, 9, 20, 6, 15, 0, TimeSpan.Zero), DisplayName = "changes freely" };
         var role = new Role { Id = 3, NameNormalized = "PICKER", BuiltInKey = null, Description = "changes freely" };
         role.Permissions.AddRange([new RolePermission { PermissionName = "b" }, new RolePermission { PermissionName = "a" }]);
         var assignment = new UserRole { Id = 9, UserId = 7, RoleId = 3, SiteId = 5, ExpiresAt = null, UpdatedBy = "changes freely" };
 
-        Assert.Equal("user\nALICE\nhash\n1\n0\n1\n2026-09-20T06:00:00.123Z", user.CanonicalContent());   // UTC, millisecond precision: the same before the write and after the read
+        Assert.Equal("user\nALICE\nhash\n1\n0\n1\n2026-09-20T06:00:00.123Z\n3\n2026-09-20T06:15:00.000Z", user.CanonicalContent());   // UTC, millisecond precision: the same before the write and after the read
         Assert.Equal("role\nPICKER\n\na,b", role.CanonicalContent());
         Assert.Equal("user_role\n7\n3\n5\n", assignment.CanonicalContent());
-        Assert.Equal("user\n\n\n0\n0\n0\n", new User().CanonicalContent());
+        Assert.Equal("user\n\n\n0\n0\n0\n\n0\n", new User().CanonicalContent());
         Assert.Equal("user_role\n0\n0\n\n2026-09-20T06:00:00.123Z", new UserRole { ExpiresAt = user.SessionsValidAfter }.CanonicalContent());
     }
 

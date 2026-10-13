@@ -54,17 +54,22 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
 
         var now = _timeProvider.GetUtcNow();
         var user = await FindByNameAsync(userName, cancellationToken).ConfigureAwait(false);
-        if (user?.PasswordHash is null)
+        if (user is null)
         {
-            _hasher.VerifyHashedPassword(new User(), _hasher.HashPassword(new User(), "dummy"), password);   // same cost whether the name exists or not
-            LogAttempt(_logger, userName, LocalLoginOutcome.InvalidCredentials);
-            return LocalLoginResult.Refused(LocalLoginOutcome.InvalidCredentials);
+            return RefuseUnknown(userName, password);
         }
 
+        // E10.4: a found row is verified before anything is read from it, so a hash nulled outside the application
+        // is an integrity failure, not an ordinary wrong password.
         if (!await _signer.IsValidAsync(user, UserConfiguration.Schema + "." + UserConfiguration.Table, cancellationToken).ConfigureAwait(false))
         {
-            LogAttempt(_logger, userName, LocalLoginOutcome.IntegrityFailure);   // E10.4: the row was changed outside the application
+            LogAttempt(_logger, userName, LocalLoginOutcome.IntegrityFailure);
             return LocalLoginResult.Refused(LocalLoginOutcome.IntegrityFailure);
+        }
+
+        if (user.PasswordHash is null)
+        {
+            return RefuseUnknown(userName, password);   // a provider account: it has no local password
         }
 
         if (user.IsDisabled)
@@ -96,6 +101,15 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         LogAttempt(_logger, userName, LocalLoginOutcome.Success);
         return LocalLoginResult.Succeeded(await ViewAsync(user, now, cancellationToken).ConfigureAwait(false));
+    }
+
+
+
+    private LocalLoginResult RefuseUnknown(string userName, string password)
+    {
+        _hasher.VerifyHashedPassword(new User(), _hasher.HashPassword(new User(), "dummy"), password);   // same cost whether the name exists or not
+        LogAttempt(_logger, userName, LocalLoginOutcome.InvalidCredentials);
+        return LocalLoginResult.Refused(LocalLoginOutcome.InvalidCredentials);
     }
 
 

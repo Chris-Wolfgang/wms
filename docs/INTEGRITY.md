@@ -32,7 +32,7 @@ grants nothing.
 
 | Table | Signed fields |
 |---|---|
-| `core.user` | normalised user name, password hash, must-change-password, disabled, local administrator, sessions-valid-after |
+| `core.user` | normalised user name, password hash, must-change-password, disabled, local administrator, sessions-valid-after, failed sign-in count, locked-until |
 | `core.role` | normalised name, built-in key, the sorted permission names of its `core.role_permission` rows |
 | `core.user_role` | user id, role id, site id, expires-at |
 

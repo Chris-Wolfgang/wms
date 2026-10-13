@@ -14,6 +14,9 @@ namespace Wolfgang.Wms.Core.Json;
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DictionaryKeyPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(SchemaStatus))]
 [JsonSerializable(typeof(List<SettingDescriptor>))]
+[JsonSerializable(typeof(SettingValue))]
+[JsonSerializable(typeof(IReadOnlyList<SettingValue>))]
+[JsonSerializable(typeof(SetSettingRequest))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

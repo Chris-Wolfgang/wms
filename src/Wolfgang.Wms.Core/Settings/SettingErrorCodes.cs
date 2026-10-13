@@ -39,6 +39,34 @@ public static class SettingErrorCodes
 
 
     /// <summary>
+    /// A request named a scope type that does not exist.
+    /// </summary>
+    public static ErrorCode UnknownScope { get; } = new
+    (
+        "settings.unknown_scope",
+        StatusCodes.Status400BadRequest,
+        "'{0}' is not a setting scope (organization, site, zone, sku).",
+        "settings-unknown-scope",
+        ErrorSeverity.Error
+    );
+
+
+
+    /// <summary>
+    /// A write arrived before a database was configured (bootstrap).
+    /// </summary>
+    public static ErrorCode StoreUnavailable { get; } = new
+    (
+        "settings.store_unavailable",
+        StatusCodes.Status503ServiceUnavailable,
+        "Settings cannot be changed until a database is configured.",
+        "settings-store-unavailable",
+        ErrorSeverity.Error
+    );
+
+
+
+    /// <summary>
     /// A write carried a value the setting's kind or validator rejects.
     /// </summary>
     public static ErrorCode InvalidValue { get; } = new

@@ -125,6 +125,9 @@ handling and repair: [docfx_project/docs/integrity.md](../docfx_project/docs/int
 
 ## Identity providers (E11.0)
 
+The operator-facing version of this section is [docfx_project/docs/sign-in.md](../docfx_project/docs/sign-in.md)
+(published with the documentation site); keep the two in step.
+
 Providers sit behind one interface (`IAuthProvider`; challenge providers also `IChallengeAuthProvider`):
 a name, a display name, a kind (credentials posted to the API, or a challenge the browser is sent to), a
 settings schema (the keys the console renders as the provider's configuration block, declared by the

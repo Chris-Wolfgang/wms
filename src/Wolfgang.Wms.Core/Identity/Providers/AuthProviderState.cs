@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Globalization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -164,7 +165,7 @@ public sealed partial class AuthProviderState : IDisposable
         foreach (var key in provider.Settings)
         {
             var value = await settings.FindAsync(key.Name, SettingScopeRef.Organization, cancellationToken).ConfigureAwait(false);
-            parts.Add(key.Name + "=" + value.EffectiveValue);
+            parts.Add(key.Name + "=" + value.EffectiveValue + "@" + value.RowVersion?.ToString(CultureInfo.InvariantCulture));   // a secret reads back masked, so its row version is what changes when it is rotated
         }
 
         return string.Join('\n', parts);

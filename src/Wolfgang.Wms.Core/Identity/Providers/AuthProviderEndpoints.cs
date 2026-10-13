@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -67,8 +68,20 @@ public static class AuthProviderEndpoints
             return ApiProblems.Problem(AuthErrorCodes.ProviderNotEnabled, detail: null, provider);
         }
 
-        var redirect = returnUrl is not null && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//", StringComparison.Ordinal) ? returnUrl : "/";   // local URLs only
+        var redirect = IsLocalReturnUrl(returnUrl) ? returnUrl : "/";
         return TypedResults.Challenge(new AuthenticationProperties { RedirectUri = redirect }, [provider]);
+    }
+
+
+
+    /// <summary>
+    /// True for a path on this site only: it starts with one '/' that is not followed by another '/' or by '\\'.
+    /// Browsers treat <c>//host</c> and <c>/\host</c> alike as another origin, so both are refused, as ASP.NET's
+    /// own local-URL check does.
+    /// </summary>
+    internal static bool IsLocalReturnUrl([NotNullWhen(true)] string? returnUrl)
+    {
+        return returnUrl is { Length: > 0 } && returnUrl[0] == '/' && (returnUrl.Length == 1 || (returnUrl[1] != '/' && returnUrl[1] != '\\'));
     }
 
 

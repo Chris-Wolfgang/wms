@@ -9,7 +9,7 @@ namespace Wolfgang.Wms.Infrastructure.Database;
 
 /// <summary>
 /// <see cref="IRowVersionSource"/> over the product model (E1.12, E6.3): one <c>MAX(row_version)</c> plus
-/// <c>COUNT(*)</c> per entity type, the table identifiers taken from the model (the caller names a type,
+/// <c>COUNT_BIG(1)</c> per entity type, the table identifiers taken from the model (the caller names a type,
 /// never a table) so only versioned tables of the schema can be asked about. Runs in its own scope because
 /// the caches that use it are singletons.
 /// </summary>
@@ -42,7 +42,7 @@ public sealed class MaxRowVersionSource : IRowVersionSource
         var count = 0L;
         foreach (var entityType in entityTypes)
         {
-            var sql = Sql(context, entityType);
+            var sql = CreateSqlCommandText(context, entityType);
             var row = await context.Database.SqlQueryRaw<StampRow>(sql).SingleAsync(cancellationToken).ConfigureAwait(false);
             max = Math.Max(max, (ulong)Math.Max(0, row.MaxVersion));
             count += row.RowCount;
@@ -59,7 +59,7 @@ public sealed class MaxRowVersionSource : IRowVersionSource
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
     /// <exception cref="ArgumentException"><paramref name="entityType"/> is not a versioned entity of the model.</exception>
-    public static string Sql(WmsDbContext context, Type entityType)
+    public static string CreateSqlCommandText(WmsDbContext context, Type entityType)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(entityType);
@@ -73,14 +73,14 @@ public sealed class MaxRowVersionSource : IRowVersionSource
         var schema = entity.GetSchema()!;
         var name = entity.GetTableName()!;
         return string.Equals(context.Database.ProviderName, RowVersioning.SqlServer, StringComparison.Ordinal)
-            ? "SELECT COALESCE(MAX([" + RowVersioning.ColumnName + "]), 0) AS [MaxVersion], COUNT_BIG(*) AS [RowCount] FROM [" + schema + "].[" + name + "]"
-            : "SELECT COALESCE(MAX(" + RowVersioning.ColumnName + "), 0) AS \"MaxVersion\", COUNT(*) AS \"RowCount\" FROM " + schema + "." + name;
+            ? "SELECT COALESCE(MAX([" + RowVersioning.ColumnName + "]), 0) AS [MaxVersion], COUNT_BIG(1) AS [RowCount] FROM [" + schema + "].[" + name + "]"
+            : "SELECT COALESCE(MAX(" + RowVersioning.ColumnName + "), 0) AS \"MaxVersion\", COUNT(1) AS \"RowCount\" FROM " + schema + "." + name;
     }
 
 
 
     /// <summary>
-    /// One row of <see cref="Sql"/>: the projection EF materialises from the raw query.
+    /// One row of <see cref="CreateSqlCommandText"/>: the projection EF materialises from the raw query.
     /// </summary>
     /// <param name="MaxVersion">The highest row version in the table.</param>
     /// <param name="RowCount">The number of rows.</param>

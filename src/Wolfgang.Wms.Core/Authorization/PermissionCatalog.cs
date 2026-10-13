@@ -35,12 +35,11 @@ public sealed class PermissionCatalog
         {
             foreach (var permission in module.Permissions)
             {
-                if (_permissions.ContainsKey(permission.Name))
+                var added = _permissions.TryAdd(permission.Name, (permission, module.Name));
+                if (!added)
                 {
                     throw new InvalidOperationException($"Permission '{permission.Name}' is declared more than once (module '{module.Name}').");
                 }
-
-                _permissions.Add(permission.Name, (permission, module.Name));
             }
         }
 

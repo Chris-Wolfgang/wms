@@ -25,7 +25,7 @@ public static class BootstrapConfiguration
         "Wms:Database:ConnectionString",
         "Wms:Database:TrustServerCertificate",
         "Wms:DataProtection:KeyRingPath",   // E8.1
-        "Wms:Bootstrap:AdminUserName",      // E9.1
+        "Wms:Bootstrap:AdminUserName",      // E9.1: the bootstrap administrator's name (default admin)
     ];
 
 

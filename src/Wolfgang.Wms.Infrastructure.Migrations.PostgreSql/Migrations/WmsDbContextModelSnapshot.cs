@@ -235,6 +235,96 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.User", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("display_name");
+
+                    b.Property<int>("FailedLoginCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_login_count");
+
+                    b.Property<bool>("IsDisabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_disabled");
+
+                    b.Property<bool>("IsLocalAdmin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_local_admin");
+
+                    b.Property<DateTimeOffset?>("LockedUntil")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("locked_until");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("boolean")
+                        .HasColumnName("must_change_password");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text")
+                        .HasColumnName("password_hash");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version")
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
+
+                    b.Property<DateTimeOffset?>("SessionsValidAfter")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("sessions_valid_after");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("user_name");
+
+                    b.Property<string>("UserNameNormalized")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("user_name_normalized");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user");
+
+                    b.HasIndex("RowVersion")
+                        .HasDatabaseName("ix_user_row_version");
+
+                    b.HasIndex("UserNameNormalized")
+                        .IsUnique()
+                        .HasDatabaseName("ux_user_user_name_normalized");
+
+                    b.ToTable("user", "core", t =>
+                        {
+                            t.HasTrigger("trg_user_row_version");
+                        });
+                });
+
             modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditDetail", b =>
                 {
                     b.HasOne("Wolfgang.AuditTrail.Entities.AuditHeader", "Header")

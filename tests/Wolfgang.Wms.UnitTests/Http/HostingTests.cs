@@ -22,6 +22,8 @@ public sealed class HostingTests
     [InlineData(true, "10.0.0.5", "/api/v0/x", false, true)]
     [InlineData(false, "10.0.0.5", "/api/v0/x", false, false)]
     [InlineData(false, "10.0.0.5", "/health/ready", false, true)]
+    [InlineData(false, "10.0.0.5", "/health/live", false, true)]
+    [InlineData(false, "10.0.0.5", "/health/anything", false, false)]   // only the two probes, not everything below /health
     [InlineData(false, "10.0.0.5", "/api/v0/x", true, true)]
     [InlineData(false, "127.0.0.1", "/api/v0/x", false, true)]
     [InlineData(false, "::1", "/api/v0/x", false, true)]
@@ -86,7 +88,8 @@ public sealed class HostingTests
         var checks = json.RootElement.GetProperty("checks").EnumerateArray().ToList();
         Assert.Equal("Unhealthy", json.RootElement.GetProperty("status").GetString());
         Assert.Equal(["database", "broken"], checks.Select(c => c.GetProperty("name").GetString()));
-        Assert.Equal(["Schema 42.", "boom"], checks.Select(c => c.GetProperty("description").GetString()));
+        Assert.Equal(["Schema 42.", WmsHealth.FailedDescription], checks.Select(c => c.GetProperty("description").GetString()));   // never the exception's message
+        Assert.DoesNotContain("boom", json.RootElement.GetRawText(), StringComparison.Ordinal);
         Assert.Equal("application/json; charset=utf-8", context.Response.ContentType);
         Assert.Equal("no-store", context.Response.Headers.CacheControl);
         await Assert.ThrowsAsync<ArgumentNullException>(() => WmsHealth.WriteAsync(null!, report));

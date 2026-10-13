@@ -114,7 +114,9 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
                 {
                     await using (lease.ConfigureAwait(false))
                     {
-                        await RunOnceAsync(stoppingToken).ConfigureAwait(false);
+                        // A lost lease (another instance took over) stops this scan, so two instances never verify at once.
+                        using var run = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, lease.Lost);
+                        await RunOnceAsync(run.Token).ConfigureAwait(false);
                     }
                 }
 

@@ -67,7 +67,9 @@ public static class HttpsRequired
             return true;
         }
 
-        if (context.Request.Path.StartsWithSegments(WmsHealth.Prefix, StringComparison.OrdinalIgnoreCase))
+        // The two probes only, matched exactly: a prefix match would let any /health/... path through on plain HTTP.
+        var path = context.Request.Path;
+        if (path.Equals(WmsHealth.LiveRoute, StringComparison.OrdinalIgnoreCase) || path.Equals(WmsHealth.ReadyRoute, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }

@@ -54,6 +54,6 @@ public sealed partial class BootstrapConfigurationCheck : IHostedService
 
 
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "appsettings holds {Count} unrecognised key(s), ignored: {Keys}. Only bootstrap keys belong there (docs/CONFIGURATION.md); everything else is a setting in the Configure workspace.")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The configuration holds {Count} unrecognised key(s), ignored: {Keys}. Only bootstrap keys belong in appsettings or the environment (docs/CONFIGURATION.md); everything else is a setting in the Configure workspace.")]
     private static partial void LogUnrecognized(ILogger logger, int count, string keys);
 }

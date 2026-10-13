@@ -11,8 +11,8 @@ namespace Wolfgang.Wms.UnitTests.Configuration;
 
 /// <summary>
 /// E6.5: only bootstrap keys are recognised; every other <c>appsettings</c> key is listed with its source,
-/// case-insensitively, while environment-style providers are left alone; the startup check logs one warning
-/// and never fails.
+/// case-insensitively, and so is a <c>Wms:</c> key from any other provider, named by the provider's kind,
+/// while the platform's own keys there are left alone; the startup check logs one warning and never fails.
 /// </summary>
 public sealed class BootstrapConfigurationTests
 {
@@ -39,7 +39,7 @@ public sealed class BootstrapConfigurationTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(Json));
         var configuration = new ConfigurationBuilder()
             .AddJsonStream(stream)
-            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal) { ["Anything:FromEnvironment"] = "ignored" })
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal) { ["Anything:FromEnvironment"] = "ignored", ["WMS:Picking:MaxTotes"] = "reported", ["Wms:Database:Provider"] = "recognised" })
             .Build();
 
         var keys = BootstrapConfiguration.UnrecognizedKeys(configuration);
@@ -52,6 +52,7 @@ public sealed class BootstrapConfigurationTests
                 "Smtp:Port (appsettings (stream))",
                 "Wms:Database:Timeout (appsettings (stream))",
                 "Wms:Picking:LeaseTimeout (appsettings (stream))",
+                "WMS:Picking:MaxTotes (Memory)",
             ],
             keys
         );
@@ -77,6 +78,16 @@ public sealed class BootstrapConfigurationTests
         {
             File.Delete(path);
         }
+    }
+
+
+
+    [Fact]
+    public void A_provider_without_the_conventional_suffix_is_named_as_it_is()
+    {
+        var configuration = new ConfigurationBuilder().Add(new StubSource()).Build();
+
+        Assert.Equal(["Wms:Stub:Key (StubProvider)"], BootstrapConfiguration.UnrecognizedKeys(configuration));
     }
 
 
@@ -154,6 +165,26 @@ public sealed class BootstrapConfigurationTests
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
             Entries.Add((logLevel, formatter(state, exception)));
+        }
+    }
+
+
+    private sealed class StubSource : IConfigurationSource
+    {
+        public IConfigurationProvider Build(IConfigurationBuilder builder)
+        {
+            return new StubProvider();
+        }
+    }
+
+
+
+    private sealed class StubProvider : ConfigurationProvider
+    {
+        public StubProvider()
+        {
+            Data["Wms:Stub:Key"] = "1";
+            Data["Platform:Key"] = "2";
         }
     }
 }

@@ -23,7 +23,9 @@ two in step.
 Any other key in an `appsettings*.json` file is ignored, and the host logs one warning at startup naming each
 one with its file (`Smtp:Host (appsettings.json)`), so a value typed into the wrong place is noticed. Those
 values are settings: define them in a module (docs/SETTINGS.md) and edit them in the Configure workspace.
-Environment variables are not inspected (the platform sets its own).
+A `Wms:` key from any other provider is reported the same way, named by the provider's kind
+(`Wms:Picking:MaxTotes (EnvironmentVariables)` for a `WMS__Picking__MaxTotes` variable); the platform's own
+environment variables are left alone.
 
 ## Database (E2)
 

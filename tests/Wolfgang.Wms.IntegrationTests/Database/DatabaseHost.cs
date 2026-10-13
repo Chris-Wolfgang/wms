@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Secrets;
 
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
@@ -37,6 +38,7 @@ internal static class DatabaseHost
         // registry the settings module provides.
         builder.Services.AddWmsModules();
         builder.Services.AddWmsSettingsModule();
+        builder.Services.AddWmsDataProtection(builder.Configuration);   // E8.5: EfSettings protects secret settings
         builder.Services.AddWmsDatabase(builder.Configuration);
         var app = builder.Build();
         try

@@ -1,6 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Microsoft.EntityFrameworkCore;
+using Wolfgang.Wms.Core.Secrets;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Domain.Keys;
 using Wolfgang.Wms.Domain.Settings;
@@ -13,7 +14,8 @@ namespace Wolfgang.Wms.Infrastructure.Database.Settings;
 /// against the registry, refuses a scope an ancestor has delegated past (E7.2), upserts the scope's row
 /// (configured and effective), walks the hierarchy down rewriting the effective value of descendants that
 /// inherit (a descendant with its own configured value keeps it, E7.1), saves everything in one transaction
-/// and invalidates the cache.
+/// and invalidates the cache. Secret-kind values are stored encrypted (<c>enc:v1:</c>, E8.3) through
+/// <see cref="ISecretProtector"/> and decrypted only for the typed read; every DTO masks them.
 /// </summary>
 public sealed class EfSettings : ISettings
 {
@@ -22,6 +24,7 @@ public sealed class EfSettings : ISettings
     private readonly ISettingScopeHierarchy _hierarchy;
     private readonly SettingsCache _cache;
     private readonly TimeProvider _timeProvider;
+    private readonly ISecretProtector _protector;
 
 
 
@@ -29,13 +32,14 @@ public sealed class EfSettings : ISettings
     /// Creates the accessor.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public EfSettings(WmsDbContext context, SettingRegistry registry, ISettingScopeHierarchy hierarchy, SettingsCache cache, TimeProvider timeProvider)
+    public EfSettings(WmsDbContext context, SettingRegistry registry, ISettingScopeHierarchy hierarchy, SettingsCache cache, TimeProvider timeProvider, ISecretProtector protector)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _hierarchy = hierarchy ?? throw new ArgumentNullException(nameof(hierarchy));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _protector = protector ?? throw new ArgumentNullException(nameof(protector));
     }
 
 
@@ -45,7 +49,8 @@ public sealed class EfSettings : ISettings
     {
         Require(key);
         var snapshot = await SnapshotAsync(cancellationToken).ConfigureAwait(false);
-        var (text, _) = await EffectiveAsync(key, scope, snapshot, cancellationToken).ConfigureAwait(false);
+        var (stored, _) = await EffectiveAsync(key, scope, snapshot, cancellationToken).ConfigureAwait(false);
+        var text = key.Kind == SettingKind.Secret ? ProtectedText.Reveal(stored, _protector)! : stored;   // E8.3: decrypted for the typed read only
         return key.Codec.TryParse(text, out var value)
             ? value
             : throw new InvalidOperationException($"The stored value '{text}' of {key.Name} at {scope} is not a valid {key.Kind} value.");
@@ -186,6 +191,11 @@ public sealed class EfSettings : ISettings
         ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);
 
         await RequireDecidedHereAsync(key, scope, cancellationToken).ConfigureAwait(false);
+        if (key.Kind == SettingKind.Secret)
+        {
+            text = _protector.Protect(text);   // E8.3: encrypted at rest in the same text column
+        }
+
         var now = _timeProvider.GetUtcNow();
         var row = await RowAsync(scope, key.Name, cancellationToken).ConfigureAwait(false) ?? Add(scope, key.Name);
         row.ConfiguredValue = text;

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Domain.Settings;
@@ -54,6 +55,7 @@ public static class SettingsModule
         .Create("settings")
         .WithEndpoints(MapReadEndpoints)
         .WithEndpoints(MapWriteEndpoints)
+        .WithPermissions(SettingsPermissions.All)
         .WithErrorCodes(SettingErrorCodes.UnknownKey, SettingErrorCodes.ScopeNotAllowed, SettingErrorCodes.InvalidValue, SettingErrorCodes.UnknownScope, SettingErrorCodes.StoreUnavailable, SettingErrorCodes.ModeNotAllowed, SettingErrorCodes.DecidedElsewhere);
 
 
@@ -97,14 +99,17 @@ public static class SettingsModule
     private static void MapReadEndpoints(IEndpointRouteBuilder app)
     {
         app.MapGet(RegistryRoute, (SettingRegistry registry) => TypedResults.Ok(registry.All.Select(SettingDescriptor.Of).ToList()))
+            .RequirePermission(SettingsPermissions.Read)
             .WithName("GetSettingRegistry")
             .WithSummary("Every setting the host knows: kind, scopes, default, description (read-only).");
         app.MapGet(ScopeRoute, async (string scopeType, long scopeId, ISettings settings, CancellationToken cancellationToken) =>
                 TypedResults.Ok(await settings.ListAsync(ParseScope(scopeType, scopeId), cancellationToken).ConfigureAwait(false)))
+            .RequirePermission(SettingsPermissions.Read)
             .WithName("ListSettings")
             .WithSummary("Every setting at a scope with its configured and effective value.");
         app.MapGet(ValueRoute, async (HttpContext http, string scopeType, long scopeId, string key, ISettings settings, CancellationToken cancellationToken) =>
                 WithEtag(http, await settings.FindAsync(key, ParseScope(scopeType, scopeId), cancellationToken).ConfigureAwait(false)))
+            .RequirePermission(SettingsPermissions.Read)
             .WithName("GetSetting")
             .WithSummary("One setting at a scope; the ETag is the stored row's version.");
     }
@@ -120,6 +125,7 @@ public static class SettingsModule
                 return await RequireCurrentAsync(http, key, scope, settings, cancellationToken).ConfigureAwait(false)
                     ?? WithEtag(http, await ApplyAsync(body, key, scope, settings, registry, User(http), cancellationToken).ConfigureAwait(false));
             })
+            .RequirePermission(SettingsPermissions.Write)
             .WithName("SetSetting")
             .WithSummary("Configures a setting at a scope: a value, or a cascade mode (per_site, per_zone, per_sku); both null resets. If-Match required when a row exists.")
             .Produces<SettingValue>();
@@ -129,6 +135,7 @@ public static class SettingsModule
                 return await RequireCurrentAsync(http, key, scope, settings, cancellationToken).ConfigureAwait(false)
                     ?? WithEtag(http, await settings.SetTextAsync(key, scope, text: null, User(http), cancellationToken).ConfigureAwait(false));
             })
+            .RequirePermission(SettingsPermissions.Write)
             .WithName("ResetSetting")
             .WithSummary("Removes the configured value at a scope so it inherits again; If-Match required when a row exists.")
             .Produces<SettingValue>();

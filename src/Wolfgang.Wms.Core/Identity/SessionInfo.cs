@@ -10,4 +10,5 @@ namespace Wolfgang.Wms.Core.Identity;
 /// <param name="DisplayName">The name shown on screen.</param>
 /// <param name="MustChangePassword">True while the password must be replaced before anything else.</param>
 /// <param name="IsLocalAdmin">True for the break-glass administrator.</param>
-public sealed record SessionInfo(long UserId, string UserName, string DisplayName, bool MustChangePassword, bool IsLocalAdmin);
+/// <param name="Permissions">The permission grants the session carries (<c>name@organization</c>, <c>name@site:3</c>, <c>*@organization</c>).</param>
+public sealed record SessionInfo(long UserId, string UserName, string DisplayName, bool MustChangePassword, bool IsLocalAdmin, IReadOnlyList<string> Permissions);

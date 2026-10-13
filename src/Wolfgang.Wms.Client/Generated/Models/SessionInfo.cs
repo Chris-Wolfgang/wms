@@ -27,6 +27,14 @@ namespace Wolfgang.Wms.Client.Generated.Models
         public bool? IsLocalAdmin { get; set; }
         /// <summary>True while the password must be replaced before anything else.</summary>
         public bool? MustChangePassword { get; set; }
+        /// <summary>The permission grants the session carries (`name@organization`, `name@site:3`, `*@organization`).</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+        public List<string>? Permissions { get; set; }
+#nullable restore
+#else
+        public List<string> Permissions { get; set; }
+#endif
         /// <summary>The user&apos;s id.</summary>
         public long? UserId { get; set; }
         /// <summary>The sign-in name.</summary>
@@ -65,6 +73,7 @@ namespace Wolfgang.Wms.Client.Generated.Models
                 { "displayName", n => { DisplayName = n.GetStringValue(); } },
                 { "isLocalAdmin", n => { IsLocalAdmin = n.GetBoolValue(); } },
                 { "mustChangePassword", n => { MustChangePassword = n.GetBoolValue(); } },
+                { "permissions", n => { Permissions = n.GetCollectionOfPrimitiveValues<string>()?.AsList(); } },
                 { "userId", n => { UserId = n.GetLongValue(); } },
                 { "userName", n => { UserName = n.GetStringValue(); } },
             };
@@ -79,6 +88,7 @@ namespace Wolfgang.Wms.Client.Generated.Models
             writer.WriteStringValue("displayName", DisplayName);
             writer.WriteBoolValue("isLocalAdmin", IsLocalAdmin);
             writer.WriteBoolValue("mustChangePassword", MustChangePassword);
+            writer.WriteCollectionOfPrimitiveValues<string>("permissions", Permissions);
             writer.WriteLongValue("userId", UserId);
             writer.WriteStringValue("userName", UserName);
             writer.WriteAdditionalData(AdditionalData);

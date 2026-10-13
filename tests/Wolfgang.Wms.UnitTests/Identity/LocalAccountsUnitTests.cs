@@ -43,7 +43,7 @@ public sealed class LocalAccountsUnitTests
     [Fact]
     public void Session_claims_round_trip_the_local_user()
     {
-        var user = new LocalUser(42, "alice", "Alice", MustChangePassword: true, IsLocalAdmin: true, IsDisabled: false);
+        var user = new LocalUser(42, "alice", "Alice", MustChangePassword: true, IsLocalAdmin: true, IsDisabled: false, Grants: ["*@organization"]);
 
         var principal = SessionClaims.Principal(user);
 
@@ -52,6 +52,7 @@ public sealed class LocalAccountsUnitTests
         Assert.Equal("alice", principal.Identity?.Name);
         Assert.Equal("local", principal.Identity?.AuthenticationType);
         Assert.Equal("true", principal.FindFirst(SessionClaims.LocalAdmin)?.Value);
+        Assert.Equal(["*@organization"], Wolfgang.Wms.Core.Authorization.PermissionClaims.GrantsOf(principal));
         Assert.Null(SessionClaims.UserIdOf(new ClaimsPrincipal()));
         Assert.Null(SessionClaims.UserIdOf(null));
         Assert.False(SessionClaims.MustChangePasswordOf(null));

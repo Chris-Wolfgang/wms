@@ -43,8 +43,8 @@ public static class SyncEndpoints
             TypedResults.Ok(await SyncQueries.ManifestAsync(source(context), cancellationToken).ConfigureAwait(false));
 
         var group = endpoints.MapGroup(path);
-        group.MapGet(string.Empty, delta);
-        group.MapGet("/manifest", manifest);
+        group.MapGet(string.Empty, delta).AllowAnonymous();   // device tokens gate these in E10.5; nothing is mapped on a product table yet
+        group.MapGet("/manifest", manifest).AllowAnonymous();
         return group;
     }
 }

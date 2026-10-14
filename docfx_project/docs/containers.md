@@ -42,7 +42,11 @@ The setup script:
 4. runs the migrations;
 5. starts the stack.
 
-Running it again keeps the existing passwords and values.
+Running it again keeps the existing passwords and values, and finishes a setup that stopped partway.
+
+After setup, the SQL Server `sa` account has a random password nobody holds and is disabled. The servers
+connect with their own logins, whose passwords are stored encrypted. For a server-level change, re-enable
+`sa` through SQL Server's single-user mode and set a password of your own.
 
 Back up the `keys` volume with the database: it holds the key ring every server shares, and without it the
 encrypted connection strings and secret settings cannot be read.

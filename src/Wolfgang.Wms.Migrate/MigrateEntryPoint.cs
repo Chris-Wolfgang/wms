@@ -8,7 +8,7 @@ namespace Wolfgang.Wms.Migrate;
 /// Entry point of <c>wms-migrate</c>. An explicit class rather than top-level statements so the type is not
 /// named <c>Program</c> like the API host's, which shares a test assembly with this tool. Excluded from
 /// coverage like the implicit entry point would be: it only wires Ctrl+C and the console streams to
-/// <see cref="MigrateProgram.RunAsync"/>, which the tests drive directly.
+/// <see cref="MigrateProgram.RunAsync(IReadOnlyList{string}, TextReader, TextWriter, TextWriter, Microsoft.Extensions.Configuration.IConfiguration, CancellationToken)"/>, which the tests drive directly.
 /// </summary>
 [ExcludeFromCodeCoverage]
 public static class MigrateEntryPoint
@@ -21,7 +21,7 @@ public static class MigrateEntryPoint
         using var cancellation = new CancellationTokenSource();
         using var ctrlC = new CancelKeyPressSubscription(cancellation);   // disposed first: the static event never keeps a handler over a disposed source
 
-        return await MigrateProgram.RunAsync(args, Console.Out, Console.Error, configuration: null, cancellation.Token).ConfigureAwait(false);
+        return await MigrateProgram.RunAsync(args, Console.In, Console.Out, Console.Error, configuration: null, cancellation.Token).ConfigureAwait(false);
     }
 
 

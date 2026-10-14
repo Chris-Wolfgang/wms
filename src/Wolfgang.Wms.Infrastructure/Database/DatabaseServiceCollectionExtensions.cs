@@ -25,6 +25,7 @@ using Wolfgang.Wms.Infrastructure.Database.Health;
 using Wolfgang.Wms.Infrastructure.Database.Leader;
 using Wolfgang.Wms.Infrastructure.Identity;
 using Wolfgang.Wms.Infrastructure.Integrity;
+using Wolfgang.Wms.Core.Sites;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -110,7 +111,7 @@ public static class DatabaseServiceCollectionExtensions
         services.AddSingleton<ILeaderLock, EfLeaderLock>();   // E12.6: singleton jobs run under a database lease
         services.AddWmsModules();
         services.TryAddSingleton(provider => new SettingRegistry(provider.GetRequiredService<ModuleCollection>()));   // hosts without the settings module (the worker) still get the accessor
-        services.TryAddSingleton<ISettingScopeHierarchy, OrganizationOnlyScopeHierarchy>();
+        UseStoredScopeHierarchy(services);   // E16.1: the cascade over the stored sites replaces the organisation-only placeholder
         services.TryAddSingleton(provider => new PermissionCatalog(provider.GetRequiredService<ModuleCollection>()));   // the roles store's catalog, for hosts without the auth module
         services.TryAddSingleton<IRowVersionSource, MaxRowVersionSource>();   // E1.12: the caches' one invalidation signal
         services.TryAddSingleton<SettingsCache>();
@@ -118,9 +119,28 @@ public static class DatabaseServiceCollectionExtensions
         services.AddScoped<ISettings, EfSettings>();   // E6.3: the stored accessor replaces the defaults-only one
         services.RemoveAll<IOrganization>();
         services.AddScoped<IOrganization, Organization.EfOrganization>();   // E16.0: the stored organization replaces the placeholder
+        services.RemoveAll<ISites>();
+        services.AddScoped<ISites, Sites.EfSites>();   // E16.1: the stored sites replace the placeholder
+        services.TryAddSingleton<IOpenReleases, NoOpenReleases>();   // E16.1: nothing blocks retiring a site until release intake (E22) answers
         services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead
         AddIdentity(services, configuration);   // E9, E10: accounts, roles, sessions, integrity
         return services;
+    }
+
+
+
+    /// <summary>
+    /// E16.1: the cascade over the stored sites replaces <see cref="OrganizationOnlyScopeHierarchy"/>. A host that
+    /// registered a hierarchy of its own (a test host) keeps it: only the placeholder descriptor goes.
+    /// </summary>
+    private static void UseStoredScopeHierarchy(IServiceCollection services)
+    {
+        foreach (var placeholder in services.Where(d => d.ServiceType == typeof(ISettingScopeHierarchy) && d.ImplementationType == typeof(OrganizationOnlyScopeHierarchy)).ToList())
+        {
+            services.Remove(placeholder);
+        }
+
+        services.TryAddScoped<ISettingScopeHierarchy, EfSettingScopeHierarchy>();
     }
 
 

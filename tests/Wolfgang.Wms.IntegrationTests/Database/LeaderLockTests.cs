@@ -74,6 +74,10 @@ public sealed class LeaderLockTests
         Assert.True(await ((EfLeaderLock)first).TakeOrRenewAsync("expiring", TimeSpan.FromSeconds(1), CancellationToken.None));   // expired: taken over
         await ((EfLeaderLock)first).ReleaseAsync("expiring", CancellationToken.None);
         await second.ReleaseAsync("expiring", CancellationToken.None);   // not the holder: no effect
+        var fast = new EfLeaderLock(app.Services.GetRequiredService<IServiceScopeFactory>(), new OffsetTimeProvider(TimeSpan.FromHours(1)), NullLogger<EfLeaderLock>.Instance);
+        Assert.True(await second.TakeOrRenewAsync("skewed", TimeSpan.FromSeconds(30), CancellationToken.None));
+        Assert.False(await fast.TakeOrRenewAsync("skewed", TimeSpan.FromSeconds(30), CancellationToken.None));   // a host an hour ahead cannot take a live lease: the database clock decides
+        await second.ReleaseAsync("skewed", CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
         Assert.Equal(("database", "Healthy"), (database.GetProperty("name").GetString(), database.GetProperty("status").GetString()));
@@ -117,5 +121,15 @@ public sealed class LeaderLockTests
         app.MapWmsHealth();
         await app.StartAsync();
         return app;
+    }
+
+
+
+    private sealed class OffsetTimeProvider(TimeSpan offset) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow()
+        {
+            return base.GetUtcNow() + offset;
+        }
     }
 }

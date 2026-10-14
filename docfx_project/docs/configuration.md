@@ -80,4 +80,5 @@ sessions.
 
 You can also run several workers. Jobs that must run once at a time (integrity verification today, more
 as they arrive) take a lock in the database, so exactly one worker runs each job; if that worker stops or
-loses its connection for longer than the lock's lease, another one takes over.
+loses its connection for longer than the lock's lease, another one takes over. Lease times come from the
+database server's clock, so the servers' own clocks need not agree.

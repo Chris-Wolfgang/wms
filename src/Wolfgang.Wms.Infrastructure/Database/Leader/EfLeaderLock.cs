@@ -71,7 +71,7 @@ public sealed partial class EfLeaderLock : ILeaderLock
 
         using var scope = _scopes.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
-        var now = _timeProvider.GetUtcNow();
+        var now = await DatabaseNowAsync(context, cancellationToken).ConfigureAwait(false);
         var until = now + lease;
         var holder = Holder;
         var updated = await context.Set<LeaderLock>()
@@ -111,13 +111,29 @@ public sealed partial class EfLeaderLock : ILeaderLock
 
         using var scope = _scopes.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
-        var now = _timeProvider.GetUtcNow();
+        var now = await DatabaseNowAsync(context, cancellationToken).ConfigureAwait(false);
         var holder = Holder;
         await context.Set<LeaderLock>()
             .Where(l => l.Name == name && l.Holder == holder)
             .ExecuteUpdateAsync(set => set.SetProperty(l => l.Holder, string.Empty).SetProperty(l => l.ExpiresAt, now), cancellationToken)
             .ConfigureAwait(false);
         LogReleased(_logger, name, holder);
+    }
+
+
+
+    /// <summary>
+    /// The database server's UTC time. Leases are taken, renewed, compared and released on this one clock, so
+    /// clock skew between hosts can neither let a fast host steal a live lease nor make a slow one wait past
+    /// expiry. The host clock only paces the renewal timer.
+    /// </summary>
+    internal static async Task<DateTimeOffset> DatabaseNowAsync(WmsDbContext context, CancellationToken cancellationToken)
+    {
+        var sql = context.Database.IsNpgsql()
+            ? "SELECT now() AS \"Value\""
+            : "SELECT CAST(SYSUTCDATETIME() AS datetimeoffset) AS [Value]";
+        var now = await context.Database.SqlQueryRaw<DateTimeOffset>(sql).SingleAsync(cancellationToken).ConfigureAwait(false);
+        return now.ToUniversalTime();
     }
 
 

@@ -42,6 +42,7 @@
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Web.Insights\Wolfgang.Wms.Web.Insights.csproj" />
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Web\Wolfgang.Wms.Web.csproj" />
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Migrate\Wolfgang.Wms.Migrate.csproj" />
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Admin\Wolfgang.Wms.Admin.csproj" />
   </ItemGroup>
 
 </Project>

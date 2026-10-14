@@ -87,7 +87,9 @@ A row that fails verification stays failed until someone deliberately rewrites i
 assignment through the console or the API (which re-signs on save), or delete and recreate it. A write the
 application makes on its own never touches a failed row, so it cannot re-sign the change by accident: ending a
 user's sessions after a role change, the verification job ending sessions, and the start-up grant of the
-Administrator role to local administrators (a failed user gets no grant) all verify the row first. There is no
+Administrator role to local administrators (a failed user gets no grant) all verify the row first. A built-in role
+that fails verification is never re-seeded at start-up (its key may have been moved onto another role):
+it grants nothing until the row is restored from a backup. There is no
 "re-sign everything" command by design; if a whole database must be re-signed (a restored backup from a
 different ring), delete the key row and restart once, and record why.
 

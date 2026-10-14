@@ -224,11 +224,28 @@ public sealed class EfRoles : IRoles
         ArgumentNullException.ThrowIfNull(catalog);
 
         var existing = await _context.Set<Role>().Include(r => r.Permissions).Where(r => r.BuiltInKey != null).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var failed = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var candidate in existing)
+        {
+            if (!await _signer.IsValidAsync(candidate, "core.role", cancellationToken).ConfigureAwait(false))
+            {
+                failed.Add(candidate.BuiltInKey!);
+            }
+        }
+
         var created = 0;
         var now = _timeProvider.GetUtcNow();
+        Role? administrator = null;
         foreach (var builtIn in BuiltInRoles.All)
         {
+            // E10.4: a built-in role whose row fails verification (a key moved onto another role, say) is never
+            // modified or recreated here, since that would sign the change; it grants nothing until it is restored.
             var role = existing.SingleOrDefault(r => string.Equals(r.BuiltInKey, builtIn.Key(), StringComparison.Ordinal));
+            if (failed.Contains(builtIn.Key()) || (role is null && await _context.Set<Role>().AnyAsync(r => r.NameNormalized == Normalize(builtIn.DisplayName()), cancellationToken).ConfigureAwait(false)))
+            {
+                continue;
+            }
+
             if (role is null)
             {
                 role = new Role { Name = builtIn.DisplayName(), NameNormalized = Normalize(builtIn.DisplayName()), Description = builtIn.Description(), BuiltInKey = builtIn.Key(), UpdatedBy = WmsAuditing.SystemIdentity, UpdatedAt = now };
@@ -244,10 +261,16 @@ public sealed class EfRoles : IRoles
                 Replace(role, wanted, validate: false);
                 role.UpdatedAt = now;
             }
+
+            administrator = builtIn == BuiltInRole.Administrator ? role : administrator;
         }
 
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);   // roles first: an assignment is signed with its role's id (E10.4)
-        await EnsureLocalAdministratorsHoldTheRoleAsync(now, cancellationToken).ConfigureAwait(false);
+        if (administrator is not null)
+        {
+            await EnsureLocalAdministratorsHoldTheRoleAsync(administrator, now, cancellationToken).ConfigureAwait(false);
+        }
+
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return created;
     }
@@ -280,9 +303,8 @@ public sealed class EfRoles : IRoles
 
 
 
-    private async Task EnsureLocalAdministratorsHoldTheRoleAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    private async Task EnsureLocalAdministratorsHoldTheRoleAsync(Role administrator, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var administrator = _context.Set<Role>().Local.Single(r => string.Equals(r.BuiltInKey, BuiltInRole.Administrator.Key(), StringComparison.Ordinal));
         var admins = new List<long>();
         foreach (var user in await _context.Users.AsNoTracking().Where(u => u.IsLocalAdmin).ToListAsync(cancellationToken).ConfigureAwait(false))
         {

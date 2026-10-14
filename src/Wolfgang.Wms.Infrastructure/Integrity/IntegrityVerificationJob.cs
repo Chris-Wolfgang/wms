@@ -83,6 +83,32 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
             }
         }
 
+        var (assignmentsChecked, assignmentsFailed) = await ScanAssignmentsAsync(context, signer, failedRoles, failures, holders, cancellationToken).ConfigureAwait(false);
+        checkedRows += assignmentsChecked;
+        failed += assignmentsFailed;
+
+        // A session carries the grants it was issued with, so a failed assignment or role keeps granting through open
+        // sessions until they end. Ending them here bounds that to one scan interval. A user whose own row failed is
+        // skipped: its sessions are already refused on every request, and saving the row would re-sign the tampering.
+        await RevokeAsync(context, signer, holders.Except(failedUsers), scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow(), cancellationToken).ConfigureAwait(false);
+        _acted = failures;
+
+        var result = new IntegrityVerificationResult(scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow(), checkedRows, failed);
+        LastResult = result;
+        Report(result);
+        return result;
+    }
+
+
+
+    /// <summary>
+    /// Verifies every assignment, adding each failure to <paramref name="failures"/> and, for a failure not acted on
+    /// yet (its own or its role's), the assigned user to <paramref name="holders"/>.
+    /// </summary>
+    private async Task<(int Checked, int Failed)> ScanAssignmentsAsync(WmsDbContext context, IIntegritySigner signer, Dictionary<long, string> failedRoles, HashSet<string> failures, HashSet<long> holders, CancellationToken cancellationToken)
+    {
+        var checkedRows = 0;
+        var failed = 0;
         foreach (var assignment in await context.UserRoles.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false))
         {
             checkedRows++;
@@ -102,16 +128,7 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
             }
         }
 
-        // A session carries the grants it was issued with, so a failed assignment or role keeps granting through open
-        // sessions until they end. Ending them here bounds that to one scan interval. A user whose own row failed is
-        // skipped: its sessions are already refused on every request, and saving the row would re-sign the tampering.
-        await RevokeAsync(context, signer, holders.Except(failedUsers), scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow(), cancellationToken).ConfigureAwait(false);
-        _acted = failures;
-
-        var result = new IntegrityVerificationResult(scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow(), checkedRows, failed);
-        LastResult = result;
-        Report(result);
-        return result;
+        return (checkedRows, failed);
     }
 
 

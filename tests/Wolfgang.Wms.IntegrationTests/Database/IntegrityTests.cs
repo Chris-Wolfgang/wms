@@ -89,6 +89,20 @@ public sealed class IntegrityTests
             var custom = await CreateRoleAsync(client, admin);
             await AssignAsync(client, admin, bob, custom);
             Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(first, await SignInAsync(client, "bob")));
+
+            // The administrator key moved onto the custom role bob holds: start-up seeding must not give it '*' and sign it.
+            var administratorRole = roles.Single(r => string.Equals(r.Name, "Administrator", StringComparison.Ordinal)).Id;
+            await TamperAsync(first.Services, "UPDATE core.role SET built_in_key = NULL WHERE id = " + administratorRole);
+            await TamperAsync(first.Services, "UPDATE core.role SET built_in_key = 'administrator' WHERE id = " + custom);
+            using (var seeding = first.Services.CreateScope())
+            {
+                await seeding.ServiceProvider.GetRequiredService<IRoles>().EnsureBuiltInAsync(seeding.ServiceProvider.GetRequiredService<PermissionCatalog>(), CancellationToken.None);
+                Assert.DoesNotContain("*", await seeding.ServiceProvider.GetRequiredService<WmsDbContext>().Set<RolePermission>().Where(p => p.RoleId == custom).Select(p => p.PermissionName).ToListAsync());
+            }
+
+            await TamperAsync(first.Services, "UPDATE core.role SET built_in_key = NULL WHERE id = " + custom);   // restored as they were, so both rows verify again
+            await TamperAsync(first.Services, "UPDATE core.role SET built_in_key = 'administrator' WHERE id = " + administratorRole);
+            Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(first, await SignInAsync(client, "bob")));
             await TamperAsync(first.Services, "INSERT INTO core.role_permission (role_id, permission_name) VALUES (" + custom + ", 'auth.roles.write')");
             Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, await SignInAsync(client, "bob")));   // the role grants nothing
 

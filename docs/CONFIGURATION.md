@@ -20,11 +20,11 @@ two in step.
 | `Wms:Hosting:BehindProxy` | E10.6, below |
 | `Wms:Hosting:AllowHttp` | E12.5, below: plain HTTP from any address (a lab) |
 | `Wms:Worker:Role` | E14.2, docs/CONTAINERS.md (published: docfx_project/docs/containers.md): `worker` (singleton jobs) or `ingest` |
-
-On Windows the services and IIS sites carry these keys in their environment (docs/INSTALL-WINDOWS.md); in containers, `compose.yaml` does (docs/CONTAINERS.md).
 | `Wms:Auth:ForceLocal` | E11.0, docs/AUTH.md: emergency override, local sign-in only; not the normal way to choose providers |
 | `Logging:*` | the framework's own level table; the product's pipeline is `Wms:Logging` (docs/LOGGING.md) and the runtime level is a setting (E12.4) |
 | `Wms:Logging:*` | E12.2, docs/LOGGING.md: sinks (stdout, file, Event Log, OpenTelemetry) and the boot level |
+
+On Windows the services and IIS sites carry these keys in their environment (docs/INSTALL-WINDOWS.md); in containers, `compose.yaml` does (docs/CONTAINERS.md).
 
 Any other key in an `appsettings*.json` file is ignored, and the host logs one warning at startup naming each
 one with its file (`Smtp:Host (appsettings.json)`), so a value typed into the wrong place is noticed. Those

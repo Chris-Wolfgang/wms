@@ -1,6 +1,5 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
-using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,10 +21,6 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
 {
     private readonly IServiceScopeFactory _scopes;
     private readonly ILogger<IntegrityVerificationJob> _logger;
-
-    // The failed rows (table, id and signature) whose holders' sessions were already ended. A failure ends sessions
-    // once, on the scan that first finds it, not on every scan until it is repaired; a row changed again counts anew.
-    private HashSet<string> _acted = new(StringComparer.Ordinal);
 
 
 
@@ -56,86 +51,23 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
         using var scope = _scopes.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
         var signer = scope.ServiceProvider.GetRequiredService<IIntegritySigner>();
-        var checkedRows = 0;
+        var rows = new List<(ISignedEntity Row, string Table)>();
+        rows.AddRange((await context.Users.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(u => ((ISignedEntity)u, "core.user")));
+        rows.AddRange((await context.Roles.Include(r => r.Permissions).AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(r => ((ISignedEntity)r, "core.role")));
+        rows.AddRange((await context.UserRoles.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(a => ((ISignedEntity)a, "core.user_role")));
+
+        // Nothing is revoked here: every request recomputes the session's grants from rows that verify (ISessionGrants),
+        // so a failed row stops granting at once. The scan finds the failures for the log and the health endpoint.
         var failed = 0;
-        var failedUsers = new HashSet<long>();
-        var failedRoles = new Dictionary<long, string>();
-        var failures = new HashSet<string>(StringComparer.Ordinal);
-        var holders = new HashSet<long>();   // users whose cached grants may come from a failed assignment or role
-
-        foreach (var user in await context.Users.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false))
+        foreach (var (row, table) in rows)
         {
-            checkedRows++;
-            if (!await signer.IsValidAsync(user, "core.user", cancellationToken).ConfigureAwait(false))
-            {
-                failed++;
-                failedUsers.Add(user.Id);
-            }
+            failed += await signer.IsValidAsync(row, table, cancellationToken).ConfigureAwait(false) ? 0 : 1;
         }
 
-        foreach (var role in await context.Roles.Include(r => r.Permissions).AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false))
-        {
-            checkedRows++;
-            if (!await signer.IsValidAsync(role, "core.role", cancellationToken).ConfigureAwait(false))
-            {
-                failed++;
-                failures.Add(failedRoles[role.Id] = Failure("core.role", role));
-            }
-        }
-
-        var (assignmentsChecked, assignmentsFailed) = await ScanAssignmentsAsync(context, signer, failedRoles, failures, holders, cancellationToken).ConfigureAwait(false);
-        checkedRows += assignmentsChecked;
-        failed += assignmentsFailed;
-
-        // A session carries the grants it was issued with, so a failed assignment or role keeps granting through open
-        // sessions until they end. Ending them here bounds that to one scan interval. A user whose own row failed is
-        // skipped: its sessions are already refused on every request, and saving the row would re-sign the tampering.
-        await RevokeAsync(context, signer, holders.Except(failedUsers), scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow(), cancellationToken).ConfigureAwait(false);
-        _acted = failures;
-
-        var result = new IntegrityVerificationResult(scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow(), checkedRows, failed);
+        var result = new IntegrityVerificationResult(scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow(), rows.Count, failed);
         LastResult = result;
         Report(result);
         return result;
-    }
-
-
-
-    /// <summary>
-    /// Verifies every assignment, adding each failure to <paramref name="failures"/> and, for a failure not acted on
-    /// yet (its own or its role's), the assigned user to <paramref name="holders"/>.
-    /// </summary>
-    private async Task<(int Checked, int Failed)> ScanAssignmentsAsync(WmsDbContext context, IIntegritySigner signer, Dictionary<long, string> failedRoles, HashSet<string> failures, HashSet<long> holders, CancellationToken cancellationToken)
-    {
-        var checkedRows = 0;
-        var failed = 0;
-        foreach (var assignment in await context.UserRoles.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false))
-        {
-            checkedRows++;
-            if (!await signer.IsValidAsync(assignment, "core.user_role", cancellationToken).ConfigureAwait(false))
-            {
-                failed++;
-                var failure = Failure("core.user_role", assignment);
-                failures.Add(failure);
-                if (!_acted.Contains(failure))
-                {
-                    holders.Add(assignment.UserId);
-                }
-            }
-            else if (failedRoles.TryGetValue(assignment.RoleId, out var roleFailure) && !_acted.Contains(roleFailure))
-            {
-                holders.Add(assignment.UserId);
-            }
-        }
-
-        return (checkedRows, failed);
-    }
-
-
-
-    private static string Failure(string table, ISignedEntity row)
-    {
-        return string.Create(CultureInfo.InvariantCulture, $"{table}:{row.Id}:{row.Signature}");
     }
 
 
@@ -150,32 +82,6 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
         {
             LogClean(_logger, result.Checked);
         }
-    }
-
-
-
-    private async Task RevokeAsync(WmsDbContext context, IIntegritySigner signer, IEnumerable<long> userIds, DateTimeOffset now, CancellationToken cancellationToken)
-    {
-        var ids = userIds.ToList();
-        if (ids.Count == 0)
-        {
-            return;
-        }
-
-        var revoked = 0;
-        foreach (var user in await context.Users.Where(u => ids.Contains(u.Id)).ToListAsync(cancellationToken).ConfigureAwait(false))
-        {
-            // Verified again as loaded: a row changed since the scan must not be re-signed by this save.
-            if (await signer.IsValidAsync(user, "core.user", cancellationToken).ConfigureAwait(false))
-            {
-                user.SessionsValidAfter = now;
-                user.UpdatedAt = now;
-                revoked++;
-            }
-        }
-
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        LogRevoked(_logger, revoked);
     }
 
 
@@ -224,11 +130,6 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Integrity verification: {Failed} of {CheckedRows} signed rows failed; see the Error entries above.")]
     private static partial void LogFailures(ILogger logger, int failed, int checkedRows);
-
-
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Integrity verification ended the open sessions of {Count} user(s) whose assignments or roles failed; they sign in again with the grants that still verify.")]
-    private static partial void LogRevoked(ILogger logger, int count);
 
 
 

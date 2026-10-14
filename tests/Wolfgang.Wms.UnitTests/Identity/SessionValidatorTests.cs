@@ -2,6 +2,7 @@
 
 using System.Globalization;
 using System.Security.Claims;
+using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Domain.Keys;
@@ -53,6 +54,27 @@ public sealed class SessionValidatorTests
         Assert.Null(AuthSettings.IdleTimeout.Validate(TimeSpan.FromMinutes(30)));
         Assert.NotNull(AuthSettings.IdleTimeout.Validate(TimeSpan.FromSeconds(30)));
         Assert.Contains(AuthSettings.IdleTimeout, AuthSettings.All);
+    }
+
+
+
+    [Fact]
+    public async Task WithGrants_replaces_only_the_permission_claims_and_the_placeholder_keeps_the_session_s()
+    {
+        var identity = new ClaimsIdentity(SessionClaims.LocalAuthenticationType, SessionClaims.UserName, roleType: null);
+        identity.AddClaim(new Claim(SessionClaims.UserId, "42"));
+        identity.AddClaim(new Claim(SessionClaims.UserName, "bob"));
+        identity.AddClaim(new Claim(PermissionClaims.ClaimType, "old"));
+
+        var replaced = SessionClaims.WithGrants(new ClaimsPrincipal(identity), ["new-a", "new-b"]);
+
+        Assert.Equal(["new-a", "new-b"], replaced.FindAll(PermissionClaims.ClaimType).Select(c => c.Value));
+        Assert.Equal(42, SessionClaims.UserIdOf(replaced));
+        Assert.Equal("bob", replaced.Identity!.Name);
+        Assert.Equal(SessionClaims.LocalAuthenticationType, replaced.Identity.AuthenticationType);
+        Assert.Throws<ArgumentNullException>(() => SessionClaims.WithGrants(null!, []));
+        Assert.Throws<ArgumentNullException>(() => SessionClaims.WithGrants(replaced, null!));
+        Assert.Null(await new NoSessionGrants().GrantsOfAsync(42, CancellationToken.None));
     }
 
 

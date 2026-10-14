@@ -251,13 +251,8 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
     /// </summary>
     private async Task<LocalUser> ViewAsync(User user, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var grants = (await _roles.GrantsOfAsync(user.Id, now, cancellationToken).ConfigureAwait(false)).ToList();
-        if (user.IsLocalAdmin)
-        {
-            grants.Insert(0, PermissionClaims.OrganizationGrant(PermissionClaims.Wildcard));
-        }
-
-        return new LocalUser(user.Id, user.UserName, user.DisplayName, user.MustChangePassword, user.IsLocalAdmin, user.IsDisabled, grants.Distinct(StringComparer.Ordinal).ToList());
+        var grants = EfSessionGrants.Combine(user.IsLocalAdmin, await _roles.GrantsOfAsync(user.Id, now, cancellationToken).ConfigureAwait(false));
+        return new LocalUser(user.Id, user.UserName, user.DisplayName, user.MustChangePassword, user.IsLocalAdmin, user.IsDisabled, grants);
     }
 
 

@@ -79,12 +79,9 @@ public sealed class IntegrityTests
             Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(first, held));
 
             await TamperAsync(first.Services, "UPDATE core.user_role SET site_id = 7 WHERE user_id = " + bob);
+            Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, held));   // a session's grants are recomputed on every request: the open one loses the grant at once
             Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, await SignInAsync(client, "bob")));   // the assignment grants nothing
             Assert.Equal(1, (await first.Services.GetRequiredService<IntegrityVerificationJob>().RunOnceAsync(CancellationToken.None)).Failed);
-            Assert.Equal(HttpStatusCode.Unauthorized, await RolesStatusAsync(first, held));   // the job ended the session that still carried the old grant
-            var afterRevoke = await SignInAsync(client, "bob");
-            await first.Services.GetRequiredService<IntegrityVerificationJob>().RunOnceAsync(CancellationToken.None);
-            Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, afterRevoke));   // the same failure ends sessions once, not on every scan
 
             var custom = await CreateRoleAsync(client, admin);
             await AssignAsync(client, admin, bob, custom);
@@ -103,6 +100,13 @@ public sealed class IntegrityTests
             await TamperAsync(first.Services, "UPDATE core.role SET built_in_key = NULL WHERE id = " + custom);   // restored as they were, so both rows verify again
             await TamperAsync(first.Services, "UPDATE core.role SET built_in_key = 'administrator' WHERE id = " + administratorRole);
             Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(first, await SignInAsync(client, "bob")));
+
+            // The assignment moved to another user while bob's session is open: bob loses the grant on his next request.
+            var open = await SignInAsync(client, "bob");
+            await TamperAsync(first.Services, "UPDATE core.user_role SET user_id = (SELECT MIN(id) FROM core.\"user\" WHERE id <> " + bob + ") WHERE role_id = " + custom);
+            Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, open));
+            await TamperAsync(first.Services, "UPDATE core.user_role SET user_id = " + bob + " WHERE role_id = " + custom);   // restored: it verifies again
+            Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(first, open));
             await TamperAsync(first.Services, "INSERT INTO core.role_permission (role_id, permission_name) VALUES (" + custom + ", 'auth.roles.write')");
             Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, await SignInAsync(client, "bob")));   // the role grants nothing
 

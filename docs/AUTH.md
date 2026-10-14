@@ -48,7 +48,8 @@ A session carries its grants as `wms:permission` claims: `name@organization` hol
 `name@site:<id>` at one site only, `*` stands for every permission. A request acts on the site named by its
 `siteId` route value or the `X-Wms-Site` header; without one, only organisation grants satisfy it. Holding a
 permission at site A never grants it at site B (E10.3). The local administrator holds `*@organization`;
-other users' grants come from their roles (E10.2). A missing session answers `401 auth.not_signed_in`, a
+other users' grants come from their roles (E10.2). The grants are recomputed on every request from rows that
+verify (E10.4), so a role change or a database edit takes effect on the user's next request. A missing session answers `401 auth.not_signed_in`, a
 missing permission `403 auth.forbidden`; `GET /auth/me` lists the session's grants.
 
 ## Roles and assignments (E10.2, E10.3)
@@ -118,8 +119,8 @@ arrive with the device and integration stories; provider sign-out (front-/back-c
 
 Users, roles and assignments are signed on save and verified before they are honoured; a row changed
 through the database grants nothing and cannot sign in (`403 auth.integrity_failure`). The worker
-re-verifies every signed row every `auth.integrity.verify_interval` (1 minute by default) and ends the
-sessions of users whose assignments or roles failed. Threat model, signed fields, key
+re-verifies every signed row every `auth.integrity.verify_interval` (1 minute by default) and reports the
+failures; sessions need no revoking, as their grants are recomputed on every request. Threat model, signed fields, key
 handling and repair: [docfx_project/docs/integrity.md](../docfx_project/docs/integrity.md).
 
 ## What comes next

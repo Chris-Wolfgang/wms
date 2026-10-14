@@ -125,6 +125,8 @@ public static class DatabaseServiceCollectionExtensions
         services.AddScoped<IRoles, EfRoles>();   // E10.2: the stored roles replace the placeholder
         services.RemoveAll<ISessionRevocations>();
         services.AddScoped<ISessionRevocations, EfSessionRevocations>();   // E10.5: per-user "sessions valid after"
+        services.RemoveAll<ISessionGrants>();
+        services.AddScoped<ISessionGrants, EfSessionGrants>();   // E10.4: a session's grants recomputed on every request
         services.AddHostedService<BuiltInRolesCheck>();   // E10.2: built-in roles follow the catalog; local administrators hold Administrator
     }
 

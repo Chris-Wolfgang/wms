@@ -96,6 +96,7 @@ public static class AuthModule
         services.AddExceptionHandler<AuthExceptionHandler>();
         services.TryAddScoped<ILocalAccounts, NoLocalAccounts>();
         services.TryAddScoped<ISessionRevocations, NoSessionRevocations>();
+        services.TryAddScoped<ISessionGrants, NoSessionGrants>();
         services.AddWmsModule(Descriptor);
         return services;
     }

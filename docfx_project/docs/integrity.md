@@ -30,9 +30,9 @@ grants nothing.
   the application account) is the boundary.
 - Deleting rows. A missing assignment or role only removes access; the audit trail keeps the history.
   Deleting an assignment or a role directly in the database is **not a supported way to revoke access**:
-  nothing is left to verify, so it cannot be detected, and a session already open keeps the grant it was
-  issued with until it ends. Revoke through the console or the API, which ends the user's sessions at once
-  (E10.5).
+  nothing is left to verify, so it cannot be detected (an open session loses the grant on its next request,
+  but nothing records why). Revoke through the console or the API, which audits the change and ends the
+  user's sessions at once (E10.5).
 - Deleting the key row (`wms.integrity_key`) and restarting: the next start creates a new key and signs
   every row as it stands (the upgrade path below). Treat a "key created" log entry on a database that is
   not new as an incident; keep database-level auditing and backups for that case.
@@ -68,15 +68,15 @@ every sign-in. Back the row up with the database and the ring together ([Configu
   sessions-valid-after, so a row changed outside the application ends that user's sessions (`401`) at once.
   Reading an account (`FindAsync`) and changing a password verify it too; a failed row is never returned
   or re-signed.
-- When grants are computed (sign-in, password change): every assignment and its role; a failure drops
-  that assignment silently for the user and logs an Error with the table and id.
+- When grants are computed: at sign-in and **on every request**, the session's grants are recomputed from
+  the user row (the local administrator flag) and every assignment and its role, each verified, and replace
+  the ones the cookie was issued with. A failure drops that assignment silently for the user and logs an
+  Error with the table and id. A grant changed or failed in the database therefore stops on the user's next
+  request, whoever the row now names, and no session keeps a grant from sign-in.
 - On a schedule: the worker's verification job walks every signed row every
   `auth.integrity.verify_interval` (a setting; 1 minute by default, 10 seconds to 7 days; the tables are
-  small) and logs a Warning summary with the failed and checked counts, Information when clean. A session
-  carries the grants it was issued with, so for every user holding a failed assignment or a failed role the
-  job ends their open sessions (sessions-valid-after), logged at Warning; they sign in again with what still
-  verifies. A tampered grant therefore lasts at most one interval in an open session. The last result is kept for the
-  health endpoint (E12.1).
+  small) and logs a Warning summary with the failed and checked counts, Information when clean. It changes
+  nothing: it finds failures for the log and for the health endpoint (E12.1), which keeps the last result.
 
 Every failure is logged at Error as `Integrity failure: <table> row <id> does not match its signature`.
 Alert on that message.
@@ -86,7 +86,7 @@ Alert on that message.
 A row that fails verification stays failed until someone deliberately rewrites it: change the account or
 assignment through the console or the API (which re-signs on save), or delete and recreate it. A write the
 application makes on its own never touches a failed row, so it cannot re-sign the change by accident: ending a
-user's sessions after a role change, the verification job ending sessions, and the start-up grant of the
+user's sessions after a role change or on request, and the start-up grant of the
 Administrator role to local administrators (a failed user gets no grant) all verify the row first. A built-in role
 that fails verification is never re-seeded at start-up (its key may have been moved onto another role):
 it grants nothing until the row is restored from a backup. There is no

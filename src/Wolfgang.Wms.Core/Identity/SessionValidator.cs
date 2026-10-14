@@ -51,7 +51,8 @@ public static class SessionValidator
 
     /// <summary>
     /// On every request: rejects a session past its absolute lifetime or issued before the user's
-    /// "sessions valid after"; otherwise lets sliding renewal extend the idle expiry.
+    /// "sessions valid after"; otherwise replaces its grants with the ones that hold now
+    /// (<see cref="ISessionGrants"/>, E10.4) and lets sliding renewal extend the idle expiry.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
     public static async Task OnValidatePrincipalAsync(CookieValidatePrincipalContext context)
@@ -63,6 +64,12 @@ public static class SessionValidator
         var reason = await ReasonToRejectAsync(context.Principal, now, services.GetRequiredService<ISettings>(), services.GetRequiredService<ISessionRevocations>(), context.HttpContext.RequestAborted).ConfigureAwait(false);
         if (reason is null)
         {
+            var grants = await services.GetRequiredService<ISessionGrants>().GrantsOfAsync(SessionClaims.UserIdOf(context.Principal)!.Value, context.HttpContext.RequestAborted).ConfigureAwait(false);
+            if (grants is not null)
+            {
+                context.ReplacePrincipal(SessionClaims.WithGrants(context.Principal!, grants));   // this request only: the cookie is not rewritten
+            }
+
             return;
         }
 

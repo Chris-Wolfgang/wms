@@ -28,6 +28,18 @@ public sealed class IntegrityUnitTests
 
 
     [Fact]
+    public void Session_grants_put_the_administrator_wildcard_first_without_duplicates()
+    {
+        var wildcard = PermissionClaims.OrganizationGrant(PermissionClaims.Wildcard);
+
+        Assert.Equal([wildcard, "a"], EfSessionGrants.Combine(isLocalAdmin: true, ["a", wildcard, "a"]));
+        Assert.Equal(["a"], EfSessionGrants.Combine(isLocalAdmin: false, ["a", "a"]));
+        Assert.Throws<ArgumentNullException>(() => EfSessionGrants.Combine(isLocalAdmin: false, null!));
+    }
+
+
+
+    [Fact]
     public void Message_binds_the_signed_content_to_the_row_id()
     {
         var first = new User { Id = 1, UserNameNormalized = "BOB" };

@@ -60,3 +60,12 @@ With a database the scope hierarchy runs organisation → site → zone: a site'
 ones included, so their effective values stay consistent for their history) and a zone's parent is its site.
 A value set at the organisation or the site rewrites the effective value of every zone that inherits it
 (E7.1); a zone that does not exist has no parent.
+
+## Defaults on creation (E16.4)
+
+A draft needs only `code` and `name`: `type` defaults to `Pick`, `walkOrderPrefix` to none, `isRejectLane` to
+`false`, `isActive` to `true`; `resolution` is required only for a resolution zone. The moment a zone is
+created its settings scope is populated with its site's current effective values (E7.3), so the zone inherits
+every site-level override at once and the create screen can show them (`GET /settings/site/{id}`) as
+the values to be inherited. Bulk loading of zones is the master data import contract (E16.6); it refuses
+`type: Resolution`, which is created only here.

@@ -102,14 +102,12 @@ public sealed partial class AuthProviderState : IDisposable
                 enabled.Add(new AuthProviderInfo(provider.Name, provider.DisplayName, provider.Kind, provider is IChallengeAuthProvider ? ChallengeRoute(provider.Name) : null));
             }
 
-            foreach (var provider in _catalog.All.OfType<IChallengeAuthProvider>().Where(p => !enabled.Any(e => string.Equals(e.Name, p.Name, StringComparison.Ordinal))))
+            // A scheme this instance added has a fingerprint (EnableChallengeAsync records both together); only those are removed.
+            foreach (var name in _catalog.All.OfType<IChallengeAuthProvider>().Select(p => p.Name).Where(n => _fingerprints.ContainsKey(n) && !enabled.Any(e => string.Equals(e.Name, n, StringComparison.Ordinal))))
             {
-                if (await _schemes.GetSchemeAsync(provider.Name).ConfigureAwait(false) is not null)
-                {
-                    _schemes.RemoveScheme(provider.Name);
-                    _fingerprints.Remove(provider.Name);
-                    LogDisabled(_logger, provider.Name);
-                }
+                _schemes.RemoveScheme(name);
+                _fingerprints.Remove(name);
+                LogDisabled(_logger, name);
             }
 
             Volatile.Write(ref _enabled, enabled);
@@ -162,10 +160,10 @@ public sealed partial class AuthProviderState : IDisposable
     private static async Task<string> FingerprintAsync(IAuthProvider provider, ISettings settings, CancellationToken cancellationToken)
     {
         var parts = new List<string>(provider.Settings.Count);
-        foreach (var key in provider.Settings)
+        foreach (var name in provider.Settings.Select(key => key.Name))
         {
-            var value = await settings.FindAsync(key.Name, SettingScopeRef.Organization, cancellationToken).ConfigureAwait(false);
-            parts.Add(key.Name + "=" + value.EffectiveValue + "@" + value.RowVersion?.ToString(CultureInfo.InvariantCulture));   // a secret reads back masked, so its row version is what changes when it is rotated
+            var value = await settings.FindAsync(name, SettingScopeRef.Organization, cancellationToken).ConfigureAwait(false);
+            parts.Add(name + "=" + value.EffectiveValue + "@" + value.RowVersion?.ToString(CultureInfo.InvariantCulture));   // a secret reads back masked, so its row version is what changes when it is rotated
         }
 
         return string.Join('\n', parts);

@@ -10,6 +10,7 @@ Every module the API host registers (E1.10) and what it contributes: settings, p
 | `license` | 7 | 2 | 23 | 0 | 0 | 4 |
 | `logging` | 4 | 1 | 0 | 0 | 0 | 1 |
 | `oidc` | 9 | 0 | 0 | 0 | 0 | 0 |
+| `organization` | 0 | 2 | 0 | 0 | 0 | 4 |
 | `roles` | 0 | 2 | 0 | 0 | 0 | 7 |
 | `settings` | 0 | 2 | 0 | 0 | 0 | 7 |
 | `system` | 0 | 0 | 0 | 0 | 0 | 0 |

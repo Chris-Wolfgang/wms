@@ -75,6 +75,27 @@ public static class AuthErrorCodes
 
 
     /// <summary>
+    /// The identity provider refused or failed the sign-in (E11.1): the detail names the reason, never a secret.
+    /// </summary>
+    public static ErrorCode ProviderFailed { get; } = new("auth.provider_failed", StatusCodes.Status502BadGateway, "The identity provider could not complete the sign-in: {0}", "auth-provider-failed", ErrorSeverity.Error);
+
+
+
+    /// <summary>
+    /// A group mapping was refused (E11.2): blank group, or the same mapping exists.
+    /// </summary>
+    public static ErrorCode MappingRejected { get; } = new("auth.mapping_rejected", StatusCodes.Status409Conflict, "{0}", "auth-mapping-rejected", ErrorSeverity.Error);
+
+
+
+    /// <summary>
+    /// No group mapping has that id (E11.2).
+    /// </summary>
+    public static ErrorCode MappingNotFound { get; } = new("auth.mapping_not_found", StatusCodes.Status404NotFound, "Mapping {0} does not exist.", "auth-mapping-not-found", ErrorSeverity.Error);
+
+
+
+    /// <summary>
     /// Sign-in is unavailable until the database is configured.
     /// </summary>
     public static ErrorCode Unavailable { get; } = new("auth.unavailable", StatusCodes.Status503ServiceUnavailable, "Sign-in is unavailable until the database is configured.", "auth-unavailable", ErrorSeverity.Error);

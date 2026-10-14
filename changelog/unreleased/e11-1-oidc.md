@@ -1,0 +1,3 @@
+type: feature
+
+OpenID Connect sign-in (`oidc` provider, project `Wolfgang.Wms.Auth.Oidc`): authority, client id, client secret (encrypted), scopes, claim names and the HTTPS requirement are `auth.oidc.*` settings applied without a restart; `POST /auth/providers/oidc/check` reads the discovery document; an account (`core.user` with provider and subject) is created on first sign-in and its roles are recomputed on every sign-in from the provider's group-to-role mappings (`core.group_role_mapping`, `GET/POST /auth/providers/{name}/groups`, `DELETE /auth/providers/groups/{id}`), so a user in no mapped group holds no role; the full authorization-code flow is verified on every PR against a mock provider container.

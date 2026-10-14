@@ -26,6 +26,13 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
 
 
 
+    // Held for the key transaction: SQL Server blocks every other reader and writer of the table, PostgreSQL every
+    // other writer (a reader sees no key and its insert then waits). The lock is self-conflicting on both.
+    private const string LockSqlServer = "SELECT COUNT(*) FROM wms.integrity_key WITH (TABLOCKX, HOLDLOCK)";
+    private const string LockPostgreSql = "LOCK TABLE wms.integrity_key IN SHARE ROW EXCLUSIVE MODE";
+
+
+
     private readonly IServiceScopeFactory _scopes;
     private readonly ILogger<IntegritySigner> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -113,8 +120,10 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
 
 
     /// <summary>
-    /// Loads the key, creating it when the installation has none yet. True when it was created now: the
-    /// backfill check then signs the rows written before signing existed.
+    /// Loads the key, creating it when the installation has none yet. Creation and the signing of every
+    /// existing security row (the upgrade backfill) commit in one transaction that holds a lock on
+    /// <c>wms.integrity_key</c>: a crash leaves no key, so the next start backfills again, and an instance
+    /// starting at the same moment waits and then reads the key. True when it was created now.
     /// </summary>
     public async Task<bool> EnsureKeyAsync(CancellationToken cancellationToken)
     {
@@ -132,11 +141,37 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
             }
 
             using var scope = _scopes.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
-            var protector = scope.ServiceProvider.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose);   // resolved late: the ring is a host concern
+            var strategy = scope.ServiceProvider.GetRequiredService<WmsDbContext>().Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(LoadOrCreateAsync, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            _key = null;   // a key from a transaction that did not commit is never used
+            throw;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+
+
+    private async Task<bool> LoadOrCreateAsync(CancellationToken cancellationToken)
+    {
+        _key = null;   // a retried attempt starts over
+        using var scope = _scopes.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
+        var protector = scope.ServiceProvider.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose);   // resolved late: the ring is a host concern
+        var transaction = await context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync(context.Database.IsNpgsql() ? LockPostgreSql : LockSqlServer, cancellationToken).ConfigureAwait(false);
+
             var row = await context.Set<IntegrityKey>().OrderBy(k => k.Id).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
             if (row is not null)
             {
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
                 _key = Convert.FromBase64String(protector.Unprotect(ProtectedText.Unwrap(row.ProtectedKey)));
                 return false;
             }
@@ -144,28 +179,38 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
             var key = RandomNumberGenerator.GetBytes(32);
             var created = new IntegrityKey { ProtectedKey = ProtectedText.Wrap(protector.Protect(Convert.ToBase64String(key))), CreatedAt = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow() };
             await context.Set<IntegrityKey>().AddAsync(created, cancellationToken).ConfigureAwait(false);
-            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-            // Instances starting together on an empty table can each insert a key. The lowest id is the installation's
-            // key for every instance (the load above already reads it that way); a creator that lost the race adopts
-            // the winner and removes its own row before anything is signed or backfilled with it.
-            var winner = await context.Set<IntegrityKey>().AsNoTracking().OrderBy(k => k.Id).FirstAsync(cancellationToken).ConfigureAwait(false);
-            if (winner.Id != created.Id)
-            {
-                context.Set<IntegrityKey>().Remove(created);
-                await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-                _key = Convert.FromBase64String(protector.Unprotect(ProtectedText.Unwrap(winner.ProtectedKey)));
-                return false;
-            }
-
-            LogKeyCreated(_logger);
-            _key = key;
+            _key = key;   // the backfill's save signs with it (the interceptor reads the cached key)
+            var signed = await BackfillAsync(context, cancellationToken).ConfigureAwait(false);
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            LogKeyCreated(_logger, signed);
             return true;
         }
         finally
         {
-            _gate.Release();
+            await transaction.DisposeAsync().ConfigureAwait(false);
         }
+    }
+
+
+
+    /// <summary>
+    /// Signs every security row as it stands (E10.4, the upgrade path: nothing could have been validly signed
+    /// without the key) and saves them with the new key row.
+    /// </summary>
+    private async Task<int> BackfillAsync(WmsDbContext context, CancellationToken cancellationToken)
+    {
+        var users = await context.Users.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var roles = await context.Roles.Include(r => r.Permissions).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var assignments = await context.UserRoles.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var pending = users.Cast<ISignedEntity>().Concat(roles).Concat(assignments).ToList();
+        await SignAllAsync(pending, cancellationToken).ConfigureAwait(false);
+        foreach (var entity in pending)
+        {
+            context.Entry(entity).Property(nameof(ISignedEntity.Signature)).IsModified = true;   // an unchanged signature still writes
+        }
+
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return pending.Count;
     }
 
 
@@ -183,6 +228,6 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
 
 
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Integrity key created in wms.integrity_key; back it up with the database and the key ring. Expected once per database: on any other start, treat it as an incident.")]
-    private static partial void LogKeyCreated(ILogger logger);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Integrity key created in wms.integrity_key and {Count} existing security rows signed as they stand; back it up with the database and the key ring. Expected once per database: on any other start, treat it as an incident.")]
+    private static partial void LogKeyCreated(ILogger logger, int count);
 }

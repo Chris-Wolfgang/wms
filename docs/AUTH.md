@@ -120,7 +120,7 @@ Users, roles and assignments are signed on save and verified before they are hon
 through the database grants nothing and cannot sign in (`403 auth.integrity_failure`). The worker
 re-verifies every signed row every `auth.integrity.verify_interval` (1 minute by default) and ends the
 sessions of users whose assignments or roles failed. Threat model, signed fields, key
-handling and repair: docs/INTEGRITY.md.
+handling and repair: [docfx_project/docs/integrity.md](../docfx_project/docs/integrity.md).
 
 ## What comes next
 

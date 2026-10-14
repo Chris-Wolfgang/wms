@@ -256,8 +256,10 @@ public sealed class EfRoles : IRoles
 
     private async Task RevokeSessionsAsync(long userId, DateTimeOffset now, CancellationToken cancellationToken)
     {
+        // A user row that fails verification is left as it is: saving it would re-sign the tampering (E10.4). Its
+        // sessions are already refused on every request, so there is nothing to revoke.
         var user = await _context.Users.SingleOrDefaultAsync(u => u.Id == userId, cancellationToken).ConfigureAwait(false);
-        if (user is not null)
+        if (user is not null && await _signer.IsValidAsync(user, "core.user", cancellationToken).ConfigureAwait(false))
         {
             user.SessionsValidAfter = now;
             user.UpdatedAt = now;
@@ -281,7 +283,15 @@ public sealed class EfRoles : IRoles
     private async Task EnsureLocalAdministratorsHoldTheRoleAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         var administrator = _context.Set<Role>().Local.Single(r => string.Equals(r.BuiltInKey, BuiltInRole.Administrator.Key(), StringComparison.Ordinal));
-        var admins = await _context.Users.Where(u => u.IsLocalAdmin).Select(u => u.Id).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var admins = new List<long>();
+        foreach (var user in await _context.Users.AsNoTracking().Where(u => u.IsLocalAdmin).ToListAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (await _signer.IsValidAsync(user, "core.user", cancellationToken).ConfigureAwait(false))   // E10.4: a flag set outside the application grants nothing
+            {
+                admins.Add(user.Id);
+            }
+        }
+
         var assigned = administrator.Id == 0
             ? []
             : await _context.Set<UserRole>().Where(a => a.RoleId == administrator.Id && a.SiteId == null).Select(a => a.UserId).ToListAsync(cancellationToken).ConfigureAwait(false);

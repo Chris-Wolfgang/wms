@@ -129,10 +129,9 @@ public sealed class IntegrityUnitTests
         Assert.Throws<ArgumentNullException>(() => new IntegritySigner(provider.GetRequiredService<IServiceScopeFactory>(), null!));
         Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(null!, NullLogger<IntegrityVerificationJob>.Instance));
         Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), null!));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(null!, signer, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), null!, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), signer, null!, NullLogger<IntegrityBackfillCheck>.Instance));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), signer, Options.Create(new KeyRingOptions()), null!));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(null!, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(signer, null!, NullLogger<IntegrityBackfillCheck>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(signer, Options.Create(new KeyRingOptions()), null!));
     }
 
 
@@ -169,7 +168,7 @@ public sealed class IntegrityUnitTests
         services.AddDataProtection();
         using var provider = services.BuildServiceProvider();
         using var signer = new IntegritySigner(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<IntegritySigner>.Instance);
-        var check = new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), signer, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance);
+        var check = new IntegrityBackfillCheck(signer, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance);
         var job = new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<IntegrityVerificationJob>.Instance);
 
         await check.StopAsync(CancellationToken.None);

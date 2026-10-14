@@ -94,7 +94,7 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
         // A session carries the grants it was issued with, so a failed assignment or role keeps granting through open
         // sessions until they end. Ending them here bounds that to one scan interval. A user whose own row failed is
         // skipped: its sessions are already refused on every request, and saving the row would re-sign the tampering.
-        await RevokeAsync(context, holders.Except(failedUsers), scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow(), cancellationToken).ConfigureAwait(false);
+        await RevokeAsync(context, signer, holders.Except(failedUsers), scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow(), cancellationToken).ConfigureAwait(false);
 
         var result = new IntegrityVerificationResult(scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow(), checkedRows, failed);
         LastResult = result;
@@ -118,7 +118,7 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
 
 
 
-    private async Task RevokeAsync(WmsDbContext context, IEnumerable<long> userIds, DateTimeOffset now, CancellationToken cancellationToken)
+    private async Task RevokeAsync(WmsDbContext context, IIntegritySigner signer, IEnumerable<long> userIds, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var ids = userIds.ToList();
         if (ids.Count == 0)
@@ -126,14 +126,20 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
             return;
         }
 
+        var revoked = 0;
         foreach (var user in await context.Users.Where(u => ids.Contains(u.Id)).ToListAsync(cancellationToken).ConfigureAwait(false))
         {
-            user.SessionsValidAfter = now;
-            user.UpdatedAt = now;
+            // Verified again as loaded: a row changed since the scan must not be re-signed by this save.
+            if (await signer.IsValidAsync(user, "core.user", cancellationToken).ConfigureAwait(false))
+            {
+                user.SessionsValidAfter = now;
+                user.UpdatedAt = now;
+                revoked++;
+            }
         }
 
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);   // re-signed by the interceptor: these rows passed
-        LogRevoked(_logger, ids.Count);
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        LogRevoked(_logger, revoked);
     }
 
 

@@ -1,4 +1,4 @@
-# Integrity signatures (E10.4)
+# Integrity signatures
 
 The security tables are signed. A row of `core.user`, `core.role` (with its `core.role_permission` rows)
 or `core.user_role` carries an HMAC-SHA256 over its security-relevant fields, computed by the application
@@ -56,7 +56,7 @@ user. The signature column is `signature` (base64, 44 characters), never audited
 One row of `wms.integrity_key`: 32 random bytes, created on the first start that finds none, stored under
 its own Data Protection purpose (`Wolfgang.Wms.Integrity.v1`) in the `enc:v1:` form. Every instance that
 shares the ring reads the same key; an instance on a different ring cannot verify anything and refuses
-every sign-in. Back the row up with the database and the ring together (docs/CONFIGURATION.md).
+every sign-in. Back the row up with the database and the ring together ([Configuration](configuration.md)).
 
 ## Verification
 
@@ -81,12 +81,18 @@ Alert on that message.
 
 ## Repair
 
-A row that fails verification stays failed until the application rewrites it: change the account or
-assignment through the console or the API (which re-signs on save), or delete and recreate it. There is no
+A row that fails verification stays failed until someone deliberately rewrites it: change the account or
+assignment through the console or the API (which re-signs on save), or delete and recreate it. A write the
+application makes on its own never touches a failed row, so it cannot re-sign the change by accident: ending a
+user's sessions after a role change, the verification job ending sessions, and the start-up grant of the
+Administrator role to local administrators (a failed user gets no grant) all verify the row first. There is no
 "re-sign everything" command by design; if a whole database must be re-signed (a restored backup from a
 different ring), delete the key row and restart once, and record why.
 
 ## Upgrade
 
 The first start after E10.4 finds no key: it creates one and signs every existing row, logging a Warning
-with the count. From then on an unsigned row is a failure.
+with the count. The key and the signatures commit in one transaction that locks `wms.integrity_key`, so a
+start that stops partway leaves no key and the next start does the whole backfill again, and an instance
+starting at the same moment waits for it and then uses the same key. From then on an unsigned row is a
+failure.

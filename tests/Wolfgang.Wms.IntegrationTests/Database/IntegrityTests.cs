@@ -92,6 +92,14 @@ public sealed class IntegrityTests
             var beforeUserTamper = await SignInAsync(client, "bob");
             await TamperAsync(first.Services, "UPDATE core.\"user\" SET is_local_admin = 'true' WHERE id = " + bob);
             Assert.Equal(HttpStatusCode.Unauthorized, await RolesStatusAsync(first, beforeUserTamper));   // the user row is verified on every request, not only at sign-in
+            await AssignAsync(client, admin, bob, roles.First(r => !string.Equals(r.Name, "Administrator", StringComparison.Ordinal)).Id);   // ends sessions, but must not re-sign the failed row (checked below)
+            using (var seeding = first.Services.CreateScope())
+            {
+                await seeding.ServiceProvider.GetRequiredService<IRoles>().EnsureBuiltInAsync(seeding.ServiceProvider.GetRequiredService<PermissionCatalog>(), CancellationToken.None);
+                var administrator = roles.Single(r => string.Equals(r.Name, "Administrator", StringComparison.Ordinal)).Id;
+                Assert.False(await seeding.ServiceProvider.GetRequiredService<WmsDbContext>().UserRoles.AnyAsync(a => a.UserId == bob && a.RoleId == administrator && a.SiteId == null));   // the tampered flag earns no Administrator grant
+            }
+
             using (var accounts = first.Services.CreateScope())
             {
                 var store = accounts.ServiceProvider.GetRequiredService<ILocalAccounts>();

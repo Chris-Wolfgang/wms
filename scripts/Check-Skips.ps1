@@ -5,8 +5,8 @@
 .DESCRIPTION
     Reads the TRX files under the given results directory; each result with outcome NotExecuted must carry a
     skip reason containing an issue reference (`#123` or `owner/repo#123`), and that issue must be open
-    (checked with `gh issue view` unless -NoGitHub). Fails otherwise. A test that skips without an issue is
-    a test silently switched off.
+    (checked with `gh issue view` unless -NoGitHub). Fails otherwise, and fails when no TRX file is found (a
+    gate with no input must not pass). A test that skips without an issue is a test silently switched off.
 #>
 [CmdletBinding()]
 param
@@ -23,8 +23,9 @@ $checked = @{}
 $files = Get-ChildItem -Path $ResultsDirectory -Recurse -Filter *.trx -ErrorAction SilentlyContinue
 if (-not $files)
 {
-    Write-Host "Check-Skips: no TRX files under $ResultsDirectory."
-    exit 0
+    # No input means the logger, the results path or the workflow wiring is wrong: fail, so the gate is never off by accident.
+    Write-Host "::error::Check-Skips: no TRX files under $ResultsDirectory; run the tests with --logger trx --results-directory $ResultsDirectory."
+    exit 1
 }
 
 foreach ($file in $files)
@@ -66,6 +67,12 @@ if ($failures.Count -gt 0)
     $failures | ForEach-Object { Write-Host "::error::$_" }
     Write-Host "Check-Skips: $skips skipped test(s), $($failures.Count) without an open issue."
     exit 1
+}
+
+if ($NoGitHub)
+{
+    Write-Host "Check-Skips: $skips skipped test(s), every one names an issue (issue state not checked: -NoGitHub)."
+    exit 0
 }
 
 Write-Host "Check-Skips: $skips skipped test(s), every one names an open issue."

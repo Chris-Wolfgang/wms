@@ -89,6 +89,7 @@ public sealed class ConsoleMarkupTests : IDisposable
     public void Console_component_text_comes_from_the_localizer(Type component)
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.Allowed));
+        _context.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();   // E9.3: no window, no banner
 
         var nodes = Render(component);
 
@@ -130,6 +131,7 @@ public sealed class ConsoleMarkupTests : IDisposable
     public void Workspace_layout_text_comes_from_the_localizer_in_every_state(WorkspaceAccessResult access)
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(access));
+        _context.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();   // E9.3: no window, no banner
 
         var nodes = Render(typeof(global::Wolfgang.Wms.Web.Configure.ConfigureLayout));
 
@@ -142,6 +144,7 @@ public sealed class ConsoleMarkupTests : IDisposable
     public void Workspace_layout_text_comes_from_the_localizer_while_access_is_pending()
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new PendingAccess());
+        _context.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();   // E9.3: no window, no banner
 
         var nodes = Render(typeof(global::Wolfgang.Wms.Web.Configure.ConfigureLayout));
 
@@ -155,6 +158,7 @@ public sealed class ConsoleMarkupTests : IDisposable
     public void Workspace_layout_contains_a_failing_screen_and_renders_it_again_on_retry()
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.Allowed));
+        _context.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();   // E9.3: no window, no banner
         var attempts = new FailingScreen.Counter();
 
         var cut = _context.Render<global::Wolfgang.Wms.Web.Configure.ConfigureLayout>(parameters => parameters.Add(layout => layout.Body, builder =>

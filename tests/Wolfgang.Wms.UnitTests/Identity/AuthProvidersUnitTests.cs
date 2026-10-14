@@ -158,6 +158,11 @@ public sealed class AuthProvidersUnitTests
         Assert.Equal(("local", "Local account", AuthProviderKind.Credentials), (local.Name, local.DisplayName, local.Kind));
         Assert.Equal(["auth.local.lockout_threshold", "auth.local.lockout_duration"], local.Settings.Select(s => s.Name));
         await Assert.ThrowsAsync<ArgumentNullException>(() => local.CheckAsync(null!, CancellationToken.None));
+        Assert.Equal(AuthErrorCodes.Unavailable, (await Assert.ThrowsAsync<AuthException>(() => local.ValidateAsync("alice", "pw", provider, CancellationToken.None))).Code);   // validated through the store: the placeholder has none
+        Assert.False(await new NoLocalAccounts().IsAvailableAsync(CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => local.ValidateAsync(null!, "pw", provider, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => local.ValidateAsync("alice", null!, provider, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => local.ValidateAsync("alice", "pw", null!, CancellationToken.None));
         Assert.Throws<ArgumentNullException>(() => new AuthProviderSync(null!, TimeProvider.System, NullLogger<AuthProviderSync>.Instance));
         Assert.Throws<ArgumentNullException>(() => new AuthProviderState(null!, null!, null!, null!, null!));
         Assert.Equal(TimeSpan.FromSeconds(5), AuthProviderSync.Interval);

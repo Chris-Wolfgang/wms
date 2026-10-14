@@ -37,4 +37,11 @@ public interface ILocalAccounts
     /// must change it on first sign-in. Returns true when it was created now.
     /// </summary>
     Task<bool> EnsureBootstrapAdminAsync(string userName, CancellationToken cancellationToken);
+
+
+
+    /// <summary>
+    /// True when the account store can be reached now (the local provider's health check, E11.0).
+    /// </summary>
+    Task<bool> IsAvailableAsync(CancellationToken cancellationToken);
 }

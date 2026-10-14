@@ -8,8 +8,8 @@ namespace Wolfgang.Wms.Core.Identity.Providers;
 /// A console identity provider (E11.0). Implementations are registered in DI at startup, one per project
 /// (<c>local</c> in Core, <c>oidc</c> in <c>Wolfgang.Wms.Auth.Oidc</c>); which of them are active is the
 /// <c>auth.providers.enabled</c> setting, applied at runtime by <see cref="AuthProviderState"/> without a
-/// restart. Credential providers validate a posted credential through their own endpoint; challenge
-/// providers also implement <see cref="IChallengeAuthProvider"/>.
+/// restart. Credential providers also implement <see cref="ICredentialAuthProvider"/> (the sign-in endpoint
+/// validates through it); challenge providers also implement <see cref="IChallengeAuthProvider"/>.
 /// </summary>
 public interface IAuthProvider
 {

@@ -39,14 +39,15 @@ pwsh scripts/compose-setup.ps1 -Hostname wms.example.com
 
 The script generates three passwords into `docker/secrets/` (git-ignored), provisions the database
 (`db-init`: the `wms` database in simple recovery, `wms_migrate` as `db_owner` on `wms` only, `wms_runtime`
-with data rights, `sa` disabled), encrypts both connection strings with the shared key ring
-(`wms-migrate --protect` inside the worker image; the plain strings exist only in that one container run)
-and writes them into `.env` as `enc:v1:` values, runs the migrations, then starts the stack. Re-running
+with data rights, then `sa` given a random password nobody knows and disabled), encrypts both connection
+strings with the shared key ring (`wms-migrate --protect --connection-string -` inside the worker image; the
+plain string is piped to it on standard input, so it is on no command line and in no container's recorded
+command) and writes them into `.env` as `enc:v1:` values, runs the migrations, then starts the stack. Re-running
 keeps existing secrets and values.
 
 | Service | Image | Role |
 |---|---|---|
-| `db` | `mcr.microsoft.com/mssql/server:2022-latest` (`MSSQL_PID=Express`) | the database; `sa` password read from the secret file by the entrypoint wrapper, never from an environment variable |
+| `db` | `mcr.microsoft.com/mssql/server:2022-latest` (`MSSQL_PID=Express`) | the database; the official image only reads the `sa` password from `MSSQL_SA_PASSWORD` (it has no `_FILE` variant), so the entrypoint wrapper exports it from the secret file: it is not in `docker inspect` or the compose file, but it is in the SQL Server process's environment. `db-init` replaces that password with an unknown one before disabling `sa`, so the value is worthless after provisioning |
 | `db-init` | the same image, one-shot | provisioning (above); idempotent |
 | `migrate` | `wms-worker`, `WMS_ROLE=migrate`, one-shot | migrations with the migration login |
 | `api`, `worker`, `web` | `wms-api`, `wms-worker`, `wms-web` | the hosts, behind the proxy (`Wms:Hosting:BehindProxy=true`), sharing the `keys` volume |
@@ -58,8 +59,13 @@ ring every host shares — back it up with the database), `filedrop` (`/filedrop
 
 Secrets: `docker/secrets/sa_password.txt`, `migrate_password.txt`, `runtime_password.txt` as Docker
 secrets files, mounted only into `db` and `db-init`. The hosts never see a password: their connection
-strings are `enc:v1:` values decrypted with the key ring at start (E8). `sa` is disabled after
-provisioning; re-enable it through single-user mode only for a server-level change.
+strings are `enc:v1:` values decrypted with the key ring at start (E8). After provisioning `sa` has a random
+password nobody holds and is disabled, so neither the secret file nor any copy of the original value opens it;
+for a server-level change, re-enable it through single-user mode and set a password of your own.
+
+`db-init` skips only a finished installation: the runtime user with its read and write roles, the migration
+login as owner and `sa` disabled. A run that stopped partway is completed while `sa` still works; if `sa` is
+already disabled it fails with a message instead of reporting success.
 
 Smoke test (what CI runs, E13.3): `pwsh scripts/compose-setup.ps1 -NoStart`, `docker compose up -d`,
 poll `https://localhost/health/ready` until 200 (the internal certificate needs `curl -k`), `docker

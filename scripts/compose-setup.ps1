@@ -69,7 +69,9 @@ function Protect-ConnectionString([string] $login, [string] $passwordFile)
 {
     $password = [System.IO.File]::ReadAllText($passwordFile).Trim()
     $plain = "Server=db;Database=wms;User Id=$login;Password=$password;Encrypt=True;TrustServerCertificate=True"
-    $output = docker compose run --rm --no-deps -e WMS_ROLE=migrate migrate --protect --key-ring /keys --connection-string $plain 2>&1
+    # The plaintext goes in on standard input (-T: no TTY, so the pipe reaches the container), never on a command
+    # line: not in the host's process list, and not in the one-off container's recorded command.
+    $output = $plain | docker compose run --rm --no-deps -T -e WMS_ROLE=migrate migrate --protect --key-ring /keys --connection-string - 2>&1
     if ($LASTEXITCODE -ne 0) { throw "wms-migrate --protect failed for ${login}: $output" }
     $line = ($output | Where-Object { $_ -match '^enc:v1:' } | Select-Object -Last 1)
     if (-not $line) { throw "wms-migrate --protect printed no enc:v1: string for ${login}: $output" }

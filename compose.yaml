@@ -1,7 +1,8 @@
 # E14.3: the compose stack — SQL Server Express, the API, the console, the worker, Caddy for HTTPS.
 # Configure through .env (copy .env.example) and run scripts/compose-setup.ps1 once: it generates the
 # passwords into docker/secrets/, provisions the database logins, encrypts the connection strings with the
-# shared key ring and runs the migrations. Passwords never sit in .env or in an environment variable.
+# shared key ring and runs the migrations. Passwords never sit in .env or in a service's configuration; the
+# one exception the official SQL Server image forces (sa, below) is made worthless after provisioning.
 name: wms
 
 x-wms-common: &wms-common
@@ -26,8 +27,9 @@ services:
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Express
-    # The image reads MSSQL_SA_PASSWORD from the environment; this wrapper reads it from the secret file
-    # instead, so the password never appears in `docker inspect` or a compose file.
+    # The image reads MSSQL_SA_PASSWORD from the environment only (no _FILE variant); this wrapper exports it
+    # from the secret file, so it is not in `docker inspect` or this file, but it is in sqlservr's environment.
+    # db-init then gives sa a random password nobody holds and disables it, so that value opens nothing.
     command: ["/bin/bash", "-c", "export MSSQL_SA_PASSWORD=$(cat /run/secrets/sa_password) && exec /opt/mssql/bin/sqlservr"]
     secrets:
       - sa_password

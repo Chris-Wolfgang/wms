@@ -131,7 +131,9 @@ instance that served the last one. Run as many API instances as you like behind 
 Singleton worker jobs (integrity verification now; outbox, lease expiry, rollups, retention and ingest
 as they arrive) run under a database leader lock: `wms.leader_lock` holds one row per job with the holder
 and a lease; the holder renews every third of the lease, another worker takes over once the lease has
-expired without renewal, and a lease that cannot be renewed cancels the job's `Lost` token. Run as many
+expired without renewal, and a lease that cannot be renewed cancels the job's `Lost` token. Lease times are
+read from the database server's clock, so clock differences between hosts cannot make two workers hold one
+lock. Run as many
 workers as you like; exactly one executes each job.
 
 EF Core retries transient faults (E6.4) and transactions are kept to one save. The console in Server

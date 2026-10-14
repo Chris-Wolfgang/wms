@@ -2,9 +2,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Wolfgang.Wms.Core.Imports;
-using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Core.Zones;
-using Wolfgang.Wms.Domain.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Zones;
 
@@ -21,16 +19,14 @@ internal sealed class ZoneImporter
     private const string Entity = "zones";
     private readonly WmsDbContext _context;
     private readonly TimeProvider _timeProvider;
-    private readonly ISettings _settings;
     private readonly IOpenZoneGroups _openGroups;
 
 
 
-    public ZoneImporter(WmsDbContext context, TimeProvider timeProvider, ISettings settings, IOpenZoneGroups openGroups)
+    public ZoneImporter(WmsDbContext context, TimeProvider timeProvider, IOpenZoneGroups openGroups)
     {
         _context = context;
         _timeProvider = timeProvider;
-        _settings = settings;
         _openGroups = openGroups;
     }
 
@@ -146,7 +142,7 @@ internal sealed class ZoneImporter
 
 
 
-    private async Task ApplyAsync(long siteId, List<Planned> plan, string updatedBy, CancellationToken cancellationToken)
+    private Task ApplyAsync(long siteId, List<Planned> plan, string updatedBy, CancellationToken cancellationToken)
     {
         var now = _timeProvider.GetUtcNow();
         var inserted = new List<Zone>();
@@ -174,7 +170,7 @@ internal sealed class ZoneImporter
 
         // The providers retry transient failures, so a user transaction must run inside the execution strategy;
         // the tracked changes above are the same on every attempt.
-        await _context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        return _context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
             var transaction = await _context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
             await using (transaction.ConfigureAwait(false))
@@ -183,12 +179,7 @@ internal sealed class ZoneImporter
                 await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             }
-        }).ConfigureAwait(false);
-
-        foreach (var zone in inserted)
-        {
-            await _settings.PopulateAsync(SettingScopeRef.Zone(zone.Id), updatedBy, cancellationToken).ConfigureAwait(false);   // E16.4: a new zone starts with its site's effective values
-        }
+        });
     }
 
 

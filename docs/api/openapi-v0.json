@@ -1776,6 +1776,201 @@
           }
         }
       }
+    },
+    "/api/v0/sites/{siteId}/copy": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Copies the site (settings overrides, zones, locations as chosen) under a new code; the copy carries copiedFromId.",
+        "operationId": "CopySite",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/zones/{zoneId}/copy": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Copies the zone within or across sites (settings overrides, locations with a code-prefix substitution as chosen).",
+        "operationId": "CopyZone",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "zoneId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZoneCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/locations/{locationId}/copy": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Copies the location with a new code and barcode.",
+        "operationId": "CopyLocation",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/locations/copy-range": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Copies every location whose code starts with a prefix, substituting the prefix in codes and barcodes; all or nothing.",
+        "operationId": "CopyLocationRange",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationRangeCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LocationInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2649,6 +2844,41 @@
         },
         "description": "Whether local sign-in is open (\u0060GET /auth/local/status\u0060, E9.3): read anonymously by the login page (to hide or show the password form) and by the console (to show the unlock banner). Carries no user names."
       },
+      "LocationCopyRequest": {
+        "required": [
+          "code",
+          "barcode"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The new bin code, unique within the site."
+          },
+          "barcode": {
+            "type": "string",
+            "description": "The new barcode, unique within the site."
+          },
+          "walkSequence": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The new walk sequence; null to keep the source\u0027s."
+          },
+          "zoneId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The zone to copy into; null for the source location\u0027s zone.",
+            "format": "int64"
+          }
+        },
+        "description": "What an administrator sends to copy one location (E16.5): the same properties with a new code and barcode."
+      },
       "LocationDraft": {
         "required": [
           "code",
@@ -2816,6 +3046,16 @@
             "description": "The row\u0027s version (E5.1); the string LocationInfo.Etag is derived from it.",
             "format": "int64"
           },
+          "copiedFromId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The id of the row this one was copied from (E16.5); null when created outright.",
+            "format": "int64"
+          },
           "etag": {
             "type": [
               "null",
@@ -2825,6 +3065,48 @@
           }
         },
         "description": "A location as the API reports it (E17.1): one bin in a zone of a site."
+      },
+      "LocationRangeCopyRequest": {
+        "required": [
+          "codePrefixFrom",
+          "codePrefixTo"
+        ],
+        "type": "object",
+        "properties": {
+          "codePrefixFrom": {
+            "type": "string",
+            "description": "The prefix the source codes start with."
+          },
+          "codePrefixTo": {
+            "type": "string",
+            "description": "The replacement prefix for the copies\u0027 codes and barcodes."
+          },
+          "zoneId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The zone the copies go to; null to keep each source\u0027s zone.",
+            "format": "int64"
+          },
+          "walkPrefixFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Optional: the prefix of the source walk sequences to replace."
+          },
+          "walkPrefixTo": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The replacement walk prefix; required when WalkPrefixFrom is given."
+          }
+        },
+        "description": "What an administrator sends to copy a range of locations at once (E16.5), such as aisle \u0060A\u0060 to aisle \u0060B\u0060: every location whose code starts with the prefix is copied with the prefix replaced in its code and barcode (and, optionally, its walk sequence)."
       },
       "LoggingStatus": {
         "required": [
@@ -3730,6 +4012,60 @@
         },
         "description": "One setting at one scope as the API and the console see it (E6.3): what is configured here, what applies here, and where the effective value comes from when it is inherited. Secrets are masked."
       },
+      "SiteCopyRequest": {
+        "required": [
+          "code",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The new site\u0027s code, unique across sites."
+          },
+          "name": {
+            "type": "string",
+            "description": "The new site\u0027s name."
+          },
+          "timeZone": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The new site\u0027s time zone; null to keep the source site\u0027s."
+          },
+          "settings": {
+            "type": "boolean",
+            "description": "Bring the source site\u0027s settings overrides (configured values and cascade modes; secrets are never copied).",
+            "default": true
+          },
+          "zones": {
+            "type": "boolean",
+            "description": "Bring the zones with their reject-lane flags, resolution properties and settings overrides.",
+            "default": true
+          },
+          "locations": {
+            "type": "boolean",
+            "description": "Bring the locations (requires Zones), with the code substitution applied to codes and barcodes.",
+            "default": true
+          },
+          "codePrefixFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Optional: the prefix of the source codes and barcodes to replace (a renumbering such as aisle \u0060A\u0060 to \u0060B\u0060)."
+          },
+          "codePrefixTo": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The replacement prefix; required when CodePrefixFrom is given."
+          }
+        },
+        "description": "What an administrator sends to copy a site (E16.5): the fields that must differ and a checklist of what to bring. Transactional data and pickers\u0027 assignments are never copied."
+      },
       "SiteDraft": {
         "required": [
           "code",
@@ -3817,6 +4153,16 @@
             "description": "The row\u0027s version (E5.1); the string SiteInfo.Etag is derived from it.",
             "format": "int64"
           },
+          "copiedFromId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The id of the row this one was copied from (E16.5); null when created outright.",
+            "format": "int64"
+          },
           "etag": {
             "type": [
               "null",
@@ -3826,6 +4172,58 @@
           }
         },
         "description": "A site as the API reports it (E16.1): one warehouse, the operational level pickers, role assignments and settings are scoped to."
+      },
+      "ZoneCopyRequest": {
+        "required": [
+          "code",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The new zone\u0027s code, unique within the target site."
+          },
+          "name": {
+            "type": "string",
+            "description": "The new zone\u0027s name."
+          },
+          "targetSiteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site to copy into; null for the source zone\u0027s own site.",
+            "format": "int64"
+          },
+          "settings": {
+            "type": "boolean",
+            "description": "Bring the zone\u0027s settings overrides (secrets are never copied).",
+            "default": true
+          },
+          "locations": {
+            "type": "boolean",
+            "description": "Bring the zone\u0027s locations, with the code substitution applied to codes and barcodes.",
+            "default": true
+          },
+          "codePrefixFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Optional: the prefix of the source location codes and barcodes to replace; required when copying locations within the same site."
+          },
+          "codePrefixTo": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The replacement prefix; required when CodePrefixFrom is given."
+          }
+        },
+        "description": "What an administrator sends to copy a zone within or across sites (E16.5)."
       },
       "ZoneDraft": {
         "required": [
@@ -4014,6 +4412,16 @@
               "string"
             ],
             "description": "The row\u0027s version (E5.1); the string ZoneInfo.Etag is derived from it.",
+            "format": "int64"
+          },
+          "copiedFromId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The id of the row this one was copied from (E16.5); null when created outright.",
             "format": "int64"
           },
           "etag": {

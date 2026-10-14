@@ -5,10 +5,10 @@ using Wolfgang.Wms.Infrastructure.Database.Sync;
 namespace Wolfgang.Wms.Infrastructure.Database.Settings;
 
 /// <summary>
-/// One row of <c>core.setting</c> (E6.2): a setting's value at one scope. <c>configured_value</c> is what an
-/// administrator set here (null when the scope inherits); <c>effective_value</c> is what applies here after
-/// the cascade (E7.1), always present. Row-versioned (the sync watermark and the concurrency token) and
-/// soft-deleted (a reset travels to devices as a delta), so it is a synced master table.
+/// One row of <c>core.setting</c> (E6.2): a decision about a setting at one scope (ADR 0009). <c>value</c> is
+/// what an administrator set here (null only while the scope delegates, <c>cascade_mode</c>); a scope that
+/// inherits has no row, its value is resolved on read. Row-versioned (the sync watermark and the concurrency
+/// token) and soft-deleted (a reset travels to devices as a delta), so it is a synced master table.
 /// </summary>
 public sealed class Setting : ISyncedEntity
 {
@@ -67,16 +67,10 @@ public sealed class Setting : ISyncedEntity
 
 
     /// <summary>
-    /// The value configured at this scope as stored text, or null when the scope inherits.
+    /// The value configured at this scope as stored text; null only while the scope delegates
+    /// (<see cref="CascadeMode"/>). A scope that inherits has no row at all (ADR 0009).
     /// </summary>
-    public string? ConfiguredValue { get; set; }
-
-
-
-    /// <summary>
-    /// The value that applies at this scope as stored text.
-    /// </summary>
-    public string EffectiveValue { get; set; } = string.Empty;
+    public string? Value { get; set; }
 
 
 

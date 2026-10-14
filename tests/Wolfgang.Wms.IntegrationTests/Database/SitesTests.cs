@@ -5,7 +5,6 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -151,15 +150,13 @@ public sealed class SitesTests
         var hierarchy = scope.ServiceProvider.GetRequiredService<ISettingScopeHierarchy>();
 
         var children = await hierarchy.ChildrenAsync(SettingScopeRef.Organization, CancellationToken.None);
-        var populatedOnCreate = await settings.ListAsync(SettingScopeRef.Site(siteId), CancellationToken.None);
-        var createdNow = await settings.PopulateAsync(SettingScopeRef.Site(siteId), "admin", CancellationToken.None);
+        var atCreation = await settings.ListAsync(SettingScopeRef.Site(siteId), CancellationToken.None);
         await settings.SetAsync(LeaseTimeout, SettingScopeRef.Organization, TimeSpan.FromMinutes(40), "admin", CancellationToken.None);
         var effective = await settings.GetAsync(LeaseTimeout, SettingScopeRef.Site(siteId), CancellationToken.None);
 
         Assert.Equal(2, children.Count);
         Assert.Contains(SettingScopeRef.Site(siteId), children);
-        Assert.Contains(populatedOnCreate, v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal));   // E16.4: the create populated the scope (every module's site-level setting); the explicit populate finds nothing to add
-        Assert.Equal(0, createdNow);
+        Assert.All(atCreation, v => Assert.Null(v.RowVersion));   // ADR 0009: creating a site writes no setting rows; the site resolves
         Assert.Equal(TimeSpan.FromMinutes(40), effective);
     }
 
@@ -181,7 +178,7 @@ public sealed class SitesTests
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         Assert.Equal(HttpStatusCode.Created, defaulted.StatusCode);
         Assert.Equal("Europe/Berlin", site.TimeZone);
-        Assert.Equal("00:40:00", values.Single(v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal)).EffectiveValue);   // the organisation's effective value, inherited at creation
+        Assert.Equal("00:40:00", values.Single(v => string.Equals(v.Name, "sample.lease_timeout", StringComparison.Ordinal)).EffectiveValue);   // the organisation's value, resolved
     }
 
 

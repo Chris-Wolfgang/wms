@@ -51,7 +51,6 @@ public sealed class DefaultSettingsTests
         await AssertCodeAsync(SettingErrorCodes.StoreUnavailable, () => Settings.ResetAsync(MaxTotes, SettingScopeRef.Organization, "me", CancellationToken.None));
         await AssertCodeAsync(SettingErrorCodes.StoreUnavailable, () => Settings.SetTextAsync("picking.max_totes", SettingScopeRef.Organization, "5", "me", CancellationToken.None));
         await AssertCodeAsync(SettingErrorCodes.StoreUnavailable, () => Settings.SetModeAsync(MaxTotes, SettingScopeRef.Organization, CascadeMode.PerSite, "me", CancellationToken.None));
-        await AssertCodeAsync(SettingErrorCodes.StoreUnavailable, () => Settings.PopulateAsync(SettingScopeRef.Site(1), "me", CancellationToken.None));
         await AssertCodeAsync(SettingErrorCodes.UnknownKey, () => Settings.SetModeAsync(unregistered, SettingScopeRef.Organization, CascadeMode.PerSite, "me", CancellationToken.None));
         await AssertCodeAsync(SettingErrorCodes.UnknownKey, () => Settings.SetTextAsync("picking.nope", SettingScopeRef.Organization, "5", "me", CancellationToken.None));
         await AssertCodeAsync(SettingErrorCodes.UnknownKey, () => Settings.FindAsync("picking.nope", SettingScopeRef.Organization, CancellationToken.None));

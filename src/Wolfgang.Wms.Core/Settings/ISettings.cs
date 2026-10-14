@@ -33,8 +33,8 @@ public interface ISettings
 
 
     /// <summary>
-    /// Removes the configured value at <paramref name="scope"/>, so it inherits again, and cascades the
-    /// inherited value to descendants that inherit.
+    /// Removes the decision at <paramref name="scope"/>, so it and every descendant that inherits resolve the
+    /// nearest ancestor's value again (ADR 0009).
     /// </summary>
     /// <exception cref="SettingException">The key is not registered.</exception>
     Task<SettingValue> ResetAsync(SettingKey key, SettingScopeRef scope, string updatedBy, CancellationToken cancellationToken);
@@ -48,15 +48,6 @@ public interface ISettings
     /// </summary>
     /// <exception cref="SettingException">The key is not registered or the mode is not allowed at the scope.</exception>
     Task<SettingValue> SetModeAsync(SettingKey key, SettingScopeRef scope, CascadeMode mode, string updatedBy, CancellationToken cancellationToken);
-
-
-
-    /// <summary>
-    /// Gives a newly created scope a row for every setting allowed there, carrying the inherited effective
-    /// value (E7.3), so no record is ever unresolved. Existing rows are left alone.
-    /// </summary>
-    /// <returns>The number of rows created.</returns>
-    Task<int> PopulateAsync(SettingScopeRef scope, string updatedBy, CancellationToken cancellationToken);
 
 
 

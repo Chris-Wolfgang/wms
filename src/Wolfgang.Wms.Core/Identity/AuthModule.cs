@@ -195,11 +195,12 @@ public static class AuthModule
 
 
 
-    private static async Task<IResult> LoginAsync(LocalLoginRequest body, ILocalAccounts accounts, CancellationToken cancellationToken)
+    private static async Task<IResult> LoginAsync(HttpContext http, LocalLoginRequest body, Providers.AuthProviderCatalog catalog, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(body);
 
-        var result = await accounts.LoginAsync(body.UserName ?? string.Empty, body.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
+        var local = (Providers.ICredentialAuthProvider)catalog.Find(Providers.AuthProviderSettings.Local)!;   // always registered by this module
+        var result = await local.ValidateAsync(body.UserName ?? string.Empty, body.Password ?? string.Empty, http.RequestServices, cancellationToken).ConfigureAwait(false);
         return result.Outcome switch
         {
             LocalLoginOutcome.Success => TypedResults.SignIn(SessionClaims.Principal(result.User!), new AuthenticationProperties { IsPersistent = false }, CookieAuthenticationDefaults.AuthenticationScheme),

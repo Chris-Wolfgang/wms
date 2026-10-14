@@ -6,7 +6,7 @@ Every module the API host registers (E1.10) and what it contributes: settings, p
 
 | Module | Settings | Permissions | License features | Jobs | Issue types | Error codes |
 |---|---|---|---|---|---|---|
-| `auth` | 7 | 1 | 0 | 0 | 0 | 13 |
+| `auth` | 7 | 1 | 0 | 0 | 0 | 14 |
 | `license` | 7 | 2 | 23 | 0 | 0 | 4 |
 | `logging` | 4 | 1 | 0 | 0 | 0 | 1 |
 | `oidc` | 9 | 0 | 0 | 0 | 0 | 0 |

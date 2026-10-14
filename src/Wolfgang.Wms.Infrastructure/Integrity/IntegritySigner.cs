@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.DataProtection;
@@ -84,7 +85,7 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
         ArgumentNullException.ThrowIfNull(entity);
         ArgumentException.ThrowIfNullOrWhiteSpace(table);
 
-        var expected = await SignAsync(entity.CanonicalContent(), cancellationToken).ConfigureAwait(false);
+        var expected = await SignAsync(Message(entity), cancellationToken).ConfigureAwait(false);
         var actual = entity.Signature ?? string.Empty;
         if (actual.Length == expected.Length && CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(actual), Encoding.UTF8.GetBytes(expected)))
         {
@@ -105,8 +106,25 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
 
         foreach (var entity in entities)
         {
-            entity.Signature = await SignAsync(entity.CanonicalContent(), cancellationToken).ConfigureAwait(false);
+            if (entity.Id == 0)
+            {
+                throw new InvalidOperationException("A signed row is signed once its id is known; save it first (the interceptor signs a new row after its insert).");
+            }
+
+            entity.Signature = await SignAsync(Message(entity), cancellationToken).ConfigureAwait(false);
         }
+    }
+
+
+
+    /// <summary>
+    /// What is signed for a row: its id, a newline, then its <see cref="ISignedEntity.CanonicalContent"/>.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="entity"/> is null.</exception>
+    public static string Message(ISignedEntity entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        return entity.Id.ToString(CultureInfo.InvariantCulture) + "\n" + entity.CanonicalContent();
     }
 
 

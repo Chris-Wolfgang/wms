@@ -28,6 +28,19 @@ public sealed class IntegrityUnitTests
 
 
     [Fact]
+    public void Message_binds_the_signed_content_to_the_row_id()
+    {
+        var first = new User { Id = 1, UserNameNormalized = "BOB" };
+        var second = new User { Id = 2, UserNameNormalized = "BOB" };
+
+        Assert.Equal("1" + "\n" + first.CanonicalContent(), IntegritySigner.Message(first));
+        Assert.NotEqual(IntegritySigner.Message(first), IntegritySigner.Message(second));   // the same content on another id is a different message
+        Assert.Throws<ArgumentNullException>(() => IntegritySigner.Message(null!));
+    }
+
+
+
+    [Fact]
     public void Canonical_content_covers_the_decision_fields_and_orders_permissions()
     {
         var user = new User { Id = 7, UserNameNormalized = "ALICE", PasswordHash = "hash", MustChangePassword = true, IsDisabled = false, IsLocalAdmin = true, SessionsValidAfter = new DateTimeOffset(2026, 9, 20, 8, 0, 0, 123, TimeSpan.FromHours(2)).AddTicks(4567), FailedLoginCount = 3, LockedUntil = new DateTimeOffset(2026, 9, 20, 6, 15, 0, TimeSpan.Zero), DisplayName = "changes freely" };

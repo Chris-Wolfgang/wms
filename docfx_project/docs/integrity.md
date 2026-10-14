@@ -47,9 +47,11 @@ grants nothing.
 | `core.role` | normalised name, built-in key, the sorted permission names of its `core.role_permission` rows |
 | `core.user_role` | user id, role id, site id, expires-at |
 
-The server-assigned id is not signed (it does not exist when the row is signed). Copying one row's
-signed content over another gains nothing: user and role names are unique, and an assignment names its
-user. The signature column is `signature` (base64, 44 characters), never audited.
+Every signature also covers the row's server-assigned id, so a row's content and signature cannot be
+moved to another id: swapping two users' rows would otherwise put a known password on the id that holds
+the grants. A new row is inserted unsigned and signed by a second save as soon as the insert has given it
+an id; if the process stops between the two, the new row fails verification and has to be recreated. The
+signature column is `signature` (base64, 44 characters), never audited.
 
 ## The key
 

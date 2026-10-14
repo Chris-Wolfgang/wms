@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Wolfgang.Wms.Infrastructure.Identity;
@@ -7,12 +8,14 @@ using Wolfgang.Wms.Infrastructure.Identity;
 namespace Wolfgang.Wms.Infrastructure.Integrity;
 
 /// <summary>
-/// Signs every added or changed <see cref="ISignedEntity"/> before it is saved (E10.4), and re-signs a role
-/// whose permission rows changed, so the application never writes an unsigned or stale-signed security row.
+/// Signs every changed <see cref="ISignedEntity"/> before it is saved and every added one right after its
+/// insert, when its id (part of the signature) exists (E10.4), and re-signs a role whose permission rows
+/// changed, so the application never leaves a stale-signed security row.
 /// </summary>
 public sealed class IntegritySigningInterceptor : SaveChangesInterceptor
 {
     private readonly IIntegritySigner _signer;
+    private readonly ConditionalWeakTable<DbContext, List<ISignedEntity>> _unsigned = new();   // per save: the rows to sign after the insert
 
 
 
@@ -37,12 +40,60 @@ public sealed class IntegritySigningInterceptor : SaveChangesInterceptor
             var pending = Pending(context);
             if (pending.Count > 0)
             {
-                await _signer.SignAllAsync(pending, cancellationToken).ConfigureAwait(false);
+                // A new row has no id until the insert, and the id is signed: it is saved unsigned (it fails
+                // verification meanwhile) and signed by a second save as soon as the insert has assigned it.
+                var added = pending.Where(e => context.Entry(e).State == EntityState.Added).ToList();
+                foreach (var entity in added)
+                {
+                    entity.Signature = null;
+                }
+
+                if (added.Count > 0)
+                {
+                    _unsigned.AddOrUpdate(context, added);
+                }
+
+                await _signer.SignAllAsync(pending.Except(added), cancellationToken).ConfigureAwait(false);
                 context.ChangeTracker.DetectChanges();   // the save detected changes before calling here
             }
         }
 
         return await base.SavingChangesAsync(eventData, result, cancellationToken).ConfigureAwait(false);
+    }
+
+
+
+    /// <summary>
+    /// Signs the rows the save inserted, now that their ids exist, and saves the signatures. A failure
+    /// between the two saves leaves the new rows unsigned: they fail verification and are not honoured.
+    /// </summary>
+    public override async ValueTask<int> SavedChangesAsync(SaveChangesCompletedEventData eventData, int result, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(eventData);
+
+        if (eventData.Context is { } context && _unsigned.TryGetValue(context, out var added))
+        {
+            _unsigned.Remove(context);
+            await _signer.SignAllAsync(added, cancellationToken).ConfigureAwait(false);
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return await base.SavedChangesAsync(eventData, result, cancellationToken).ConfigureAwait(false);
+    }
+
+
+
+    /// <inheritdoc/>
+    public override Task SaveChangesFailedAsync(DbContextErrorEventData eventData, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(eventData);
+
+        if (eventData.Context is { } context)
+        {
+            _unsigned.Remove(context);
+        }
+
+        return base.SaveChangesFailedAsync(eventData, cancellationToken);
     }
 
 

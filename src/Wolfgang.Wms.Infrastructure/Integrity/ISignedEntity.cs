@@ -11,9 +11,10 @@ namespace Wolfgang.Wms.Infrastructure.Integrity;
 public interface ISignedEntity
 {
     /// <summary>
-    /// The server-assigned identifier, for the failure log. It is not part of the content: it is assigned
-    /// by the insert, after the row is signed. Copying one row's content over another gains nothing, as
-    /// user and role names are unique and an assignment names its user.
+    /// The server-assigned identifier. The signature covers it together with <see cref="CanonicalContent"/>
+    /// (<see cref="IntegritySigner.Message"/>), so a row's content and signature cannot be moved to another id:
+    /// swapping two users would otherwise put a known password on the id that holds the grants. A new row is
+    /// signed right after its insert, once the id exists (<see cref="IntegritySigningInterceptor"/>).
     /// </summary>
     long Id { get; }
 

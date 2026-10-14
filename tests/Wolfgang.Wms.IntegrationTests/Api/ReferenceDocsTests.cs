@@ -99,16 +99,24 @@ public sealed class ReferenceDocsTests : IClassFixture<WebApplicationFactory<Pro
 
 
     /// <summary>
-    /// Every code Core defines, on a module descriptor or on a <c>*ErrorCodes</c> catalog used by a filter.
+    /// Every code Core defines, on a module descriptor or on a <c>*ErrorCodes</c> catalog used by a filter. A
+    /// catalog may expose another catalog's instance (the same object), but two different definitions of one code
+    /// fail the test instead of documenting whichever reflection returned first.
     /// </summary>
     private static IReadOnlyList<ErrorCode> AllErrorCodes()
     {
-        return typeof(ApiProblems).Assembly
+        var codes = typeof(ApiProblems).Assembly
             .GetTypes()
             .Where(t => t.IsAbstract && t.IsSealed && t.Name.EndsWith("ErrorCodes", StringComparison.Ordinal))
             .SelectMany(t => KeyDefinitions.Enumerate<ErrorCode>(t))
-            .DistinctBy(c => c.Code, StringComparer.Ordinal)
             .ToList();
+        var conflicting = codes
+            .GroupBy(c => c.Code, StringComparer.Ordinal)
+            .Where(g => g.Distinct(ReferenceEqualityComparer.Instance).Skip(1).Any())
+            .Select(g => g.Key)
+            .ToList();
+        Assert.Empty(conflicting);   // one definition per code across every catalog
+        return codes.DistinctBy(c => c.Code, StringComparer.Ordinal).ToList();
     }
 
 

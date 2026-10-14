@@ -29,6 +29,7 @@ app, starting with the picking module. These pages are for the people who instal
 
 ## Reference
 
+- [HTTP API contract](http-api.md) - the OpenAPI document for the HTTP endpoints, requests and responses
 - [API Reference](../api/index.md) - generated from the source code
 - Generated from the product: [settings](reference/settings.md), [permissions](reference/permissions.md), [error codes](reference/error-codes.md), [modules](reference/modules.md)
 - [Project website](https://github.com/Chris-Wolfgang/wms)

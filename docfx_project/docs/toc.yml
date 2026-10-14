@@ -10,6 +10,8 @@
   href: bootstrap.md
 - name: Configuration
   href: configuration.md
+- name: HTTP API contract
+  href: http-api.md
 - name: Running in containers
   href: containers.md
 - name: Signing in and identity providers

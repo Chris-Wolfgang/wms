@@ -32,7 +32,8 @@ references so nothing is ever missing (E83.3), and be packaged into the release 
   facing pages move to the site as they are written.
 - **References are generated from the product** (`Wolfgang.Wms.Core.Docs.ReferencePages`) from the same
   registries the host serves — settings, permissions, error codes, modules — plus the OpenAPI document
-  (`docs/api/openapi-v0.json`) and the licensing comparison. Each is committed and a test fails when the
+  (`docs/api/openapi-v0.json`, published on the site as `http-api/openapi-v0.json` and linked from the HTTP API
+  contract page) and the licensing comparison. Each is committed and a test fails when the
   committed copy is stale, so the diff is reviewed in the pull request that changes the product (E83.2, E83.3).
 - **Error codes link into `troubleshooting.md`** by anchor (`ApiProblems.DocsBase + "#" + DocsAnchor`);
   `ReferenceDocsTests` fails when a code has no entry.

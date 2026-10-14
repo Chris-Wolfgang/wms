@@ -211,6 +211,11 @@ public static class AuthModule
 
         var userId = SessionClaims.UserIdOf(http.User) ?? throw new AuthException(AuthErrorCodes.NotSignedIn, "Sign in first.");
         var outcome = await accounts.ChangePasswordAsync(userId, body.CurrentPassword ?? string.Empty, body.NewPassword ?? string.Empty, cancellationToken).ConfigureAwait(false);
+        if (outcome == PasswordChangeOutcome.IntegrityFailure)
+        {
+            return ApiProblems.Problem(AuthErrorCodes.IntegrityFailure);
+        }
+
         if (outcome != PasswordChangeOutcome.Changed)
         {
             var reason = outcome switch

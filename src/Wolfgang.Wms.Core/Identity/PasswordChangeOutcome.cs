@@ -18,4 +18,7 @@ public enum PasswordChangeOutcome
 
     /// <summary>No such account.</summary>
     UserNotFound,
+
+    /// <summary>The account's row fails its integrity signature (E10.4); nothing was changed.</summary>
+    IntegrityFailure,
 }

@@ -13,6 +13,13 @@ grants nothing.
 - A database administrator, a leaked connection string or a compromised backup used to grant permissions,
   enable a disabled account, clear a password-change gate, extend an assignment or add a permission to a
   role, without going through the application (which audits, authorises and logs every such change).
+  **This holds only when the key ring is out of that person's reach.** With the default database ring
+  (E8.6, no `Wms:DataProtection:KeyRingPath`), the ring's key material sits in `wms.data_protection_key`
+  unprotected, so anyone who can read the database can recover the integrity key and sign a changed row
+  that then verifies; the guarantee shrinks to accidental and limited-privilege changes, and the API logs a
+  Warning at every start saying so. For the full guarantee keep the ring in a directory only the
+  application account can read (`Wms:DataProtection:KeyRingPath`); protecting the ring with DPAPI or a
+  certificate is #1078.
 - A migration script or a bulk fix that changes security rows by accident: the verification job reports
   the rows at Error, with table and id, on its next run.
 
@@ -22,6 +29,10 @@ grants nothing.
   and can sign anything. The ring's protection (file permissions, or the database ring reachable only by
   the application account) is the boundary.
 - Deleting rows. A missing assignment or role only removes access; the audit trail keeps the history.
+  Deleting an assignment or a role directly in the database is **not a supported way to revoke access**:
+  nothing is left to verify, so it cannot be detected, and a session already open keeps the grant it was
+  issued with until it ends. Revoke through the console or the API, which ends the user's sessions at once
+  (E10.5).
 - Deleting the key row (`wms.integrity_key`) and restarting: the next start creates a new key and signs
   every row as it stands (the upgrade path below). Treat a "key created" log entry on a database that is
   not new as an incident; keep database-level auditing and backups for that case.
@@ -49,13 +60,20 @@ every sign-in. Back the row up with the database and the ring together (docs/CON
 
 ## Verification
 
-- On sign-in: the user row; a failure answers `403 auth.integrity_failure` and is logged at Warning with
-  the user name.
+- On sign-in: the user row (before anything is read from it); a failure answers
+  `403 auth.integrity_failure` and is logged at Warning with the user name.
+- On every request: the session check verifies the user row before it reads `is_disabled` and
+  sessions-valid-after, so a row changed outside the application ends that user's sessions (`401`) at once.
+  Reading an account (`FindAsync`) and changing a password verify it too; a failed row is never returned
+  or re-signed.
 - When grants are computed (sign-in, password change): every assignment and its role; a failure drops
   that assignment silently for the user and logs an Error with the table and id.
 - On a schedule: the worker's verification job walks every signed row every
-  `auth.integrity.verify_interval` (a setting; 1 hour by default, 1 minute to 7 days) and logs a Warning
-  summary with the failed and checked counts, Information when clean. The last result is kept for the
+  `auth.integrity.verify_interval` (a setting; 1 minute by default, 10 seconds to 7 days; the tables are
+  small) and logs a Warning summary with the failed and checked counts, Information when clean. A session
+  carries the grants it was issued with, so for every user holding a failed assignment or a failed role the
+  job ends their open sessions (sessions-valid-after), logged at Warning; they sign in again with what still
+  verifies. A tampered grant therefore lasts at most one interval in an open session. The last result is kept for the
   health endpoint (E12.1).
 
 Every failure is logged at Error as `Integrity failure: <table> row <id> does not match its signature`.

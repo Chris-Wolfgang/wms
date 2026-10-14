@@ -4,7 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Secrets;
 
 namespace Wolfgang.Wms.Infrastructure.Integrity;
 
@@ -17,6 +19,7 @@ public sealed partial class IntegrityBackfillCheck : IHostedService
 {
     private readonly IServiceScopeFactory _scopes;
     private readonly IntegritySigner _signer;
+    private readonly IOptions<KeyRingOptions> _keyRing;
     private readonly ILogger<IntegrityBackfillCheck> _logger;
 
 
@@ -25,10 +28,11 @@ public sealed partial class IntegrityBackfillCheck : IHostedService
     /// Creates the check.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public IntegrityBackfillCheck(IServiceScopeFactory scopes, IntegritySigner signer, ILogger<IntegrityBackfillCheck> logger)
+    public IntegrityBackfillCheck(IServiceScopeFactory scopes, IntegritySigner signer, IOptions<KeyRingOptions> keyRing, ILogger<IntegrityBackfillCheck> logger)
     {
         _scopes = scopes ?? throw new ArgumentNullException(nameof(scopes));
         _signer = signer ?? throw new ArgumentNullException(nameof(signer));
+        _keyRing = keyRing ?? throw new ArgumentNullException(nameof(keyRing));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -37,6 +41,11 @@ public sealed partial class IntegrityBackfillCheck : IHostedService
     /// <inheritdoc/>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        if (!_keyRing.Value.UsesFileSystem)
+        {
+            LogRingInDatabase(_logger);   // docs/INTEGRITY.md, threat model; #1078 protects the ring itself
+        }
+
         if (!await _signer.EnsureKeyAsync(cancellationToken).ConfigureAwait(false))
         {
             return;
@@ -70,6 +79,11 @@ public sealed partial class IntegrityBackfillCheck : IHostedService
     {
         return Task.CompletedTask;
     }
+
+
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Integrity: the Data Protection key ring is stored in the database (wms.data_protection_key) without its own protection, so anyone who can read the database can recover the integrity key and sign changed rows. Signatures still catch accidental and limited-privilege changes; set Wms:DataProtection:KeyRingPath to a directory only the application can read for the full guarantee.")]
+    private static partial void LogRingInDatabase(ILogger logger);
 
 
 

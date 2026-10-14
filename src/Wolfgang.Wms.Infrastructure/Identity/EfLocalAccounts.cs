@@ -121,7 +121,18 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
         ArgumentNullException.ThrowIfNull(newPassword);
 
         var user = await _context.Set<User>().SingleOrDefaultAsync(u => u.Id == userId, cancellationToken).ConfigureAwait(false);
-        if (user?.PasswordHash is null)
+        if (user is null)
+        {
+            return PasswordChangeOutcome.UserNotFound;
+        }
+
+        if (!await _signer.IsValidAsync(user, UserConfiguration.Schema + "." + UserConfiguration.Table, cancellationToken).ConfigureAwait(false))
+        {
+            LogPasswordChange(_logger, user.UserName, PasswordChangeOutcome.IntegrityFailure);   // E10.4: never re-sign a row changed outside the application
+            return PasswordChangeOutcome.IntegrityFailure;
+        }
+
+        if (user.PasswordHash is null)
         {
             return PasswordChangeOutcome.UserNotFound;
         }
@@ -154,7 +165,12 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
     public async Task<LocalUser?> FindAsync(long userId, CancellationToken cancellationToken)
     {
         var user = await _context.Set<User>().AsNoTracking().SingleOrDefaultAsync(u => u.Id == userId, cancellationToken).ConfigureAwait(false);
-        return user is null ? null : await ViewAsync(user, _timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
+        if (user is null || !await _signer.IsValidAsync(user, UserConfiguration.Schema + "." + UserConfiguration.Table, cancellationToken).ConfigureAwait(false))
+        {
+            return null;   // E10.4: a row changed outside the application is treated as absent, its admin flag included
+        }
+
+        return await ViewAsync(user, _timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
     }
 
 

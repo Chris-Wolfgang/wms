@@ -3,6 +3,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Wolfgang.Wms.Core.Authorization;
+using Wolfgang.Wms.Core.Modules;
 
 namespace Wolfgang.Wms.Infrastructure.Identity;
 
@@ -32,6 +33,14 @@ public sealed class BuiltInRolesCheck : IHostedService
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopes.CreateScope();
+
+        // The built-in roles are rewritten from this host's permission catalog. A host without the roles module (the
+        // worker) has only part of the catalog and would strip permissions every time it started.
+        if (!scope.ServiceProvider.GetRequiredService<ModuleCollection>().Modules.Contains(RolesModule.Descriptor))
+        {
+            return;
+        }
+
         var roles = scope.ServiceProvider.GetRequiredService<IRoles>();
         var catalog = scope.ServiceProvider.GetRequiredService<PermissionCatalog>();
         await roles.EnsureBuiltInAsync(catalog, cancellationToken).ConfigureAwait(false);

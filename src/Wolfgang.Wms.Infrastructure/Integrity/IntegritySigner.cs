@@ -142,8 +142,22 @@ public sealed partial class IntegritySigner : IIntegritySigner, IDisposable
             }
 
             var key = RandomNumberGenerator.GetBytes(32);
-            await context.Set<IntegrityKey>().AddAsync(new IntegrityKey { ProtectedKey = ProtectedText.Wrap(protector.Protect(Convert.ToBase64String(key))), CreatedAt = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow() }, cancellationToken).ConfigureAwait(false);
+            var created = new IntegrityKey { ProtectedKey = ProtectedText.Wrap(protector.Protect(Convert.ToBase64String(key))), CreatedAt = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow() };
+            await context.Set<IntegrityKey>().AddAsync(created, cancellationToken).ConfigureAwait(false);
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            // Instances starting together on an empty table can each insert a key. The lowest id is the installation's
+            // key for every instance (the load above already reads it that way); a creator that lost the race adopts
+            // the winner and removes its own row before anything is signed or backfilled with it.
+            var winner = await context.Set<IntegrityKey>().AsNoTracking().OrderBy(k => k.Id).FirstAsync(cancellationToken).ConfigureAwait(false);
+            if (winner.Id != created.Id)
+            {
+                context.Set<IntegrityKey>().Remove(created);
+                await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                _key = Convert.FromBase64String(protector.Unprotect(ProtectedText.Unwrap(winner.ProtectedKey)));
+                return false;
+            }
+
             LogKeyCreated(_logger);
             _key = key;
             return true;

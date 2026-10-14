@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Testcontainers.PostgreSql;
 using Wolfgang.Wms.Core.Api;
 using Wolfgang.Wms.Core.Authorization;
@@ -74,11 +75,13 @@ public sealed class IntegrityTests
             var bob = await CreateUserAsync(first.Services, "bob");
             var roles = (await client.GetFromJsonAsync<List<RoleInfo>>("/api/v0/auth/roles", Json))!;
             await AssignAsync(client, admin, bob, roles.Single(r => string.Equals(r.Name, "Administrator", StringComparison.Ordinal)).Id);
-            Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(first, await SignInAsync(client, "bob")));
+            var held = await SignInAsync(client, "bob");   // a session issued while the assignment was still good
+            Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(first, held));
 
             await TamperAsync(first.Services, "UPDATE core.user_role SET site_id = 7 WHERE user_id = " + bob);
             Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, await SignInAsync(client, "bob")));   // the assignment grants nothing
             Assert.Equal(1, (await first.Services.GetRequiredService<IntegrityVerificationJob>().RunOnceAsync(CancellationToken.None)).Failed);
+            Assert.Equal(HttpStatusCode.Unauthorized, await RolesStatusAsync(first, held));   // the job ended the session that still carried the old grant
 
             var custom = await CreateRoleAsync(client, admin);
             await AssignAsync(client, admin, bob, custom);
@@ -86,7 +89,16 @@ public sealed class IntegrityTests
             await TamperAsync(first.Services, "INSERT INTO core.role_permission (role_id, permission_name) VALUES (" + custom + ", 'auth.roles.write')");
             Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, await SignInAsync(client, "bob")));   // the role grants nothing
 
+            var beforeUserTamper = await SignInAsync(client, "bob");
             await TamperAsync(first.Services, "UPDATE core.\"user\" SET is_local_admin = 'true' WHERE id = " + bob);
+            Assert.Equal(HttpStatusCode.Unauthorized, await RolesStatusAsync(first, beforeUserTamper));   // the user row is verified on every request, not only at sign-in
+            using (var accounts = first.Services.CreateScope())
+            {
+                var store = accounts.ServiceProvider.GetRequiredService<ILocalAccounts>();
+                Assert.Null(await store.FindAsync(bob, CancellationToken.None));   // the tampered admin flag is never returned
+                Assert.Equal(PasswordChangeOutcome.IntegrityFailure, await store.ChangePasswordAsync(bob, Password, Password + "-x", CancellationToken.None));   // and never re-signed
+            }
+
             using var login = await client.PostAsync(new Uri("/api/v0/auth/local/login", UriKind.Relative), Body(new LocalLoginRequest("bob", Password)));
             Assert.Equal(HttpStatusCode.Forbidden, login.StatusCode);
             Assert.Equal("auth.integrity_failure", (await JsonDocument.ParseAsync(await login.Content.ReadAsStreamAsync())).RootElement.GetProperty("code").GetString());
@@ -100,6 +112,19 @@ public sealed class IntegrityTests
 
             await TamperAsync(first.Services, "UPDATE core.\"user\" SET is_local_admin = 'false' WHERE id = " + bob);
             await TamperAsync(first.Services, "DELETE FROM wms.integrity_key");
+
+            // Two instances creating the key at once end up with one key: the lowest id wins and the other adopts it.
+            var scopes = first.Services.GetRequiredService<IServiceScopeFactory>();
+            using var one = new IntegritySigner(scopes, NullLogger<IntegritySigner>.Instance);
+            using var two = new IntegritySigner(scopes, NullLogger<IntegritySigner>.Instance);
+            await Task.WhenAll(one.EnsureKeyAsync(CancellationToken.None), two.EnsureKeyAsync(CancellationToken.None));
+            Assert.Equal(await one.SignAsync("x", CancellationToken.None), await two.SignAsync("x", CancellationToken.None));
+            using (var keys = first.Services.CreateScope())
+            {
+                Assert.Equal(1, await keys.ServiceProvider.GetRequiredService<WmsDbContext>().Set<IntegrityKey>().CountAsync());
+            }
+
+            await TamperAsync(first.Services, "DELETE FROM wms.integrity_key");   // the upgrade start below creates its own
         }
 
         await using var second = await StartHostAsync(provider, runtime, trustServerCertificate);   // the upgrade start: a new key, every row signed once

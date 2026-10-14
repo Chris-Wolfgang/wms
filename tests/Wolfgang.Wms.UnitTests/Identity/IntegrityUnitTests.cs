@@ -4,10 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Identity;
 using Wolfgang.Wms.Infrastructure.Integrity;
+using Wolfgang.Wms.Infrastructure.Secrets;
 using Wolfgang.Wms.UnitTests.Database;
 
 namespace Wolfgang.Wms.UnitTests.Identity;
@@ -125,9 +129,10 @@ public sealed class IntegrityUnitTests
         Assert.Throws<ArgumentNullException>(() => new IntegritySigner(provider.GetRequiredService<IServiceScopeFactory>(), null!));
         Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(null!, NullLogger<IntegrityVerificationJob>.Instance));
         Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), null!));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(null!, signer, NullLogger<IntegrityBackfillCheck>.Instance));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), null!, NullLogger<IntegrityBackfillCheck>.Instance));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), signer, null!));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(null!, signer, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), null!, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), signer, null!, NullLogger<IntegrityBackfillCheck>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), signer, Options.Create(new KeyRingOptions()), null!));
     }
 
 
@@ -149,7 +154,8 @@ public sealed class IntegrityUnitTests
         Assert.NotNull(AuthErrorCodes.IntegrityFailure);
         Assert.Equal(403, AuthErrorCodes.IntegrityFailure.HttpStatus);
         Assert.Null(AuthSettings.IntegrityVerifyInterval.Validate(TimeSpan.FromHours(1)));
-        Assert.NotNull(AuthSettings.IntegrityVerifyInterval.Validate(TimeSpan.FromSeconds(30)));
+        Assert.Null(AuthSettings.IntegrityVerifyInterval.Validate(TimeSpan.FromSeconds(10)));
+        Assert.NotNull(AuthSettings.IntegrityVerifyInterval.Validate(TimeSpan.FromSeconds(9)));
         Assert.NotNull(AuthSettings.IntegrityVerifyInterval.Validate(TimeSpan.FromDays(8)));
     }
 
@@ -163,7 +169,7 @@ public sealed class IntegrityUnitTests
         services.AddDataProtection();
         using var provider = services.BuildServiceProvider();
         using var signer = new IntegritySigner(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<IntegritySigner>.Instance);
-        var check = new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), signer, NullLogger<IntegrityBackfillCheck>.Instance);
+        var check = new IntegrityBackfillCheck(provider.GetRequiredService<IServiceScopeFactory>(), signer, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance);
         var job = new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<IntegrityVerificationJob>.Instance);
 
         await check.StopAsync(CancellationToken.None);
@@ -195,5 +201,25 @@ public sealed class IntegrityUnitTests
                 entity.Signature = await SignAsync(entity.CanonicalContent(), cancellationToken);
             }
         }
+    }
+
+
+
+    [Fact]
+    public async Task Built_in_roles_are_seeded_only_by_a_host_with_the_roles_module()
+    {
+        var workerServices = new ServiceCollection();
+        workerServices.AddWmsModules();
+        var worker = workerServices.BuildServiceProvider();   // no roles module: seeding is skipped
+        var apiServices = new ServiceCollection();
+        apiServices.AddWmsModules();
+        apiServices.AddWmsRolesModule();
+        var api = apiServices.BuildServiceProvider();   // the module but no catalog: it tries
+
+        await new BuiltInRolesCheck(worker.GetRequiredService<IServiceScopeFactory>()).StartAsync(CancellationToken.None);   // would throw resolving IRoles if it seeded
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new BuiltInRolesCheck(api.GetRequiredService<IServiceScopeFactory>()).StartAsync(CancellationToken.None));
+        await worker.DisposeAsync();
+        await api.DisposeAsync();
     }
 }

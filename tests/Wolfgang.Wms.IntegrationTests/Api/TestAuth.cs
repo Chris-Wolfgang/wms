@@ -35,16 +35,27 @@ public static class TestAuth
     {
         ArgumentNullException.ThrowIfNull(factory);
 
-        return factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        return factory.WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddTestAuth()));
+    }
+
+
+
+    /// <summary>
+    /// Registers the test scheme as the default on any host (a custom test host as well as the factory), so a
+    /// request carrying the permissions header is signed in with exactly those grants.
+    /// </summary>
+    public static IServiceCollection AddTestAuth(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(Scheme, displayName: null, configureOptions: null);
+        services.PostConfigure<AuthenticationOptions>(options =>
         {
-            services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(Scheme, displayName: null, configureOptions: null);
-            services.PostConfigure<AuthenticationOptions>(options =>
-            {
-                options.DefaultAuthenticateScheme = Scheme;
-                options.DefaultChallengeScheme = Scheme;
-                options.DefaultForbidScheme = Scheme;
-            });
-        }));
+            options.DefaultAuthenticateScheme = Scheme;
+            options.DefaultChallengeScheme = Scheme;
+            options.DefaultForbidScheme = Scheme;
+        });
+        return services;
     }
 
 

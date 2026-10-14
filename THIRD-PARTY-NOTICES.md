@@ -142,8 +142,9 @@ Do not edit by hand; re-run the script after changing a package reference.
 | System.IdentityModel.Tokens.Jwt | 7.7.1 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
 | System.IO.Hashing | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | System.Memory.Data | 8.0.1 | MIT | Microsoft | https://dot.net/ |
-| System.Security.Cryptography.Pkcs | 9.0.11 | MIT | Microsoft | https://dot.net/ |
+| System.Security.Cryptography.Pkcs | 10.0.13 | MIT | Microsoft | https://dot.net/ |
 | System.Security.Cryptography.ProtectedData | 9.0.11 | MIT | Microsoft | https://dot.net/ |
+| System.Security.Cryptography.Xml | 10.0.13 | MIT | Microsoft | https://dot.net/ |
 | Wolfgang.TryPattern | 0.4.1 | MIT | Chris Wolfgang | https://github.com/Chris-Wolfgang/Try-Pattern |
 | Xamarin.Android.Glide | 4.16.0.14 | MIT AND BSD-2-Clause AND Apache-2.0 | Microsoft | https://aka.ms/android-libraries |
 | Xamarin.Android.Glide.Annotations | 4.16.0.14 | MIT AND BSD-2-Clause AND Apache-2.0 | Microsoft | https://aka.ms/android-libraries |

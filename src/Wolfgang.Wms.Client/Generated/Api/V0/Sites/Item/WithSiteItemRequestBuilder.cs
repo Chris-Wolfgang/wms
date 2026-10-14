@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
+using Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Locations;
 using Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Zones;
 using Wolfgang.Wms.Client.Generated.Models;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item
@@ -18,6 +19,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class WithSiteItemRequestBuilder : BaseRequestBuilder
     {
+        /// <summary>The locations property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Locations.LocationsRequestBuilder Locations
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Locations.LocationsRequestBuilder(PathParameters, RequestAdapter);
+        }
         /// <summary>The zones property</summary>
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Zones.ZonesRequestBuilder Zones
         {

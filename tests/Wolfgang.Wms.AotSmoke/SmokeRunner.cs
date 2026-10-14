@@ -25,6 +25,9 @@ internal static class SmokeRunner
         ("SettingCodecs: JSON codec and unsupported type", Sync(SettingCodecsSmoke.JsonCodecAndUnsupportedType)),
         ("AuthProviderState: challenge scheme follows the setting", AuthProvidersSmoke.ChallengeSchemeFollowsTheSetting),
         ("Authentication: handler activated from HandlerType", AuthProvidersSmoke.HandlerIsActivatedFromItsType),
+        ("Licensing: signed key round-trips through JSON and ECDSA", Sync(LicensingSmoke.SignedKeyRoundTrips)),
+        ("Licensing: altered or foreign keys refused", Sync(LicensingSmoke.AlteredKeyIsRefused)),
+        ("Licensing: embedded vendor key loads", Sync(LicensingSmoke.VendorKeyLoads)),
     ];
 
 

@@ -17,6 +17,9 @@ public static class MigrateProgram
     /// <summary>Everything ran.</summary>
     public const int ExitOk = 0;
 
+    /// <summary>The <c>--connection-string</c> value that reads the string from standard input.</summary>
+    public const string StandardInput = "-";
+
     /// <summary>A migration failed; its name is in the output.</summary>
     public const int ExitMigrationFailed = 1;
 
@@ -41,13 +44,30 @@ public static class MigrateProgram
     /// <param name="cancellationToken">Cancels a running migration.</param>
     /// <returns>The process exit code.</returns>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public static async Task<int> RunAsync(IReadOnlyList<string> args, TextWriter output, TextWriter error, IConfiguration? configuration, CancellationToken cancellationToken)
+    public static Task<int> RunAsync(IReadOnlyList<string> args, TextWriter output, TextWriter error, IConfiguration? configuration, CancellationToken cancellationToken)
+    {
+        return RunAsync(args, TextReader.Null, output, error, configuration, cancellationToken);
+    }
+
+
+
+    /// <summary>
+    /// Runs the tool with <paramref name="input"/> as standard input, which <c>--connection-string -</c> reads.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">An argument other than <paramref name="configuration"/> is null.</exception>
+    public static async Task<int> RunAsync(IReadOnlyList<string> args, TextReader input, TextWriter output, TextWriter error, IConfiguration? configuration, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(args);
+        ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(error);
 
-        var command = MigrateCommandLine.Parse(args);
+        var command = await WithStandardInputAsync(MigrateCommandLine.Parse(args), input, error, cancellationToken).ConfigureAwait(false);
+        if (command is null)
+        {
+            return ExitUsage;
+        }
+
         if (command.Help)
         {
             await output.WriteLineAsync(MigrateCommandLine.Usage).ConfigureAwait(false);
@@ -90,6 +110,29 @@ public static class MigrateProgram
         }
 
         return await ExecuteAsync(command, resolved, options, output, error, cancellationToken).ConfigureAwait(false);
+    }
+
+
+
+    /// <summary>
+    /// <c>--connection-string -</c>: the command with the connection string read from <paramref name="input"/>;
+    /// null (after a message on <paramref name="error"/>) when nothing was read. Any other command unchanged.
+    /// </summary>
+    private static async Task<MigrateCommandLine?> WithStandardInputAsync(MigrateCommandLine command, TextReader input, TextWriter error, CancellationToken cancellationToken)
+    {
+        if (!string.Equals(command.ConnectionString, StandardInput, StringComparison.Ordinal))
+        {
+            return command;
+        }
+
+        var line = await input.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            await error.WriteLineAsync("--connection-string - read no connection string from standard input.").ConfigureAwait(false);
+            return null;
+        }
+
+        return command with { ConnectionString = line.Trim() };
     }
 
 

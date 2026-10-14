@@ -95,6 +95,7 @@ public static class WmsLogging
         configuration
             .MinimumLevel.ControlledBy(level.Switch)
             .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", level.EntityFrameworkSwitch)   // Warning until an elevation to Debug or Verbose; the rate limit covers SQL text then
             .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
             .Enrich.FromLogContext()
             .Enrich.With(new RedactingEnricher())

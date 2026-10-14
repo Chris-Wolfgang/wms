@@ -118,6 +118,10 @@ public sealed class LoggingTests
         Assert.Equal(["Connecting with {ConnectionString} as {User} token {Note}", "shown"], sink.Events.Select(e => e.MessageTemplate.Text));
         Assert.Equal(LogEventLevel.Debug, level.Current);
         Assert.False(level.Apply(LogEventLevel.Debug));
+        Assert.Equal(LogEventLevel.Debug, level.EntityFrameworkSwitch.MinimumLevel);   // an elevation brings EF Core along
+        level.Apply(LogEventLevel.Information);
+        Assert.Equal(LogEventLevel.Warning, level.EntityFrameworkSwitch.MinimumLevel);   // and back to Warning after it
+        Assert.Equal(LogEventLevel.Verbose, WmsLogLevel.ForEntityFramework(LogEventLevel.Verbose));
     }
 
 

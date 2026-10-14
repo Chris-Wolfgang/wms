@@ -27,7 +27,8 @@ public sealed record MigrateCommandLine
                                      schemas or sequences, restarts a sequence, deletes or updates rows,
                                      narrows a column, or runs raw SQL
           --provider <SqlServer|PostgreSql>   overrides Wms:Database:Provider
-          --connection-string <cs>   overrides Wms:Database:ConnectionString
+          --connection-string <cs>   overrides Wms:Database:ConnectionString; '-' reads it from standard input
+                                     (keeps a password off the command line and out of process listings)
           --trust-server-certificate overrides Wms:Database:TrustServerCertificate (SQL Server)
           --key-ring <path>          overrides Wms:DataProtection:KeyRingPath (decrypts an enc:v1: connection string)
           --protect                  print the connection string (--connection-string or configured) encrypted

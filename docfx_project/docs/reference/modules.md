@@ -15,3 +15,4 @@ Every module the API host registers (E1.10) and what it contributes: settings, p
 | `settings` | 0 | 2 | 0 | 0 | 0 | 7 |
 | `sites` | 0 | 2 | 0 | 0 | 0 | 5 |
 | `system` | 0 | 0 | 0 | 0 | 0 | 0 |
+| `zones` | 0 | 2 | 0 | 0 | 0 | 6 |

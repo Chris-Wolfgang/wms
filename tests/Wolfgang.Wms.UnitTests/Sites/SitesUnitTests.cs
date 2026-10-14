@@ -127,8 +127,8 @@ public sealed class SitesUnitTests
         Assert.Equal(["trg_site_row_version"], entity.GetDeclaredTriggers().Select(t => t.ModelName));
         Assert.Equal(SettingScopeRef.Organization, await hierarchy.ParentAsync(SettingScopeRef.Site(7), CancellationToken.None));
         Assert.Null(await hierarchy.ParentAsync(SettingScopeRef.Organization, CancellationToken.None));
-        Assert.Null(await hierarchy.ParentAsync(SettingScopeRef.Zone(3), CancellationToken.None));
-        Assert.Empty(await hierarchy.ChildrenAsync(SettingScopeRef.Site(7), CancellationToken.None));
+        Assert.Null(await hierarchy.ParentAsync(SettingScopeRef.Sku(3), CancellationToken.None));
+        Assert.Empty(await hierarchy.ChildrenAsync(SettingScopeRef.Sku(7), CancellationToken.None));
         Assert.Throws<ArgumentNullException>(() => new SiteConfiguration().Configure(null!));
         Assert.Throws<ArgumentNullException>(() => new EfSettingScopeHierarchy(null!));
     }

@@ -33,8 +33,8 @@ There is no database sink: application logs stay out of the business database. L
 
 Rules: use `[LoggerMessage]` source-generated methods (a message template, named properties, the level
 declared at the call site); never string interpolation into a log call; never `Console.Write` in a host or
-library (the migrate and simulator command-line tools are the exception). `scripts/Check-LogLevels.ps1` enforces
-these at the PR gate.
+library (the migrate and simulator command-line tools are the exception). `scripts/Check-LogLevels.ps1` checks
+these; run it locally before a PR. The PR workflow runs it once its wiring (#222) is merged.
 
 ## Redaction
 
@@ -47,7 +47,8 @@ token are masked. Exception messages are not rewritten: never put a secret in on
 
 While a request runs, every line carries `TraceId`, `UserId` and `User` (when signed in), `Device` (the
 `X-Wms-Device` header) and the business identifiers in the route (`ToteId`, `ReleaseId`, `DepositRunId`,
-`RunId`, `PickerId`, `SiteId`, `DeviceId`, `UserId`, `RoleId`) as properties, so one tote's or one run's
+`RunId`, `PickerId`, `SiteId`, `DeviceId`, `RoleId`, and `TargetUserId` for a route's `{userId}`, so it
+never overwrites the caller's `UserId`) as properties, so one tote's or one run's
 lines can be pulled from any sink. Worker jobs push the same properties for the entity they work on.
 
 ## Runtime level (E12.4)
@@ -59,7 +60,9 @@ lines can be pulled from any sink. Worker jobs push the same properties for the 
 | `logging.elevated_until` | in the past | When the elevation ends |
 | `logging.elevation_max_minutes` | `120` | The longest elevation the console may start |
 
-One level switch per host follows these settings within 5 seconds (every instance, every host).
+The API and the worker each follow these settings within 5 seconds (every instance). The console takes its
+level from `Wms:Logging` at startup and does not follow the settings yet: it reads settings through the API,
+and runtime following arrives with the console's API client.
 Elevation is timed only: `POST /system/logging/elevate {"level":"Debug","minutes":30}` lowers the level
 and reverts by itself; `DELETE /system/logging/elevate` ends it now; `GET /system/logging` shows the
 permanent level, the level in force and the running elevation (`logging.manage`; Supervisor and Support

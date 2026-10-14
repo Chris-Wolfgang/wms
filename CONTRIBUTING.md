@@ -285,7 +285,8 @@ View the complete configuration in [.editorconfig](.editorconfig).
 - Log at the level [docs/LOGGING.md](docs/LOGGING.md) prescribes (Verbose per-scan detail, Debug decisions,
   Information milestones, Warning recovered problems, Error failed operations, Fatal cannot continue),
   through `[LoggerMessage]` methods with templates; never `Console.Write` and never an interpolated string in
-  a log call. `scripts/Check-LogLevels.ps1` runs at the PR gate.
+  a log call. Run `scripts/Check-LogLevels.ps1` before opening a PR; the PR workflow runs it once its
+  wiring (#222) is merged.
 
 ---
 

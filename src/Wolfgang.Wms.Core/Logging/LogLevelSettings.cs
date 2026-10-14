@@ -50,10 +50,12 @@ public static class LogLevelSettings
 
 
     /// <summary>
-    /// The level in force at <paramref name="now"/>: the elevated one until its end, else the permanent one.
+    /// The level in force at <paramref name="now"/>: until the elevation ends, the more verbose of the elevated and
+    /// the permanent level (an "elevation" written through the generic settings API can never suppress what the
+    /// permanent level logs); after it, the permanent one.
     /// </summary>
     public static LogLevel Effective(LogLevel level, LogLevel elevated, DateTimeOffset elevatedUntil, DateTimeOffset now)
     {
-        return elevatedUntil > now ? elevated : level;
+        return elevatedUntil > now && elevated < level ? elevated : level;
     }
 }

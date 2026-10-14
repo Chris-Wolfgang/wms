@@ -102,12 +102,14 @@ public static class LoggingModule
     {
         ArgumentNullException.ThrowIfNull(body);
 
-        if (!Enum.TryParse<LogLevel>(body.Level, ignoreCase: true, out var level) || level > LogLevel.Information)
+        var organization = SettingScopeRef.Organization;
+        var permanent = await settings.GetAsync(LogLevelSettings.Level, organization, cancellationToken).ConfigureAwait(false);
+        var ceiling = permanent < LogLevel.Information ? permanent : LogLevel.Information;   // never less verbose than the permanent level, never above Information
+        if (!Enum.TryParse<LogLevel>(body.Level, ignoreCase: true, out var level) || level > ceiling)
         {
-            return ApiProblems.Problem(LoggingErrorCodes.ElevationRejected, detail: null, "the level must be Trace, Debug or Information");
+            return ApiProblems.Problem(LoggingErrorCodes.ElevationRejected, detail: null, $"the level must be Trace, Debug or Information and at least as verbose as the permanent level ({permanent})");
         }
 
-        var organization = SettingScopeRef.Organization;
         var max = await settings.GetAsync(LogLevelSettings.MaxElevationMinutes, organization, cancellationToken).ConfigureAwait(false);
         if (body.Minutes < 1 || body.Minutes > max)
         {

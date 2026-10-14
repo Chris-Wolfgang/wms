@@ -36,6 +36,8 @@ public sealed class LoggingTests
     [InlineData("ConnectionString", true)]
     [InlineData("client_secret", true)]
     [InlineData("Api-Key", true)]
+    [InlineData("Api_Key", true)]
+    [InlineData("License_Key", true)]
     [InlineData("LicenseKey", true)]
     [InlineData("Pin", true)]
     [InlineData("Authorization", true)]
@@ -55,9 +57,43 @@ public sealed class LoggingTests
         Assert.Equal("value enc:v1:*** end", RedactingEnricher.MaskText("value enc:v1:CfDJ8abc+/=x end"));
         Assert.Equal("Server=x;Password=***;Database=y", RedactingEnricher.MaskText("Server=x;Password=s3cr3t!;Database=y"));
         Assert.Equal("Host=x;pwd=***", RedactingEnricher.MaskText("Host=x;pwd=abc"));
+        Assert.Equal("Server=x;Password=***;Database=y", RedactingEnricher.MaskText("Server=x;Password=\"s3c;r\"\"t\";Database=y"));   // double-quoted, with a ; and an escaped quote inside
+        Assert.Equal("Server=x;Password=***;Database=y", RedactingEnricher.MaskText("Server=x;Password='s3c;r''t';Database=y"));
         Assert.Equal("Authorization: Bearer ***", RedactingEnricher.MaskText("Authorization: Bearer eyJhbGciOi.abc-def_ghi=="));
         Assert.Equal("nothing here", RedactingEnricher.MaskText("nothing here"));
         Assert.Throws<ArgumentNullException>(() => RedactingEnricher.MaskText(null!));
+    }
+
+
+
+    [Fact]
+    public void Destructured_values_are_redacted_at_any_depth()
+    {
+        var payload = new StructureValue(
+        [
+            new LogEventProperty("Name", new ScalarValue("alice")),
+            new LogEventProperty("ApiKey", new ScalarValue("k-123")),
+            new LogEventProperty("Inner", new StructureValue([new LogEventProperty("Note", new ScalarValue("Bearer abc.def"))])),
+        ]);
+        var list = new SequenceValue([new ScalarValue("Host=x;Password=p"), new ScalarValue("plain")]);
+        var map = new DictionaryValue([new KeyValuePair<ScalarValue, LogEventPropertyValue>(new ScalarValue("client_secret"), new ScalarValue("s")), new KeyValuePair<ScalarValue, LogEventPropertyValue>(new ScalarValue("site"), new ScalarValue("A"))]);
+        var untouched = new StructureValue([new LogEventProperty("Name", new ScalarValue("bob"))]);
+
+        var redacted = (StructureValue)RedactingEnricher.Redact("Payload", payload);
+        var redactedList = (SequenceValue)RedactingEnricher.Redact("Items", list);
+        var redactedMap = (DictionaryValue)RedactingEnricher.Redact("Map", map);
+
+        Assert.Equal("alice", ((ScalarValue)redacted.Properties[0].Value).Value);
+        Assert.Equal("***", ((ScalarValue)redacted.Properties[1].Value).Value);
+        Assert.Equal("Bearer ***", ((ScalarValue)((StructureValue)redacted.Properties[2].Value).Properties[0].Value).Value);
+        Assert.Equal(["Host=x;Password=***", "plain"], redactedList.Elements.Select(e => ((ScalarValue)e).Value));
+        Assert.Equal(["***", "A"], redactedMap.Elements.Select(e => ((ScalarValue)e.Value).Value));
+        Assert.Same(untouched, RedactingEnricher.Redact("Other", untouched));   // nothing to mask: the same instance
+        var plainList = new SequenceValue([new ScalarValue("plain")]);
+        var plainMap = new DictionaryValue([new KeyValuePair<ScalarValue, LogEventPropertyValue>(new ScalarValue("site"), new ScalarValue("A"))]);
+        Assert.Same(plainList, RedactingEnricher.Redact("Items", plainList));
+        Assert.Same(plainMap, RedactingEnricher.Redact("Map", plainMap));
+        Assert.Throws<ArgumentNullException>(() => RedactingEnricher.Redact("x", null!));
     }
 
 
@@ -181,13 +217,14 @@ public sealed class LoggingTests
         var context = new DefaultHttpContext();
         context.User = SessionClaims.Principal(new LocalUser(7, "alice", "Alice", MustChangePassword: false, IsLocalAdmin: false, IsDisabled: false, Grants: []));
         context.Request.Headers[WmsCorrelation.DeviceHeader] = "HH-42";
-        context.Features.Set<IRouteValuesFeature>(new RouteValuesFeature { RouteValues = new RouteValueDictionary { ["toteId"] = "T-1", ["siteId"] = 3L, ["other"] = "x" } });
+        context.Features.Set<IRouteValuesFeature>(new RouteValuesFeature { RouteValues = new RouteValueDictionary { ["toteId"] = "T-1", ["siteId"] = 3L, ["userId"] = 9L, ["other"] = "x" } });
         var anonymous = new DefaultHttpContext();
 
         var properties = WmsCorrelation.Properties(context);
         var bare = WmsCorrelation.Properties(anonymous);
 
-        Assert.Equal(7L, properties["UserId"]);
+        Assert.Equal(7L, properties["UserId"]);   // the caller, not the route's user
+        Assert.Equal(9L, properties["TargetUserId"]);
         Assert.Equal("alice", properties["User"]);
         Assert.Equal("HH-42", properties["Device"]);
         Assert.Equal("T-1", properties["ToteId"]);
@@ -248,6 +285,8 @@ public sealed class LoggingTests
         await sync.StopAsync(CancellationToken.None);
         Assert.Equal(LogLevel.Debug, LogLevelSettings.Effective(LogLevel.Warning, LogLevel.Debug, DateTimeOffset.MaxValue, DateTimeOffset.UtcNow));
         Assert.Equal(LogLevel.Warning, LogLevelSettings.Effective(LogLevel.Warning, LogLevel.Debug, DateTimeOffset.UnixEpoch, DateTimeOffset.UtcNow));
+        Assert.Equal(LogLevel.Debug, LogLevelSettings.Effective(LogLevel.Debug, LogLevel.Information, DateTimeOffset.MaxValue, DateTimeOffset.UtcNow));   // an "elevation" never lowers the level
+        Assert.Throws<ArgumentException>(() => WmsCorrelation.PropertyName(""));
         Assert.NotNull(LogLevelSettings.ElevatedLevel.Validate(LogLevel.Warning));
         Assert.Null(LogLevelSettings.ElevatedLevel.Validate(LogLevel.Trace));
         Assert.NotNull(LogLevelSettings.MaxElevationMinutes.Validate(0));

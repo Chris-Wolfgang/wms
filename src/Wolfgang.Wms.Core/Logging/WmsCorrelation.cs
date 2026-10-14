@@ -91,11 +91,24 @@ public static class WmsCorrelation
             {
                 if (route.TryGetValue(key, out var value) && value is not null)
                 {
-                    properties[char.ToUpperInvariant(key[0]) + key[1..]] = value;
+                    properties[PropertyName(key)] = value;
                 }
             }
         }
 
         return properties;
+    }
+
+
+
+    /// <summary>
+    /// The log property a route value is written to: the route name in Pascal case, except <c>userId</c>, which is
+    /// the user the request acts on and goes to <c>TargetUserId</c> so it never overwrites the signed-in caller's
+    /// <c>UserId</c>.
+    /// </summary>
+    public static string PropertyName(string routeKey)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(routeKey);
+        return string.Equals(routeKey, "userId", StringComparison.Ordinal) ? "TargetUserId" : char.ToUpperInvariant(routeKey[0]) + routeKey[1..];
     }
 }

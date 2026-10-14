@@ -5,7 +5,7 @@
 .DESCRIPTION
     Fails when a source file under src/ (the migrate and simulator command-line tools excepted) writes to the console, calls a logger
     with an interpolated string, or declares a [LoggerMessage] without a Level. Run it locally before a PR;
-    the PR gate runs it too.
+    the PR workflow runs it once its wiring (#222) is merged.
 #>
 [CmdletBinding()]
 param

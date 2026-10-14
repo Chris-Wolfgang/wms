@@ -10,6 +10,8 @@
   <ItemGroup>
     <!-- E82.4: one deployable, five workspaces in their own projects; the console is an API client only. -->
     <ProjectReference Include="..\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
+    <!-- E12.2: the same log pipeline as the API (host plumbing, not business logic). -->
+    <ProjectReference Include="..\Wolfgang.Wms.Logging\Wolfgang.Wms.Logging.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Web.Shared\Wolfgang.Wms.Web.Shared.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Web.Configure\Wolfgang.Wms.Web.Configure.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Web.Supervise\Wolfgang.Wms.Web.Supervise.csproj" />

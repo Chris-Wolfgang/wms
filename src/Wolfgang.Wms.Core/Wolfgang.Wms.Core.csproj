@@ -13,6 +13,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
+    <!-- E12.2: the hosts' Serilog bootstrap and the level switch the settings move. -->
+    <ProjectReference Include="..\Wolfgang.Wms.Logging\Wolfgang.Wms.Logging.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

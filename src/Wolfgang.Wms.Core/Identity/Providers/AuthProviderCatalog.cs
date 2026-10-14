@@ -68,6 +68,6 @@ public sealed partial class AuthProviderCatalog
 
 
 
-    [GeneratedRegex("^[a-z][a-z0-9-]{0,31}$")]
+    [GeneratedRegex("^[a-z][a-z0-9-]{0,31}$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 100)]   // linear already; the timeout bounds it regardless
     private static partial Regex NamePattern();
 }

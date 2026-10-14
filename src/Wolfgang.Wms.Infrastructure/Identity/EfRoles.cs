@@ -5,6 +5,7 @@ using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Domain.Keys;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Integrity;
 using Wolfgang.Wms.Infrastructure.Database.Auditing;
 
 namespace Wolfgang.Wms.Infrastructure.Identity;
@@ -19,6 +20,7 @@ public sealed class EfRoles : IRoles
     private readonly WmsDbContext _context;
     private readonly PermissionCatalog _catalog;
     private readonly TimeProvider _timeProvider;
+    private readonly IIntegritySigner _signer;
 
 
 
@@ -26,8 +28,9 @@ public sealed class EfRoles : IRoles
     /// Creates the roles.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public EfRoles(WmsDbContext context, PermissionCatalog catalog, TimeProvider timeProvider)
+    public EfRoles(WmsDbContext context, PermissionCatalog catalog, TimeProvider timeProvider, IIntegritySigner signer)
     {
+        _signer = signer ?? throw new ArgumentNullException(nameof(signer));
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
@@ -195,7 +198,18 @@ public sealed class EfRoles : IRoles
             .AsNoTracking()
             .Where(a => a.UserId == userId && (a.ExpiresAt == null || a.ExpiresAt > now))
             .ToListAsync(cancellationToken).ConfigureAwait(false);
-        return assignments
+        var honoured = new List<UserRole>(assignments.Count);
+        foreach (var assignment in assignments)
+        {
+            // E10.4: an assignment or a role changed outside the application grants nothing.
+            if (await _signer.IsValidAsync(assignment, "core.user_role", cancellationToken).ConfigureAwait(false)
+                && await _signer.IsValidAsync(assignment.Role!, "core.role", cancellationToken).ConfigureAwait(false))
+            {
+                honoured.Add(assignment);
+            }
+        }
+
+        return honoured
             .SelectMany(a => a.Role!.Permissions.Select(p => a.SiteId is { } site ? PermissionClaims.SiteGrant(p.PermissionName, site) : PermissionClaims.OrganizationGrant(p.PermissionName)))
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
@@ -210,11 +224,28 @@ public sealed class EfRoles : IRoles
         ArgumentNullException.ThrowIfNull(catalog);
 
         var existing = await _context.Set<Role>().Include(r => r.Permissions).Where(r => r.BuiltInKey != null).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var failed = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var candidate in existing)
+        {
+            if (!await _signer.IsValidAsync(candidate, "core.role", cancellationToken).ConfigureAwait(false))
+            {
+                failed.Add(candidate.BuiltInKey!);
+            }
+        }
+
         var created = 0;
         var now = _timeProvider.GetUtcNow();
+        Role? administrator = null;
         foreach (var builtIn in BuiltInRoles.All)
         {
+            // E10.4: a built-in role whose row fails verification (a key moved onto another role, say) is never
+            // modified or recreated here, since that would sign the change; it grants nothing until it is restored.
             var role = existing.SingleOrDefault(r => string.Equals(r.BuiltInKey, builtIn.Key(), StringComparison.Ordinal));
+            if (failed.Contains(builtIn.Key()) || (role is null && await _context.Set<Role>().AnyAsync(r => r.NameNormalized == Normalize(builtIn.DisplayName()), cancellationToken).ConfigureAwait(false)))
+            {
+                continue;
+            }
+
             if (role is null)
             {
                 role = new Role { Name = builtIn.DisplayName(), NameNormalized = Normalize(builtIn.DisplayName()), Description = builtIn.Description(), BuiltInKey = builtIn.Key(), UpdatedBy = WmsAuditing.SystemIdentity, UpdatedAt = now };
@@ -230,9 +261,16 @@ public sealed class EfRoles : IRoles
                 Replace(role, wanted, validate: false);
                 role.UpdatedAt = now;
             }
+
+            administrator = builtIn == BuiltInRole.Administrator ? role : administrator;
         }
 
-        await EnsureLocalAdministratorsHoldTheRoleAsync(now, cancellationToken).ConfigureAwait(false);
+        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);   // roles first: an assignment is signed with its role's id (E10.4)
+        if (administrator is not null)
+        {
+            await EnsureLocalAdministratorsHoldTheRoleAsync(administrator, now, cancellationToken).ConfigureAwait(false);
+        }
+
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return created;
     }
@@ -241,8 +279,10 @@ public sealed class EfRoles : IRoles
 
     private async Task RevokeSessionsAsync(long userId, DateTimeOffset now, CancellationToken cancellationToken)
     {
+        // A user row that fails verification is left as it is: saving it would re-sign the tampering (E10.4). Its
+        // sessions are already refused on every request, so there is nothing to revoke.
         var user = await _context.Users.SingleOrDefaultAsync(u => u.Id == userId, cancellationToken).ConfigureAwait(false);
-        if (user is not null)
+        if (user is not null && await _signer.IsValidAsync(user, "core.user", cancellationToken).ConfigureAwait(false))
         {
             user.SessionsValidAfter = now;
             user.UpdatedAt = now;
@@ -263,10 +303,17 @@ public sealed class EfRoles : IRoles
 
 
 
-    private async Task EnsureLocalAdministratorsHoldTheRoleAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    private async Task EnsureLocalAdministratorsHoldTheRoleAsync(Role administrator, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var administrator = _context.Set<Role>().Local.Single(r => string.Equals(r.BuiltInKey, BuiltInRole.Administrator.Key(), StringComparison.Ordinal));
-        var admins = await _context.Users.Where(u => u.IsLocalAdmin).Select(u => u.Id).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var admins = new List<long>();
+        foreach (var user in await _context.Users.AsNoTracking().Where(u => u.IsLocalAdmin).ToListAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (await _signer.IsValidAsync(user, "core.user", cancellationToken).ConfigureAwait(false))   // E10.4: a flag set outside the application grants nothing
+            {
+                admins.Add(user.Id);
+            }
+        }
+
         var assigned = administrator.Id == 0
             ? []
             : await _context.Set<UserRole>().Where(a => a.RoleId == administrator.Id && a.SiteId == null).Select(a => a.UserId).ToListAsync(cancellationToken).ConfigureAwait(false);

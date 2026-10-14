@@ -79,6 +79,25 @@ public static class SessionClaims
 
 
     /// <summary>
+    /// <paramref name="principal"/> with its permission claims replaced by <paramref name="grants"/>; every other
+    /// claim, and the authentication type, unchanged.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    public static ClaimsPrincipal WithGrants(ClaimsPrincipal principal, IReadOnlyList<string> grants)
+    {
+        ArgumentNullException.ThrowIfNull(principal);
+        ArgumentNullException.ThrowIfNull(grants);
+
+        var source = principal.Identity as ClaimsIdentity;
+        var identity = new ClaimsIdentity(source?.AuthenticationType, source?.NameClaimType ?? UserName, roleType: null);
+        identity.AddClaims(principal.Claims.Where(c => !string.Equals(c.Type, PermissionClaims.ClaimType, StringComparison.Ordinal)).Select(c => new Claim(c.Type, c.Value, c.ValueType, c.Issuer, c.OriginalIssuer)));
+        identity.AddClaims(grants.Select(g => new Claim(PermissionClaims.ClaimType, g)));
+        return new ClaimsPrincipal(identity);
+    }
+
+
+
+    /// <summary>
     /// The user id of a signed-in principal, or null when it carries none.
     /// </summary>
     public static long? UserIdOf(ClaimsPrincipal? principal)

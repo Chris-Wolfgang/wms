@@ -82,6 +82,9 @@ public sealed class IntegrityTests
             Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, await SignInAsync(client, "bob")));   // the assignment grants nothing
             Assert.Equal(1, (await first.Services.GetRequiredService<IntegrityVerificationJob>().RunOnceAsync(CancellationToken.None)).Failed);
             Assert.Equal(HttpStatusCode.Unauthorized, await RolesStatusAsync(first, held));   // the job ended the session that still carried the old grant
+            var afterRevoke = await SignInAsync(client, "bob");
+            await first.Services.GetRequiredService<IntegrityVerificationJob>().RunOnceAsync(CancellationToken.None);
+            Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, afterRevoke));   // the same failure ends sessions once, not on every scan
 
             var custom = await CreateRoleAsync(client, admin);
             await AssignAsync(client, admin, bob, custom);
@@ -102,6 +105,7 @@ public sealed class IntegrityTests
 
             using (var accounts = first.Services.CreateScope())
             {
+                await accounts.ServiceProvider.GetRequiredService<ISessionRevocations>().RevokeSessionsAsync(bob, CancellationToken.None);   // must not re-sign the failed row (checked below)
                 var store = accounts.ServiceProvider.GetRequiredService<ILocalAccounts>();
                 Assert.Null(await store.FindAsync(bob, CancellationToken.None));   // the tampered admin flag is never returned
                 Assert.Equal(PasswordChangeOutcome.IntegrityFailure, await store.ChangePasswordAsync(bob, Password, Password + "-x", CancellationToken.None));   // and never re-signed

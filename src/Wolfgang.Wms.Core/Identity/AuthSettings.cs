@@ -58,7 +58,7 @@ public static class AuthSettings
     /// <summary>
     /// How often the worker re-verifies every signed security row (E10.4).
     /// </summary>
-    public static readonly SettingKey<TimeSpan> IntegrityVerifyInterval = new("auth.integrity.verify_interval", TimeSpan.FromMinutes(1), "How often every signed security row is re-verified; a failed assignment or role ends its holders' sessions within one interval.")
+    public static readonly SettingKey<TimeSpan> IntegrityVerifyInterval = new("auth.integrity.verify_interval", TimeSpan.FromMinutes(1), "How often the worker re-verifies every signed security row and reports the failures (sessions need no revoking: their grants are recomputed on every request).")
     {
         Scopes = SettingScopes.Organization,
         Validator = v => v >= TimeSpan.FromSeconds(10) && v <= TimeSpan.FromDays(7) ? null : "must be between 10 seconds and 7 days",

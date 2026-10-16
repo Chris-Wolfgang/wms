@@ -53,6 +53,20 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Restore .NET workloads
+        # The solution carries a net10.0-android project (the handheld), and the android workload is
+        # not part of the SDK: a solution-level dotnet restore fails on it (NETSDK1147) without this.
+        # Same probe as pr.yaml and verify-docs-build below: only runs when a csproj declares a
+        # workload-bearing TFM.
+        shell: bash
+        run: |
+          if find . -name '*.csproj' -type f -exec grep -lE 'net[0-9]+\.[0-9]+-(android|ios|maccatalyst|maui|tvos|tizen|browser)' {} \; | grep -q .; then
+            echo "Workload-bearing TFMs detected — running dotnet workload restore"
+            dotnet workload restore
+          else
+            echo "No workload-bearing TFMs in any csproj — skipping dotnet workload restore"
+          fi
+
       - name: Restore dependencies
         run: dotnet restore
 
@@ -356,6 +370,20 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Restore .NET workloads
+        # The solution carries a net10.0-android project (the handheld), and the android workload is
+        # not part of the SDK: a solution-level dotnet restore fails on it (NETSDK1147) without this.
+        # Same probe as pr.yaml and verify-docs-build below: only runs when a csproj declares a
+        # workload-bearing TFM.
+        shell: bash
+        run: |
+          if find . -name '*.csproj' -type f -exec grep -lE 'net[0-9]+\.[0-9]+-(android|ios|maccatalyst|maui|tvos|tizen|browser)' {} \; | grep -q .; then
+            echo "Workload-bearing TFMs detected — running dotnet workload restore"
+            dotnet workload restore
+          else
+            echo "No workload-bearing TFMs in any csproj — skipping dotnet workload restore"
+          fi
+
       - name: Restore and build
         run: |
           dotnet restore
@@ -369,12 +397,16 @@ jobs:
           $packagesPath = Join-Path $PWD 'nuget-packages'
           New-Item -ItemType Directory -Force -Path $packagesPath | Out-Null
 
-          # Find all .csproj files in the src directory recursively
-          $projects = Get-ChildItem -Path 'src' -Recurse -Filter '*.csproj'
+          # Only projects that opt in with <IsPackable>true</IsPackable> are packed. Directory.Build.props
+          # makes IsPackable false by default: src/ holds the API, the console, the worker, the simulator,
+          # the handheld and wms-migrate, none of which is a NuGet package. Today the one package is
+          # Wolfgang.Wms.Client, the generated API client.
+          $projects = @(Get-ChildItem -Path 'src' -Recurse -Filter '*.csproj' |
+            Where-Object { (Get-Content $_.FullName -Raw) -match '<IsPackable>\s*true\s*</IsPackable>' })
           
           # Handle case when no projects are found (e.g., template repository)
           if ($projects.Count -eq 0) {
-            Write-Warning "No projects found in src/ directory - skipping package creation"
+            Write-Warning "No packable projects (<IsPackable>true</IsPackable>) found under src/ - skipping package creation"
             Write-Warning "Downstream publish and release jobs will be skipped"
             # Create empty directory for artifact upload
             New-Item -ItemType File -Path (Join-Path $packagesPath '.placeholder') -Force | Out-Null
@@ -483,7 +515,8 @@ jobs:
           
           Push-Location $testDir
           try {
-            dotnet new console -n SmokeTest -f net8.0
+            # Every project in this solution targets net10.0 (E85.1), so the package can only be referenced from net10.0.
+            dotnet new console -n SmokeTest -f net10.0
             
             # Try to install the newly created package(s)
             foreach ($package in $packages) {

@@ -66,10 +66,7 @@ jobs:
       - name: Install dotnet-stryker
         shell: pwsh
         run: |
-          dotnet tool update -g dotnet-stryker
-          if ($LASTEXITCODE -ne 0) {
-            dotnet tool install -g dotnet-stryker
-          }
+          dotnet tool install -g dotnet-stryker --version 5.0.0   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately
 
       - name: Run Stryker
         shell: pwsh

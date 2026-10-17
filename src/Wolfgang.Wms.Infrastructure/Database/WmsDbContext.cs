@@ -7,6 +7,7 @@ using Wolfgang.Wms.Infrastructure.Database.Auditing;
 using Wolfgang.Wms.Infrastructure.Database.Conventions;
 using Wolfgang.Wms.Infrastructure.Database.Settings;
 using Wolfgang.Wms.Infrastructure.Identity;
+using Wolfgang.Wms.Infrastructure.Integrity;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -97,6 +98,8 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration<UserRole>(roles);
         modelBuilder.Entity<DataProtectionKey>().ToTable("data_protection_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E8.6: library-owned, in wms like the migrations history
         modelBuilder.Entity<DataProtectionKey>().Property(k => k.FriendlyName).HasMaxLength(256);
+        modelBuilder.Entity<IntegrityKey>().ToTable("integrity_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E10.4: the HMAC key, protected by the ring
+        modelBuilder.Entity<IntegrityKey>().Property(k => k.ProtectedKey).HasMaxLength(512).IsRequired();
         ModelConventions.Apply(modelBuilder, Database.ProviderName);
     }
 }

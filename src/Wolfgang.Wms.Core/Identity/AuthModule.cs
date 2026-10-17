@@ -69,7 +69,7 @@ public static class AuthModule
         .Create("auth")
         .WithEndpoints(MapEndpoints)
         .WithSettings(AuthSettings.All)
-        .WithErrorCodes(AuthErrorCodes.InvalidCredentials, AuthErrorCodes.LockedOut, AuthErrorCodes.Disabled, AuthErrorCodes.NotSignedIn, AuthErrorCodes.Forbidden, AuthErrorCodes.PasswordChangeRequired, AuthErrorCodes.PasswordRejected, AuthErrorCodes.Unavailable);
+        .WithErrorCodes(AuthErrorCodes.InvalidCredentials, AuthErrorCodes.LockedOut, AuthErrorCodes.Disabled, AuthErrorCodes.IntegrityFailure, AuthErrorCodes.NotSignedIn, AuthErrorCodes.Forbidden, AuthErrorCodes.PasswordChangeRequired, AuthErrorCodes.PasswordRejected, AuthErrorCodes.Unavailable);
 
 
 
@@ -96,6 +96,7 @@ public static class AuthModule
         services.AddExceptionHandler<AuthExceptionHandler>();
         services.TryAddScoped<ILocalAccounts, NoLocalAccounts>();
         services.TryAddScoped<ISessionRevocations, NoSessionRevocations>();
+        services.TryAddScoped<ISessionGrants, NoSessionGrants>();
         services.AddWmsModule(Descriptor);
         return services;
     }
@@ -198,6 +199,7 @@ public static class AuthModule
             LocalLoginOutcome.Success => TypedResults.SignIn(SessionClaims.Principal(result.User!), new AuthenticationProperties { IsPersistent = false }, CookieAuthenticationDefaults.AuthenticationScheme),
             LocalLoginOutcome.LockedOut => ApiProblems.Problem(AuthErrorCodes.LockedOut, detail: null, result.LockedUntil?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty),
             LocalLoginOutcome.Disabled => ApiProblems.Problem(AuthErrorCodes.Disabled),
+            LocalLoginOutcome.IntegrityFailure => ApiProblems.Problem(AuthErrorCodes.IntegrityFailure),
             _ => ApiProblems.Problem(AuthErrorCodes.InvalidCredentials),
         };
     }
@@ -210,6 +212,11 @@ public static class AuthModule
 
         var userId = SessionClaims.UserIdOf(http.User) ?? throw new AuthException(AuthErrorCodes.NotSignedIn, "Sign in first.");
         var outcome = await accounts.ChangePasswordAsync(userId, body.CurrentPassword ?? string.Empty, body.NewPassword ?? string.Empty, cancellationToken).ConfigureAwait(false);
+        if (outcome == PasswordChangeOutcome.IntegrityFailure)
+        {
+            return ApiProblems.Problem(AuthErrorCodes.IntegrityFailure);
+        }
+
         if (outcome != PasswordChangeOutcome.Changed)
         {
             var reason = outcome switch

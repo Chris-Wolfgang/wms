@@ -34,6 +34,9 @@ independent deployability: one binary, one database, one installer.
    (`Wolfgang.Wms.Picking.Jobs`) and register via the descriptor. `Wolfgang.Wms.Worker` is a host only, so
    jobs can also run inside the API process on a one-box install. A job that fails N times or misses twice
    its interval raises an issue. No cron, no queue: tables are the queue.
+   *Not built yet (2026-10-15):* there is no `Core.Jobs` (no `IJob`, scheduler or `core.job_run`). Until it
+   lands, a job is a plain `BackgroundService` registered by its host, as the integrity verification job
+   (E10.4) is; it moves onto `Core.Jobs` when that exists.
 
 ## Consequences
 

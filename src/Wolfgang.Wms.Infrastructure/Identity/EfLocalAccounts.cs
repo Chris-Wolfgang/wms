@@ -8,6 +8,7 @@ using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Domain.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Integrity;
 
 namespace Wolfgang.Wms.Infrastructure.Identity;
 
@@ -24,6 +25,7 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<EfLocalAccounts> _logger;
     private readonly IRoles _roles;
+    private readonly IIntegritySigner _signer;
 
 
 
@@ -31,8 +33,9 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
     /// Creates the accounts.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public EfLocalAccounts(WmsDbContext context, IPasswordHasher<User> hasher, ISettings settings, TimeProvider timeProvider, ILogger<EfLocalAccounts> logger, IRoles roles)
+    public EfLocalAccounts(WmsDbContext context, IPasswordHasher<User> hasher, ISettings settings, TimeProvider timeProvider, ILogger<EfLocalAccounts> logger, IRoles roles, IIntegritySigner signer)
     {
+        _signer = signer ?? throw new ArgumentNullException(nameof(signer));
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _hasher = hasher ?? throw new ArgumentNullException(nameof(hasher));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -51,11 +54,22 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
 
         var now = _timeProvider.GetUtcNow();
         var user = await FindByNameAsync(userName, cancellationToken).ConfigureAwait(false);
-        if (user?.PasswordHash is null)
+        if (user is null)
         {
-            _hasher.VerifyHashedPassword(new User(), _hasher.HashPassword(new User(), "dummy"), password);   // same cost whether the name exists or not
-            LogAttempt(_logger, userName, LocalLoginOutcome.InvalidCredentials);
-            return LocalLoginResult.Refused(LocalLoginOutcome.InvalidCredentials);
+            return RefuseUnknown(userName, password);
+        }
+
+        // E10.4: a found row is verified before anything is read from it, so a hash nulled outside the application
+        // is an integrity failure, not an ordinary wrong password.
+        if (!await _signer.IsValidAsync(user, UserConfiguration.Schema + "." + UserConfiguration.Table, cancellationToken).ConfigureAwait(false))
+        {
+            LogAttempt(_logger, userName, LocalLoginOutcome.IntegrityFailure);
+            return LocalLoginResult.Refused(LocalLoginOutcome.IntegrityFailure);
+        }
+
+        if (user.PasswordHash is null)
+        {
+            return RefuseUnknown(userName, password);   // a provider account: it has no local password
         }
 
         if (user.IsDisabled)
@@ -91,6 +105,15 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
 
 
 
+    private LocalLoginResult RefuseUnknown(string userName, string password)
+    {
+        _hasher.VerifyHashedPassword(new User(), _hasher.HashPassword(new User(), "dummy"), password);   // same cost whether the name exists or not
+        LogAttempt(_logger, userName, LocalLoginOutcome.InvalidCredentials);
+        return LocalLoginResult.Refused(LocalLoginOutcome.InvalidCredentials);
+    }
+
+
+
     /// <inheritdoc/>
     public async Task<PasswordChangeOutcome> ChangePasswordAsync(long userId, string currentPassword, string newPassword, CancellationToken cancellationToken)
     {
@@ -98,7 +121,18 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
         ArgumentNullException.ThrowIfNull(newPassword);
 
         var user = await _context.Set<User>().SingleOrDefaultAsync(u => u.Id == userId, cancellationToken).ConfigureAwait(false);
-        if (user?.PasswordHash is null)
+        if (user is null)
+        {
+            return PasswordChangeOutcome.UserNotFound;
+        }
+
+        if (!await _signer.IsValidAsync(user, UserConfiguration.Schema + "." + UserConfiguration.Table, cancellationToken).ConfigureAwait(false))
+        {
+            LogPasswordChange(_logger, user.UserName, PasswordChangeOutcome.IntegrityFailure);   // E10.4: never re-sign a row changed outside the application
+            return PasswordChangeOutcome.IntegrityFailure;
+        }
+
+        if (user.PasswordHash is null)
         {
             return PasswordChangeOutcome.UserNotFound;
         }
@@ -131,7 +165,12 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
     public async Task<LocalUser?> FindAsync(long userId, CancellationToken cancellationToken)
     {
         var user = await _context.Set<User>().AsNoTracking().SingleOrDefaultAsync(u => u.Id == userId, cancellationToken).ConfigureAwait(false);
-        return user is null ? null : await ViewAsync(user, _timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
+        if (user is null || !await _signer.IsValidAsync(user, UserConfiguration.Schema + "." + UserConfiguration.Table, cancellationToken).ConfigureAwait(false))
+        {
+            return null;   // E10.4: a row changed outside the application is treated as absent, its admin flag included
+        }
+
+        return await ViewAsync(user, _timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
     }
 
 
@@ -212,13 +251,8 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
     /// </summary>
     private async Task<LocalUser> ViewAsync(User user, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var grants = (await _roles.GrantsOfAsync(user.Id, now, cancellationToken).ConfigureAwait(false)).ToList();
-        if (user.IsLocalAdmin)
-        {
-            grants.Insert(0, PermissionClaims.OrganizationGrant(PermissionClaims.Wildcard));
-        }
-
-        return new LocalUser(user.Id, user.UserName, user.DisplayName, user.MustChangePassword, user.IsLocalAdmin, user.IsDisabled, grants.Distinct(StringComparer.Ordinal).ToList());
+        var grants = EfSessionGrants.Combine(user.IsLocalAdmin, await _roles.GrantsOfAsync(user.Id, now, cancellationToken).ConfigureAwait(false));
+        return new LocalUser(user.Id, user.UserName, user.DisplayName, user.MustChangePassword, user.IsLocalAdmin, user.IsDisabled, grants);
     }
 
 

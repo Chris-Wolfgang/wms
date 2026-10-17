@@ -18,5 +18,7 @@
   href: identifiers.md
 - name: Database migrations
   href: migrate.md
+- name: Integrity signatures
+  href: integrity.md
 - name: Project website
   href: 'https://github.com/Chris-Wolfgang/wms'

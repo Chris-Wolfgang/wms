@@ -19,8 +19,10 @@ configuration task (E11.0).
   auth.not_signed_in`, a forbidden one `403 auth.forbidden`.
 - **Local accounts are one provider among several.** `ILocalAccounts` (E9) validates credentials and issues
   the same claims every provider will (`SessionClaims`); E11.0's provider interface adds challenge/callback
-  providers that end in the same cookie. The claims carry the user id, names and the must-change flag; roles
-  and site scopes (E10) are claims too, so authorization never re-reads the user row per request.
+  providers that end in the same cookie. The claims carry the user id, names and the must-change flag; the
+  permission grants (E10) are claims too, but they are recomputed on every request from the user row and the
+  role assignments, each verified against its integrity signature, and replace the ones the cookie was
+  issued with (E10.4, amended 2026-10-15: before #214 the cookie's grants were used as issued).
 - **Passwords** are hashed with ASP.NET Core Identity's `PasswordHasher` (PBKDF2-HMAC-SHA512, iterated,
   upgradable in place), never audited, never logged. Lockout after `auth.local.lockout_threshold` failures
   for `auth.local.lockout_duration`; every attempt is logged at Warning; the sign-in endpoint is rate-limited
@@ -37,5 +39,7 @@ configuration task (E11.0).
 - The console needs no auth code of its own beyond a login page and forwarding the cookie; the API is the
   one place identity is decided.
 - Every instance must share the key ring (already required by E8.6); a rotated ring signs everyone out.
-- Per-user "sessions valid after" (E10.5) is checked on the cookie's principal against the user row through a
-  cached lookup, not on every request from the database.
+- Every request reads the user row (verified, E10.4) for "sessions valid after" (E10.5) and recomputes the
+  session's grants from the assignments, so a role change or a database edit takes effect on the next request.
+  That is a few primary-key reads per request; a per-instance cache of the revocation lookup is planned (#1016)
+  (amended 2026-10-15: this ADR first described a cached lookup that was not built).

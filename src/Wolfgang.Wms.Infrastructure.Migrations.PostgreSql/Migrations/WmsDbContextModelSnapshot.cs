@@ -274,6 +274,11 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         .HasColumnName("row_version")
                         .HasDefaultValueSql("nextval('wms.row_version_seq')");
 
+                    b.Property<string>("Signature")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("signature");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasPrecision(3)
                         .HasColumnType("timestamp(3) with time zone")
@@ -391,6 +396,11 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         .HasColumnType("timestamp(3) with time zone")
                         .HasColumnName("sessions_valid_after");
 
+                    b.Property<string>("Signature")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("signature");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasPrecision(3)
                         .HasColumnType("timestamp(3) with time zone")
@@ -449,6 +459,11 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         .HasColumnName("row_version")
                         .HasDefaultValueSql("nextval('wms.row_version_seq')");
 
+                    b.Property<string>("Signature")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("signature");
+
                     b.Property<long?>("SiteId")
                         .HasColumnType("bigint")
                         .HasColumnName("site_id");
@@ -485,6 +500,32 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         {
                             t.HasTrigger("trg_user_role_row_version");
                         });
+                });
+
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Integrity.IntegrityKey", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ProtectedKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("protected_key");
+
+                    b.HasKey("Id")
+                        .HasName("pk_integrity_key");
+
+                    b.ToTable("integrity_key", "wms");
                 });
 
             modelBuilder.Entity("Wolfgang.AuditTrail.Entities.AuditDetail", b =>

@@ -15,6 +15,7 @@ using Wolfgang.AuditTrail.Entities;
 using Wolfgang.Wms.Core.Api;
 using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Identity.Providers;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
@@ -67,6 +68,9 @@ public sealed class LocalAccountsTests
             await AssertPasswordChangeAsync(client, cookie);
             await AssertLockoutAsync(client);
             await AssertAuditAsync(first.Services);
+            using var health = first.Services.CreateScope();
+            var local = health.ServiceProvider.GetRequiredService<AuthProviderCatalog>().Find(AuthProviderSettings.Local)!;
+            Assert.True((await local.CheckAsync(health.ServiceProvider, CancellationToken.None)).Healthy);   // E11.0: the database was probed and answered
         }
 
         await using var second = await StartHostAsync(provider, runtime, trustServerCertificate);

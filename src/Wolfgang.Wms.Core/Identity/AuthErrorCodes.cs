@@ -68,7 +68,14 @@ public static class AuthErrorCodes
 
 
     /// <summary>
-    /// Local accounts need the database, which is not configured yet (bootstrap).
+    /// The named identity provider is not enabled (or not registered) on this host (E11.0).
+    /// </summary>
+    public static ErrorCode ProviderNotEnabled { get; } = new("auth.provider_not_enabled", StatusCodes.Status404NotFound, "Identity provider '{0}' is not enabled.", "auth-provider-not-enabled", ErrorSeverity.Warning);
+
+
+
+    /// <summary>
+    /// Sign-in is unavailable until the database is configured.
     /// </summary>
     public static ErrorCode Unavailable { get; } = new("auth.unavailable", StatusCodes.Status503ServiceUnavailable, "Sign-in is unavailable until the database is configured.", "auth-unavailable", ErrorSeverity.Error);
 }

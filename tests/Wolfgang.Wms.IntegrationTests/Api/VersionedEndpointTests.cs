@@ -95,7 +95,7 @@ public sealed class VersionedEndpointTests : IAsyncLifetime
     {
         var json = await _client!.GetStringAsync(new Uri("/openapi/v0.json", UriKind.Relative));
         using var document = JsonDocument.Parse(json);
-        var answer = await _client!.GetStringAsync(new Uri("/api/v0/version-echo", UriKind.Relative));
+        var answer = await _client.GetStringAsync(new Uri("/api/v0/version-echo", UriKind.Relative));
 
         var operation = document.RootElement.GetProperty("paths").GetProperty("/api/v0/version-echo").GetProperty("get");
         // The route's version value was the endpoint's only parameter: once it is removed nothing is left, and the

@@ -38,6 +38,7 @@ jobs:
   benchmark:
     name: Run BenchmarkDotNet & publish chart
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     permissions:
       # Required to push the rendered chart + history to the gh-pages branch.

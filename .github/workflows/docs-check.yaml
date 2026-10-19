@@ -40,6 +40,7 @@ jobs:
     needs: build
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       issues: write
@@ -79,6 +80,7 @@ jobs:
   links:
     name: "Link check"
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       issues: write

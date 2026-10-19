@@ -51,6 +51,7 @@ jobs:
   secrets-scan:
     name: "Secrets Scan (gitleaks)"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -113,6 +114,7 @@ jobs:
   detect-projects:
     name: "Detect .NET Projects"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # The full checks (every job that needs this one: Stage 1, Stage 2, InspectCode, AOT smoke, OpenAPI diff)
     # run only for a pull request that targets main. A stacked PR (base = another PR's branch) gets them when it
     # reaches main; until then the per-push workflows (actionlint, zizmor, Semgrep, SBOM, SourceLink, licence
@@ -382,6 +384,7 @@ jobs:
   changelog-check:
     name: "Changelog Fragment Check"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event.pull_request.user.login != 'dependabot[bot]'
     steps:
       - name: Checkout code
@@ -442,6 +445,7 @@ jobs:
   openapi-diff:
     name: "OpenAPI Diff"
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: detect-projects
     if: github.repository != 'Chris-Wolfgang/repo-template' && needs.detect-projects.outputs.has-projects == 'true'
     permissions:
@@ -755,6 +759,7 @@ jobs:
   test-linux-core: 
     name: "Stage 1: Linux Tests (.NET 5.0-10.0) + Coverage Gate"
     runs-on:  ubuntu-latest
+    timeout-minutes: 45
     needs: detect-projects
     if: github.repository != 'Chris-Wolfgang/repo-template' && needs.detect-projects.outputs.has-projects == 'true'
     
@@ -1437,6 +1442,7 @@ jobs:
   test-windows:
     name: "Stage 2: Windows Tests (.NET 5.0-10.0, Framework 4.6.2-4.8.1)"
     runs-on: windows-latest
+    timeout-minutes: 60
     needs: [detect-projects, test-linux-core]
     if: github.repository != 'Chris-Wolfgang/repo-template' && needs.detect-projects.outputs.has-projects == 'true'
     
@@ -1899,6 +1905,7 @@ jobs:
   security-scan:
     name: "Security Scan (DevSkim)"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
       - name: Checkout code

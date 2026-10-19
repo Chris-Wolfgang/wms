@@ -45,7 +45,8 @@ jobs:
           go-version: 'stable'
 
       - name: Install actionlint
-        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+        # Pinned to the commit the v1.7.12 tag resolves to (a tag can move; a commit cannot).
+        run: go install github.com/rhysd/actionlint/cmd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca  # v1.7.12
 
       - name: Run actionlint
         run: actionlint -color

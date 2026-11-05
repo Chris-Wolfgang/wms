@@ -40,7 +40,7 @@ public sealed class NoLocations : ILocations
 
 
     /// <inheritdoc/>
-    public Task<LocationInfo> UpdateAsync(long siteId, long locationId, LocationDraft draft, string updatedBy, CancellationToken cancellationToken)
+    public Task<LocationInfo> UpdateAsync(long siteId, long locationId, long expectedRowVersion, LocationDraft draft, string updatedBy, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);

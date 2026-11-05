@@ -13,6 +13,9 @@ namespace Wolfgang.Wms.Infrastructure.Zones;
 /// </summary>
 public sealed class EfZones : IZones
 {
+    /// <summary>The unique index on the site and the normalized code.</summary>
+    private const string CodeIndex = "ux_zone_site_id_code_normalized";
+
     private readonly WmsDbContext _context;
     private readonly TimeProvider _timeProvider;
     private readonly IOpenZoneGroups _openGroups;
@@ -65,14 +68,14 @@ public sealed class EfZones : IZones
         var row = new Zone { SiteId = siteId };
         row.Apply(draft, _timeProvider.GetUtcNow(), updatedBy);
         await _context.Zones.AddAsync(row, cancellationToken).ConfigureAwait(false);
-        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await SaveAsync(siteId, draft.Code, cancellationToken).ConfigureAwait(false);
         return row.ToInfo();
     }
 
 
 
     /// <inheritdoc/>
-    public async Task<ZoneInfo> UpdateAsync(long siteId, long zoneId, ZoneDraft draft, string updatedBy, CancellationToken cancellationToken)
+    public async Task<ZoneInfo> UpdateAsync(long siteId, long zoneId, long expectedRowVersion, ZoneDraft draft, string updatedBy, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);
@@ -80,6 +83,11 @@ public sealed class EfZones : IZones
         Validate(draft);
         await RequireSiteAsync(siteId, cancellationToken).ConfigureAwait(false);
         var row = await _context.Zones.Include(z => z.Resolvers).FirstOrDefaultAsync(z => z.SiteId == siteId && z.Id == zoneId, cancellationToken).ConfigureAwait(false) ?? throw NotFound(zoneId);
+        if (row.RowVersion != expectedRowVersion)
+        {
+            throw new DbUpdateConcurrencyException($"Zone {zoneId} changed after its version was checked.");   // the same 412 a lost save answers
+        }
+
         await RequireCodeFreeAsync(siteId, draft.Code, zoneId, cancellationToken).ConfigureAwait(false);
         await RequireResolversAsync(draft.Resolution, cancellationToken).ConfigureAwait(false);
         if (row.IsActive && !draft.IsActive)
@@ -94,8 +102,27 @@ public sealed class EfZones : IZones
         var wanted = draft.Resolution?.ResolverUserIds ?? [];
         _context.RemoveRange(row.Resolvers.Where(r => !wanted.Contains(r.UserId)));   // the FKs are Restrict by convention: delete the orphans explicitly
         row.Apply(draft, _timeProvider.GetUtcNow(), updatedBy);
-        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await SaveAsync(siteId, draft.Code, cancellationToken).ConfigureAwait(false);
         return row.ToInfo();
+    }
+
+
+
+    /// <summary>
+    /// Saves, reporting the loser of a race on the code as the conflict <see cref="RequireCodeFreeAsync"/> would
+    /// have reported had it come second.
+    /// </summary>
+    /// <exception cref="ZoneException">Another writer took the code first.</exception>
+    private async Task SaveAsync(long siteId, string code, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException exception) when (UniqueIndexViolation.Is(exception, CodeIndex))
+        {
+            throw CodeTaken(siteId, code);
+        }
     }
 
 
@@ -115,8 +142,15 @@ public sealed class EfZones : IZones
         var normalized = ZoneRules.Normalize(code);
         if (await _context.Zones.AnyAsync(z => z.SiteId == siteId && z.CodeNormalized == normalized && z.Id != exceptZoneId, cancellationToken).ConfigureAwait(false))
         {
-            throw new ZoneException(ZoneErrorCodes.CodeTaken, $"A zone with code '{code.Trim()}' already exists in site {siteId}.");
+            throw CodeTaken(siteId, code);
         }
+    }
+
+
+
+    private static ZoneException CodeTaken(long siteId, string code)
+    {
+        return new ZoneException(ZoneErrorCodes.CodeTaken, $"A zone with code '{code.Trim()}' already exists in site {siteId}.");
     }
 
 

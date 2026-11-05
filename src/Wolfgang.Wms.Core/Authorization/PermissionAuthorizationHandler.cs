@@ -2,6 +2,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 
 namespace Wolfgang.Wms.Core.Authorization;
 
@@ -18,8 +19,8 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         ArgumentNullException.ThrowIfNull(requirement);
 
         var http = context.Resource as HttpContext;
-        var siteId = http is null ? null : SiteContext.SiteIdOf(http);
-        if (PermissionClaims.Allows(context.User, requirement.Permission, siteId) || AdmittedSomewhere(context, requirement, http, siteId))
+        var siteId = http is null || IsOrganizationWide(http, requirement) ? null : SiteContext.SiteIdOf(http);
+        if (PermissionClaims.Allows(context.User, requirement.Permission, siteId) || AdmittedSomewhere(context, requirement, http))
         {
             context.Succeed(requirement);
         }
@@ -30,17 +31,28 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
 
 
     /// <summary>
-    /// E16.3: a collection endpoint marked <see cref="CollectionScopeMetadata"/> (no <c>siteId</c> in its route)
-    /// admits a caller who holds the permission at any site; the endpoint then filters through <see cref="SiteScope"/>.
+    /// E16.3: an endpoint marked <see cref="CollectionScopeMetadata"/> for this permission, with no <c>siteId</c> in
+    /// its route, admits a caller who holds the permission at any site, whatever site the <c>X-Wms-Site</c> header
+    /// names; the endpoint then filters through <see cref="SiteScope"/>. A routed site keeps its own check, and the
+    /// marker relaxes only the permission it names.
     /// </summary>
-    private static bool AdmittedSomewhere(AuthorizationHandlerContext context, PermissionRequirement requirement, HttpContext? http, long? siteId)
+    private static bool AdmittedSomewhere(AuthorizationHandlerContext context, PermissionRequirement requirement, HttpContext? http)
     {
-        if (siteId is not null || http?.GetEndpoint()?.Metadata.GetMetadata<CollectionScopeMetadata>() is null)
+        if (http is null
+            || http.GetRouteValue(SiteContext.RouteValue) is not null
+            || http.GetEndpoint()?.Metadata.GetOrderedMetadata<CollectionScopeMetadata>().Any(m => m.Permission.Equals(requirement.Permission)) != true)
         {
             return false;
         }
 
         var scope = SiteScope.Of(context.User, requirement.Permission);
         return scope.IsUnrestricted || scope.SiteIds.Count > 0;
+    }
+
+
+
+    private static bool IsOrganizationWide(HttpContext http, PermissionRequirement requirement)
+    {
+        return http.GetEndpoint()?.Metadata.GetOrderedMetadata<OrganizationScopeMetadata>().Any(m => m.Permission.Equals(requirement.Permission)) == true;
     }
 }

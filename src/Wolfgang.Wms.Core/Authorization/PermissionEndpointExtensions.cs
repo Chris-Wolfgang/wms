@@ -50,6 +50,23 @@ public static class PermissionEndpointExtensions
 
 
     /// <summary>
+    /// Requires <paramref name="permission"/> organization-wide, whatever site the request names (E16.1): for an
+    /// operation over every site, or one that creates a site.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    public static TBuilder RequirePermissionAtOrganization<TBuilder>(this TBuilder builder, Permission permission)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(permission);
+
+        builder.RequirePermission(permission);
+        builder.WithMetadata(new OrganizationScopeMetadata(permission));
+        return builder;
+    }
+
+
+
+    /// <summary>
     /// Registers the catalog, the policy provider and the handler.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="services"/> is null.</exception>

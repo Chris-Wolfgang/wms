@@ -162,14 +162,17 @@ settings schema (the keys the console renders as the provider's configuration bl
 connection"). Implementations are registered in DI at startup, each provider kind in its own project
 (`local` is built into Core; `oidc` arrives with E11.1); adding a kind is a release.
 
-Which providers the console offers is the `auth.providers.enabled` setting (comma-separated, in
-login-page order; default `local`). It is applied at runtime: a challenge provider's authentication scheme
-is added to `IAuthenticationSchemeProvider` when the setting names it and removed when it is dropped, and a
-provider whose settings changed is told to drop its cached handler options; every instance re-reads the
-setting every 5 seconds. Names that are not registered are logged and skipped.
+An install uses one identity provider, the `auth.provider` setting (one name; default `local`), plus the
+local administrator as the break-glass path under single sign-on (E9.3). Running two providers at once is not
+supported. The provider is chosen at installation; changing it later is a reconfiguration of the system
+(the new provider's settings, its users and groups, a planned window), not a routine switch, and switching
+without an outage is not a requirement. Instances re-read the setting every 5 seconds, adding a challenge
+provider's scheme to `IAuthenticationSchemeProvider` when it becomes active, removing it when it stops being,
+and telling a provider whose settings changed to drop its cached handler options; a restart is an acceptable
+part of a reconfiguration. A name that is not registered is logged and leaves no provider offered.
 
-- `GET /auth/providers` (anonymous): the enabled providers for the login page, each with its kind and,
-  for a challenge provider, the URL that starts its sign-in.
+- `GET /auth/providers` (anonymous): the active provider for the login page, as a list of at most one, with
+  its kind and, for a challenge provider, the URL that starts its sign-in.
 - `GET /auth/{provider}/challenge?returnUrl=` (anonymous): starts a challenge provider's sign-in; only
   local return URLs are honoured; `404 auth.provider_not_enabled` otherwise.
 - `POST /auth/providers/{name}/check` (`auth.providers.manage`): the provider's health check.

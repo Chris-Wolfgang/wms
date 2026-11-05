@@ -1,6 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Wolfgang.Wms.Core.Configuration;
+using Wolfgang.Wms.Core.Licensing;
 using Wolfgang.Wms.Core.Logging;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Integrity;
@@ -29,6 +30,7 @@ else if (!string.Equals(role, "ingest", StringComparison.OrdinalIgnoreCase))
 }
 
 builder.Services.AddWmsLoggingModule();   // E12.4: the worker's level follows the same settings (no endpoints are mapped here)
+builder.Services.AddWmsLicenseModule();   // E79: the worker's jobs read the same license (no endpoints are mapped here)
 
 // Jobs register here as hosted services (E1.10); the worker is a host only.
 var host = builder.Build();

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System;
+using Wolfgang.Wms.Client.Generated.Api.V0.System.License;
 using Wolfgang.Wms.Client.Generated.Api.V0.System.Logging;
 using Wolfgang.Wms.Client.Generated.Api.V0.System.Schema;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.System
@@ -16,6 +17,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.System
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class SystemRequestBuilder : BaseRequestBuilder
     {
+        /// <summary>The license property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.System.License.LicenseRequestBuilder License
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.System.License.LicenseRequestBuilder(PathParameters, RequestAdapter);
+        }
         /// <summary>The logging property</summary>
         public global::Wolfgang.Wms.Client.Generated.Api.V0.System.Logging.LoggingRequestBuilder Logging
         {

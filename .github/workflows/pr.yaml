@@ -93,7 +93,7 @@ jobs:
         # update scripts/build-pr.ps1 to the same version.
         run: |
           GITLEAKS_VERSION="8.30.1"
-          GITLEAKS_SHA256="551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+          GITLEAKS_SHA256="551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"  # DevSkim: ignore DS173237 - the published checksum of the gitleaks release archive, not a secret
           mkdir -p "$HOME/.local/bin"
           TARBALL="$(mktemp)"
           curl -sSfL -o "$TARBALL" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
@@ -492,7 +492,7 @@ jobs:
       - name: Breaking changes (fails only for a frozen version)
         id: breaking
         if: steps.classify.outputs.state == 'changed'
-        uses: oasdiff/oasdiff-action/breaking@b9325c9e0a27ab65b0da3b766522cedec6be81dc  # v0.1.18
+        uses: oasdiff/oasdiff-action/breaking@9e56cf8b3aff7edb326d5767d3d23f96127e20c3  # v0.1.21
         with:
           base: base/docs/api/openapi-${{ matrix.document }}.json
           revision: pr/docs/api/openapi-${{ matrix.document }}.json
@@ -501,7 +501,7 @@ jobs:
 
       - name: Changelog
         if: steps.classify.outputs.state == 'changed'
-        uses: oasdiff/oasdiff-action/changelog@b9325c9e0a27ab65b0da3b766522cedec6be81dc  # v0.1.18
+        uses: oasdiff/oasdiff-action/changelog@9e56cf8b3aff7edb326d5767d3d23f96127e20c3  # v0.1.21
         with:
           base: base/docs/api/openapi-${{ matrix.document }}.json
           revision: pr/docs/api/openapi-${{ matrix.document }}.json
@@ -733,9 +733,15 @@ jobs:
             --no-build
 
       - name: Upload SARIF to Code Scanning
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370  # v4.39.1
         with:
           sarif_file: inspect.sarif
+          # Under pull_request_target the action's defaults are github.ref / github.sha, which are main and
+          # main's commit, so every PR's findings landed on the default branch's alert list (and fed the nightly
+          # alert-to-issue triage) while the PR itself was never annotated. The analysis ran on the PR head
+          # checked out above, so that is what it is recorded against.
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          sha: ${{ github.event.pull_request.head.sha }}
 
       - name: Gate on error-severity findings
         run: |
@@ -754,7 +760,9 @@ jobs:
   # ============================================================================
   test-linux-core: 
     name: "Stage 1: Linux Tests (.NET 5.0-10.0) + Coverage Gate"
-    runs-on:  ubuntu-latest
+    # Pinned to 24.04: on ubuntu-latest (26.04) the netcoreapp3.1 test host finds no ICU it can
+    # load and aborts. Keep the pin until the netcoreapp3.1 slot is handled another way.
+    runs-on: ubuntu-24.04
     needs: detect-projects
     if: github.repository != 'Chris-Wolfgang/repo-template' && needs.detect-projects.outputs.has-projects == 'true'
     
@@ -860,11 +868,23 @@ jobs:
         # avoid ~5-15s of network-dependent setup and an extra failure mode.
         shell: bash
         run: |
-          if find . -name '*.csproj' -type f -exec grep -lE 'net[0-9]+\.[0-9]+-(android|ios|maccatalyst|maui|tvos|tizen|browser)' {} \; | grep -q .; then
-            echo "Workload-bearing TFMs detected — running dotnet workload restore"
+          # Only a project this job will build needs its workload: one that lists a platform TFM
+          # (net10.0-android) next to a Linux-buildable one. A platform-only project (the handheld)
+          # is excluded by the build filter below, so installing the Android workload for it costs
+          # minutes on every run and produces nothing.
+          needs_workload=false
+          while IFS= read -r -d '' proj; do
+            flat=$(tr -d '\n\r' < "$proj")
+            if printf '%s' "$flat" | grep -qE 'net[0-9]+\.[0-9]+-(android|ios|maccatalyst|maui|tvos|tizen|browser)' \
+               && printf '%s' "$flat" | grep -qE '<TargetFramework[s]?>[^<]*(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)([;<]|$)|netcoreapp|netstandard)'; then
+              needs_workload=true
+            fi
+          done < <(find . -name '*.csproj' -type f -print0)
+          if [ "$needs_workload" = true ]; then
+            echo "A project this job builds carries a workload-bearing TFM — running dotnet workload restore"
             dotnet workload restore
           else
-            echo "No workload-bearing TFMs in any csproj — skipping dotnet workload restore"
+            echo "No project this job builds carries a workload-bearing TFM — skipping dotnet workload restore"
           fi
 
       - name: Restore and build (exclude .NET Framework-only projects)
@@ -881,11 +901,14 @@ jobs:
             # Check if project has any .NET 5+ target framework
             # Look for: net5.0, net6.0, net7.0, net8.0, net9.0, net10.0, or netcoreapp, netstandard
             # Normalize line endings to handle multi-line <TargetFramework> / <TargetFrameworks> elements
-            if tr -d '\n\r' < "$proj" | grep -qE '<TargetFramework[s]?>.*(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)|netcoreapp|netstandard)'; then
+            # Exact TFM only ([;<] or end after the moniker): a platform TFM such as net10.0-android is
+            # not buildable here, and the per-framework filter below would skip it anyway, so restoring
+            # it (and its workload) was wasted work.
+            if tr -d '\n\r' < "$proj" | grep -qE '<TargetFramework[s]?>[^<]*(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)([;<]|$)|netcoreapp|netstandard)'; then
               projects+=("$proj")
               echo "✓ Including: $proj (has .NET 5+ or .NET Core target)"
             else
-              echo "⊘ Excluding: $proj (Framework-only, incompatible with Linux)"
+              echo "⊘ Excluding: $proj (no Linux-buildable target: Framework-only or platform TFM)"
             fi
           done < <(find . -type f \( -name "*.csproj" -o -name "*.vbproj" -o -name "*.fsproj" \) -print0)
           
@@ -970,6 +993,9 @@ jobs:
         # main's. It runs against the PR's projects (-Root), as the build and tests already do.
         # It also runs for Dependabot (an EF Core bump can change the model), which skips the
         # trusted-config step, so the main-branch ref is fetched here when it is missing.
+        # Git only in this step: the job token is in its environment. The check itself runs in the next
+        # step, without the token, because dotnet-ef loads and executes the PR's DbContext (#917).
+        id: migrations-check-source
         shell: bash
         env:
           TRUSTED_MAIN_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}
@@ -980,9 +1006,17 @@ jobs:
           fi
           if ! git cat-file -e "main-branch:$checker" 2>/dev/null; then
             echo "$checker is not on main yet; the migrations check starts once it lands there."
+            echo "present=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git show "main-branch:$checker" > "$RUNNER_TEMP/Check-Migrations.ps1"
+          echo "present=true" >> "$GITHUB_OUTPUT"
+
+      - name: Migrations cover the model on both providers (E2.4) - run the check
+        # No token in this step's environment: dotnet-ef builds and executes the PR's model.
+        if: steps.migrations-check-source.outputs.present == 'true'
+        shell: bash
+        run: |
           # The EF CLI matches the EF Core packages the project pins (PR-supplied data: x.y.z only).
           ef_version=$(grep -ohE 'Include="Microsoft\.EntityFrameworkCore\.SqlServer" Version="[0-9]+\.[0-9]+\.[0-9]+"' src/Wolfgang.Wms.Infrastructure/*.csproj | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)
           if [ -z "$ef_version" ]; then
@@ -1117,8 +1151,11 @@ jobs:
             echo "has-coverage=true" >> "$GITHUB_OUTPUT"
             echo "✅ Coverage files found"
           else
+            # Tests ran (the step above refuses to run with no test projects), so no cobertura file means the
+            # collector did not run or produced nothing: a gate that cannot measure must fail, not skip (#915).
             echo "has-coverage=false" >> "$GITHUB_OUTPUT"
-            echo "ℹ️  No coverage files found - skipping coverage report generation"
+            echo "::error::No coverage files found under TestResults although tests ran (looked for TestResults/**/coverage.cobertura.xml), so the coverage gate cannot be enforced. Check that every test project references coverlet.collector, that --settings coverlet.runsettings points at the file at the repository root, and that no test host crashed before the collector wrote its report."
+            exit 1
           fi
 
       - name: Install ReportGenerator
@@ -1133,7 +1170,7 @@ jobs:
             -targetdir:"CoverageReport" \
             -reporttypes:"Html;TextSummary;MarkdownSummaryGithub;CsvSummary"
 
-      - name: Enforce 90% coverage threshold
+      - name: Enforce coverage thresholds
         if: steps.check-coverage.outputs.has-coverage == 'true'
         run: |
           if [ ! -f CoverageReport/Summary.txt ]; then
@@ -1264,20 +1301,12 @@ jobs:
 
       - name: Upload Linux coverage results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: coverage-linux
           path: |
             TestResults/
             CoverageReport/
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: build-output
-          path: |
-            src/**/bin/Release
-            tests/**/bin/Release
 
   # ============================================================================
   # AOT SMOKE: every NativeAOT project published and run on Linux
@@ -1464,6 +1493,9 @@ jobs:
           
           # Fetch the main branch
           git fetch "$env:TRUSTED_MAIN_URL" main:main-branch
+          # Without main there is nothing trusted to copy: stop here rather than continue with the PR's own copies
+          # (the bash stages run under -e and stop the same way).
+          if ($LASTEXITCODE -ne 0) { Write-Host "::error::Failed to fetch main - aborting before the trusted-config copy to prevent a silent fall-back to PR-supplied protected config."; exit 1 }
           
           # List of configuration files that should come from trusted main branch
           $configFiles = @(
@@ -1497,7 +1529,9 @@ jobs:
           # .editorconfig overrides analyzer severities for everything beneath it).
           $globPatterns = @("*.editorconfig", "*.globalconfig", "*.ruleset", "*.DotSettings", ".github/workflows/*.yml", ".github/workflows/*.yaml")
           foreach ($pattern in $globPatterns) {
-            $files = git ls-tree -r --name-only main-branch | Select-String -Pattern $pattern.Replace("*", ".*")
+            $listed = git ls-tree -r --name-only main-branch
+            if ($LASTEXITCODE -ne 0) { Write-Host "::error::Failed to list main-branch - aborting the trusted-config copy."; exit 1 }
+            $files = $listed | Select-String -Pattern $pattern.Replace("*", ".*")
             foreach ($file in $files) {
               if ($file) {
                 Write-Host "  ✓ Copying $file from main branch"
@@ -1538,6 +1572,9 @@ jobs:
         # stage because Windows has every SDK the matrix needs. The script is
         # taken from main so a PR cannot edit the check it is subject to;
         # when main does not carry it yet (first adoption) the step skips.
+        # Git only in this step: the job token is in its environment. The script runs in the next step,
+        # without the token, because it executes code from the PR's checkout (#917).
+        id: tfm-parity-source
         shell: pwsh
         env:
           # The checkout uses persist-credentials:false (nothing in .git/config for
@@ -1551,11 +1588,18 @@ jobs:
           git cat-file -e origin/main:scripts/tfm-parity.ps1 2>$null
           if ($LASTEXITCODE -ne 0) {
             Write-Host "::notice::scripts/tfm-parity.ps1 is not on main yet - skipping the TFM parity check."
+            echo "present=false" >> $env:GITHUB_OUTPUT
             exit 0
           }
           git checkout origin/main -- scripts/tfm-parity.ps1
           if ($LASTEXITCODE -ne 0) { Write-Host "::error::Failed to checkout origin/main:scripts/tfm-parity.ps1"; exit 1 }
-          pwsh ./scripts/tfm-parity.ps1
+          echo "present=true" >> $env:GITHUB_OUTPUT
+
+      - name: TFM parity between src/ and test projects (guard 3) - run the check
+        # No token in this step's environment.
+        if: steps.tfm-parity-source.outputs.present == 'true'
+        shell: pwsh
+        run: pwsh ./scripts/tfm-parity.ps1
 
       - name: Restore .NET workloads
         # Some projects (MAUI / MauiHybrid / Android / iOS / WPF) declare workloads via
@@ -1737,11 +1781,14 @@ jobs:
         id: check-coverage
         run: |
           if (Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml -ErrorAction SilentlyContinue) {
-            echo "has-coverage=true" >> $env:GITHUB_OUTPUT
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "has-coverage=true"
             Write-Host "✅ Coverage files found"
           } else {
-            echo "has-coverage=false" >> $env:GITHUB_OUTPUT
-            Write-Host "ℹ️  No coverage files found - skipping coverage report generation"
+            # Tests ran, so no cobertura file means the collector did not run or produced nothing: a gate that
+            # cannot measure must fail, not skip (#915).
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "has-coverage=false"
+            Write-Host "::error::No coverage files found under TestResults although tests ran (looked for TestResults/**/coverage.cobertura.xml), so the coverage gate cannot be enforced. Check that every test project references coverlet.collector, that --settings coverlet.runsettings points at the file at the repository root, and that no test host crashed before the collector wrote its report."
+            exit 1
           }
         shell: pwsh
 
@@ -1758,7 +1805,7 @@ jobs:
             -targetdir:"CoverageReport" `
             -reporttypes:"Html;TextSummary;MarkdownSummaryGithub;CsvSummary"
 
-      - name: Enforce 90% coverage threshold
+      - name: Enforce coverage thresholds
         if: steps.check-coverage.outputs.has-coverage == 'true'
         shell: pwsh
         run: |
@@ -1886,7 +1933,7 @@ jobs:
 
       - name: Upload Windows coverage results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: coverage-windows
           path: |
@@ -1991,7 +2038,7 @@ jobs:
           echo "✅ Configuration files secured - using versions from main branch"
 
       - name: Install DevSkim CLI
-        run: dotnet tool install --global Microsoft.CST.DevSkim.CLI
+        run: dotnet tool install --global Microsoft.CST.DevSkim.CLI --version 1.0.100   # pinned by hand (Dependabot cannot bump a run: step); keep scripts/build-pr.ps1 in step
 
       - name: Run DevSkim security scan
         run: |
@@ -1999,8 +2046,26 @@ jobs:
             --source-code . \
             --file-format text \
             --output-file devskim-results.txt \
-            --ignore-rule-ids DS176209 \
-            --ignore-globs "**/api/**,**/CoverageReport/**,**/TestResults/**"
+            --ignore-rule-ids DS176209,DS162092 \
+            --ignore-globs "**/.git/**,**/bin/**,**/obj/**,**/api/**,**/CoverageReport/**,**/TestResults/**,**/.github/license-audit/**" \
+            --skip-git-ignored-files
+
+          # --ignore-globs replaces DevSkim's default list (**/.git/**, **/bin/**), so those are named
+          # again, with **/obj/**; --skip-git-ignored-files keeps a local run (scripts/build-pr.ps1,
+          # where build output exists) scanning the same files as this checkout.
+          #
+          # DS162092 (ManualReview: "localhost / 127.0.0.1 may be debug code") is excluded by rule id:
+          # every occurrence in this repository is a test connection string, a launch profile, a
+          # design-time factory that is never opened, or a link-checker exclusion, and every new
+          # integration test adds another. The rule cannot be actionable here.
+          #
+          # .github/license-audit/** is excluded by glob: url-license-mappings.json maps the license
+          # URL a package actually publishes (an http:// form, DS137138) to an SPDX id. The URL is a
+          # lookup key; rewriting it breaks the mapping.
+          #
+          # Everything else is live, DS137138 and DS173237 included; the three remaining false
+          # positives (two SHA-256 test vectors, one XML namespace) are suppressed inline on their
+          # line with a reason. scripts/build-pr.ps1 carries the identical flags.
 
       - name: Display security scan results
         if: always()
@@ -2012,19 +2077,34 @@ jobs:
             cat devskim-results.txt
             echo ""
             
-            if grep -qi "error\|critical\|high" devskim-results.txt; then
-              echo "❌ Security issues detected - review required"
+            # Every finding fails the gate - Critical, Important, Moderate, BestPractice and
+            # ManualReview alike - the same policy TreatWarningsAsErrors applies to the
+            # compiler. A finding line is "<file>:<line>:<col>:<line>:<col> [Severity] DSnnnnnn ..."
+            # in the text format; matching that shape instead of a severity word keeps the
+            # gate independent of DevSkim's vocabulary (the old error|critical|high grep
+            # matched none of them, so 22 findings on main passed). A false positive is excluded
+            # as narrowly as it can be - by rule id when the rule is structurally inapplicable to
+            # this repo, by glob when one data file trips one rule, or inline on the single line
+            # when neither fits - always with a reason, and never by lowering the bar.
+            findings=$(grep -cE '^.+:[0-9]+:[0-9]+:[0-9]+:[0-9]+ \[[A-Za-z]+\] DS[0-9]+' devskim-results.txt || true)
+            if [ "$findings" -gt 0 ]; then
+              echo "By severity:"
+              grep -oE '\[[A-Za-z]+\]' devskim-results.txt | sort | uniq -c
+              echo "❌ $findings DevSkim finding(s) - every finding fails this gate; fix it or exclude the rule id with a reason"
               exit 1
             else
-              echo "✅ No critical security issues found"
+              echo "✅ No DevSkim findings"
             fi
           else
-            echo "✅ No security issues found"
+            # The analyze step always writes the file, even with no findings; its absence means
+            # the scan did not run, and a gate that cannot run must fail.
+            echo "❌ devskim-results.txt was not written - the scan did not run"
+            exit 1
           fi
 
       - name: Upload security scan results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: devskim-results
           path: devskim-results.txt

@@ -105,7 +105,7 @@ public sealed class KeyTypesTests
     [Fact]
     public void Error_code_carries_status_message_anchor_and_severity()
     {
-        var code = new ErrorCode("picking.tote_already_closed", 409, "Tote {tote} is already closed.", "tote-already-closed", ErrorSeverity.Error);
+        var code = new ErrorCode("picking.tote_already_closed", 409, "Tote {0} is already closed.", "tote-already-closed", ErrorSeverity.Error);
 
         Assert.Equal(409, code.HttpStatus);
         Assert.Equal(ErrorSeverity.Error, code.Severity);
@@ -120,6 +120,39 @@ public sealed class KeyTypesTests
     public void Error_code_rejects_an_impossible_http_status(int status)
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new ErrorCode("a.b", status, "m", "a", ErrorSeverity.Error));
+    }
+
+
+
+    [Theory]
+    [InlineData("Tote {0} is closed.")]
+    [InlineData("{0} of {1} ({2,5}) at {3:x}")]
+    [InlineData("Literal {{braces}} and {0}.")]
+    [InlineData("No placeholders at all")]
+    public void Error_code_accepts_positional_placeholders_and_escaped_braces(string template)
+    {
+        var code = new ErrorCode("a.b", 400, template, "a", ErrorSeverity.Warning);
+
+        Assert.Equal(template, code.MessageTemplate);
+    }
+
+
+
+    [Theory]
+    [InlineData("Tote {tote} is closed.")]
+    [InlineData("Unclosed {0")]
+    [InlineData("Stray } brace")]
+    [InlineData("Empty {} placeholder")]
+    [InlineData("Trailing {")]
+    [InlineData("{0:x")]
+    [InlineData("Empty alignment {0,}")]
+    [InlineData("Alignment {0,foo} is not a number")]
+    public void Error_code_rejects_a_template_string_Format_would_throw_on(string template)
+    {
+        var exception = Assert.Throws<ArgumentException>(() => new ErrorCode("a.b", 400, template, "a", ErrorSeverity.Warning));
+
+        Assert.Equal("MessageTemplate", exception.ParamName);
+        Assert.IsType<FormatException>(exception.InnerException);
     }
 
 

@@ -27,6 +27,7 @@ public sealed class ScanComponentTests : IDisposable
     {
         // The real console text (ConsoleText.resx), registered the way the host does.
         _context.Services.AddLocalization(options => options.ResourcesPath = Cultures.ResourcesPath);
+        _context.Services.AddLogging();
 
         // The refocus script is asserted by the tests that set it up; the others only need it to load.
         _context.JSInterop.Mode = JSRuntimeMode.Loose;
@@ -147,6 +148,45 @@ public sealed class ScanComponentTests : IDisposable
 
 
     [Fact]
+    public async Task WorkspaceLayout_reports_a_scan_whose_handler_threw_and_keeps_the_chrome()
+    {
+        _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.Allowed));
+        var layout = _context.Render<TestLayout>(p => p.Add(x => x.Body, Screen<ThrowingScreen>()));
+
+        await Scan(layout, "TOTE-0017");
+        var feedback = layout.Find(".scan-feedback");
+        var role = feedback.GetAttribute("role");
+        var text = feedback.TextContent;
+        layout.FindComponent<ThrowingScreen>().Instance.Throws = false;
+        await Scan(layout, "TOTE-0018");
+
+        Assert.Equal("alert", role);
+        Assert.Equal("Scan TOTE-0017 could not be handled by this screen.", text);
+        Assert.NotEmpty(layout.FindAll("header.workspace-header"));   // the chrome survived the handler's failure
+        Assert.NotEmpty(layout.FindAll("input.scan-listener"));      // and so did the scanner
+        Assert.Empty(layout.FindAll(".scan-feedback"));               // the next scan, handled, clears the message
+        Assert.Equal(["TOTE-0018"], layout.FindComponent<ThrowingScreen>().Instance.Received);
+    }
+
+
+
+    [Fact]
+    public async Task WorkspaceLayout_lets_a_cancelled_scan_handler_propagate_instead_of_reporting_it()
+    {
+        _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.Allowed));
+        var layout = _context.Render<TestLayout>(p => p.Add(x => x.Body, Screen<CancellingScreen>()));
+
+        await Scan(layout, "TOTE-0017");
+
+        Assert.True(layout.FindComponent<CancellingScreen>().Instance.Invoked);
+        Assert.Empty(layout.FindAll(".scan-feedback"));                  // a cancellation is not a failed handler, so nothing is reported
+        Assert.False(_context.Renderer.UnhandledException.IsCompleted);   // and the renderer saw a cancelled task, not an error
+        Assert.NotEmpty(layout.FindAll("input.scan-listener"));
+    }
+
+
+
+    [Fact]
     public void WorkspaceLayout_renders_no_scan_field_when_the_workspace_is_denied()
     {
         _context.Services.AddSingleton<IWorkspaceAccess>(new FixedAccess(WorkspaceAccessResult.NotPermitted));
@@ -246,5 +286,70 @@ public sealed class ScanComponentTests : IDisposable
 
     private sealed class IdleScreen : ComponentBase
     {
+    }
+
+
+
+    /// <summary>
+    /// A screen whose scan listener throws until <see cref="Throws"/> is cleared, then records the scan.
+    /// </summary>
+    private sealed class ThrowingScreen : ComponentBase, IDisposable
+    {
+        private IDisposable? _registration;
+
+        [CascadingParameter]
+        public ScanDispatcher? Scans { get; set; }
+
+        public bool Throws { get; set; } = true;
+
+        public List<string> Received { get; } = [];
+
+        public void Dispose()
+        {
+            _registration?.Dispose();
+        }
+
+        protected override void OnInitialized()
+        {
+            _registration = Scans!.Listen(scan =>
+            {
+                if (Throws)
+                {
+                    throw new InvalidOperationException("The handler failed.");
+                }
+
+                Received.Add(scan);
+                return Task.CompletedTask;
+            });
+        }
+    }
+
+
+
+    /// <summary>
+    /// A screen whose scan listener is cancelled: the layout must let that through rather than report it.
+    /// </summary>
+    private sealed class CancellingScreen : ComponentBase, IDisposable
+    {
+        private IDisposable? _registration;
+
+        [CascadingParameter]
+        public ScanDispatcher? Scans { get; set; }
+
+        public bool Invoked { get; private set; }
+
+        public void Dispose()
+        {
+            _registration?.Dispose();
+        }
+
+        protected override void OnInitialized()
+        {
+            _registration = Scans!.Listen(_ =>
+            {
+                Invoked = true;
+                throw new OperationCanceledException();
+            });
+        }
     }
 }

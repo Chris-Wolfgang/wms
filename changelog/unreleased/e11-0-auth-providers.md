@@ -1,0 +1,3 @@
+type: feature
+
+Identity providers behind one interface: providers register in DI at startup (`local` built in; others in their own projects), an install uses one of them, the `auth.provider` setting (a challenge provider's authentication scheme is added and removed when the setting changes, and it re-reads its settings when they change; changing provider is a planned reconfiguration, and the local administrator stays as the break-glass path); `GET /auth/providers` names it for the login page, `GET /auth/{provider}/challenge` starts a redirect sign-in, `POST /auth/providers/{name}/check` runs a provider's health check (`auth.providers.manage`); `Wms:Auth:ForceLocal` is the emergency override that forces local sign-in only.

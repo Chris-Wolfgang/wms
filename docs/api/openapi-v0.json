@@ -26,10 +26,1026 @@
           }
         }
       }
+    },
+    "/api/v0/settings/registry": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every setting the host knows: kind, scopes, default, description (read-only).",
+        "operationId": "GetSettingRegistry",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SettingDescriptor"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/settings/{scopeType}/{scopeId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every setting at a scope with its configured and effective value.",
+        "operationId": "ListSettings",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SettingValue"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/settings/{scopeType}/{scopeId}/{key}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One setting at a scope; the ETag is the stored row\u0027s version.",
+        "operationId": "GetSetting",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Configures a setting at a scope: a value, or a cascade mode (per_site, per_zone, per_sku); both null resets. If-Match required when a row exists.",
+        "operationId": "SetSetting",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSettingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingValue"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Removes the configured value at a scope so it inherits again; If-Match required when a row exists.",
+        "operationId": "ResetSetting",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingValue"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/local/login": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled.",
+        "operationId": "LocalLogin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/logout": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Ends the session.",
+        "operationId": "Logout",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/me": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Who is signed in.",
+        "operationId": "GetSession",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/local/password": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces the signed-in local user\u0027s password; clears the must-change flag and refreshes the cookie.",
+        "operationId": "ChangeLocalPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/permissions": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every permission the host knows, with its module (E10.1).",
+        "operationId": "GetPermissionCatalog",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PermissionDescriptor"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/providers": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "The active identity provider, as a list of at most one (E11.0).",
+        "operationId": "GetAuthProviders",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuthProviderInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/{provider}/challenge": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Sends the browser to a challenge provider; 404 when the provider is not enabled.",
+        "operationId": "ChallengeAuthProvider",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/providers/{name}/check": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Runs a provider\u0027s health check (discovery for OIDC); 404 for an unknown provider.",
+        "operationId": "CheckAuthProvider",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProviderHealth"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/roles": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every role: built-in first, then by name.",
+        "operationId": "ListRoles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates a role from catalog permissions.",
+        "operationId": "CreateRole",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/roles/{roleId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One role; the ETag is the row\u0027s version.",
+        "operationId": "GetRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces a role\u0027s name, description and permissions; If-Match required; built-in roles are read-only.",
+        "operationId": "UpdateRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Deletes a role and its assignments; built-in roles cannot be deleted.",
+        "operationId": "DeleteRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/roles/{roleId}/copy": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates an editable copy of a role (the way to customise a built-in one).",
+        "operationId": "CopyRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/users/{userId}/roles": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "A user\u0027s role assignments, active and expired.",
+        "operationId": "ListUserRoles",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleAssignmentInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Assigns a role everywhere (no site) or at one site, optionally until a date.",
+        "operationId": "AssignRole",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleAssignmentInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/assignments/{assignmentId}": {
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Removes an assignment.",
+        "operationId": "UnassignRole",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AssignRoleRequest": {
+        "required": [
+          "roleId"
+        ],
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The role to assign.",
+            "format": "int64"
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site, or null for everywhere.",
+            "format": "int64"
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the assignment stops applying, or null for no expiry.",
+            "format": "date-time"
+          }
+        },
+        "description": "Body of \u0060POST /auth/users/{userId}/roles\u0060 (E10.3)."
+      },
+      "AuthProviderHealth": {
+        "required": [
+          "healthy",
+          "detail"
+        ],
+        "type": "object",
+        "properties": {
+          "healthy": {
+            "type": "boolean",
+            "description": "True when the provider can sign people in."
+          },
+          "detail": {
+            "type": "string",
+            "description": "What was checked, or why it failed; never a secret."
+          }
+        },
+        "description": "The result of a provider\u0027s health check (E11.0)."
+      },
+      "AuthProviderInfo": {
+        "required": [
+          "name",
+          "displayName",
+          "kind",
+          "challengeUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The provider name."
+          },
+          "displayName": {
+            "type": "string",
+            "description": "The button label."
+          },
+          "kind": {
+            "description": "Credentials (a form) or Challenge (a redirect).",
+            "$ref": "#/components/schemas/AuthProviderKind"
+          },
+          "challengeUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Where the browser goes for a challenge provider; null for a credentials one."
+          }
+        },
+        "description": "One enabled provider as the login page sees it (E11.0)."
+      },
+      "AuthProviderKind": {
+        "enum": [
+          "Credentials",
+          "Challenge"
+        ],
+        "description": "How a provider signs a console user in (E11.0)."
+      },
+      "ChangePasswordRequest": {
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "description": "The password in use."
+          },
+          "newPassword": {
+            "type": "string",
+            "description": "The replacement; must satisfy PasswordPolicy."
+          }
+        },
+        "description": "Body of \u0060POST /auth/local/password\u0060 (E9.1, E9.2)."
+      },
+      "CopyRoleRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The new role\u0027s name."
+          }
+        },
+        "description": "Body of \u0060POST /auth/roles/{id}/copy\u0060 (E10.2)."
+      },
+      "LocalLoginRequest": {
+        "required": [
+          "userName",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "userName": {
+            "type": "string",
+            "description": "The sign-in name."
+          },
+          "password": {
+            "type": "string",
+            "description": "The password."
+          }
+        },
+        "description": "Body of \u0060POST /auth/local/login\u0060 (E9.2)."
+      },
+      "PermissionDescriptor": {
+        "required": [
+          "name",
+          "description",
+          "module"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The permission name (\u0060settings.write\u0060)."
+          },
+          "description": {
+            "type": "string",
+            "description": "What it allows."
+          },
+          "module": {
+            "type": "string",
+            "description": "The module that declares it (\u0060console\u0060 for workspaces)."
+          }
+        },
+        "description": "One catalog entry as the API and the console see it (E10.1)."
+      },
+      "RoleAssignmentInfo": {
+        "required": [
+          "id",
+          "userId",
+          "roleId",
+          "roleName",
+          "siteId",
+          "expiresAt",
+          "expired"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "userId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The user.",
+            "format": "int64"
+          },
+          "roleId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The role.",
+            "format": "int64"
+          },
+          "roleName": {
+            "type": "string",
+            "description": "The role\u0027s name."
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site, or null for everywhere (the organisation).",
+            "format": "int64"
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the assignment stops applying, or null for no expiry.",
+            "format": "date-time"
+          },
+          "expired": {
+            "type": "boolean",
+            "description": "True when DateTimeOffset? RoleAssignmentInfo.ExpiresAt has passed."
+          }
+        },
+        "description": "One role assignment (E10.3): a user holds a role everywhere or at one site, optionally until a date."
+      },
+      "RoleDraft": {
+        "required": [
+          "name",
+          "description",
+          "permissions"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The role name, unique (case-insensitive), 1\u2013128 characters."
+          },
+          "description": {
+            "type": "string",
+            "description": "What the role is for."
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Catalog permission names the role grants."
+          }
+        },
+        "description": "Body of \u0060POST /auth/roles\u0060 and \u0060PUT /auth/roles/{id}\u0060 (E10.2)."
+      },
+      "RoleInfo": {
+        "required": [
+          "id",
+          "name",
+          "description",
+          "builtIn",
+          "permissions",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "description": "The role name, unique (case-insensitive)."
+          },
+          "description": {
+            "type": "string",
+            "description": "What the role is for."
+          },
+          "builtIn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The built-in role key (\u0060administrator\u0060) when the role is one, else null; built-in roles are read-only."
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The permission names the role grants, sorted; \u0060*\u0060 for the administrator."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s version (the entity tag on updates).",
+            "format": "int64"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag for \u0060If-Match\u0060."
+          }
+        },
+        "description": "A role as the API and the console see it (E10.2)."
+      },
       "SchemaStatus": {
         "required": [
           "current",
@@ -58,6 +1074,238 @@
           }
         },
         "description": "The database schema as the API sees it (E82.5): the migration the database is at and the one this build expects. Read-only; applying migrations is a bootstrap step outside the API (\u0060wms-migrate\u0060)."
+      },
+      "SessionInfo": {
+        "required": [
+          "userId",
+          "userName",
+          "displayName",
+          "mustChangePassword",
+          "isLocalAdmin",
+          "permissions"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The user\u0027s id.",
+            "format": "int64"
+          },
+          "userName": {
+            "type": "string",
+            "description": "The sign-in name."
+          },
+          "displayName": {
+            "type": "string",
+            "description": "The name shown on screen."
+          },
+          "mustChangePassword": {
+            "type": "boolean",
+            "description": "True while the password must be replaced before anything else."
+          },
+          "isLocalAdmin": {
+            "type": "boolean",
+            "description": "True for the break-glass administrator."
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The permission grants the session carries (\u0060name@organization\u0060, \u0060name@site:3\u0060, \u0060*@organization\u0060)."
+          }
+        },
+        "description": "Who is signed in (\u0060GET /auth/me\u0060, E9)."
+      },
+      "SetSettingRequest": {
+        "required": [
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The stored text, or null."
+          },
+          "mode": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The cascade mode\u0027s stored name, or null to keep or set a value."
+          }
+        },
+        "description": "Body of \u0060PUT /settings/{scope}/{id}/{key}\u0060 (E6.3, E7.2): a value as stored text, or a cascade mode (\u0060per_site\u0060, \u0060per_zone\u0060, \u0060per_sku\u0060) that delegates the decision downward. Both null resets the scope to inherit (the same as \u0060DELETE\u0060); mode \u0060value\u0060 alone does the same."
+      },
+      "SettingDescriptor": {
+        "required": [
+          "name",
+          "kind",
+          "scopes",
+          "default",
+          "description",
+          "choices",
+          "requiresRestart",
+          "triggersDeviceResync"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The setting name."
+          },
+          "kind": {
+            "description": "How the value is edited and stored.",
+            "$ref": "#/components/schemas/SettingKind"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The scope names the setting may be configured at, organisation first."
+          },
+          "default": {
+            "type": "string",
+            "description": "The default value as stored text; masked for secrets."
+          },
+          "description": {
+            "type": "string",
+            "description": "The one-line description."
+          },
+          "choices": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The allowed values when the kind is a fixed list, else null."
+          },
+          "requiresRestart": {
+            "type": "boolean",
+            "description": "True when a change needs a host restart."
+          },
+          "triggersDeviceResync": {
+            "type": "boolean",
+            "description": "True when a change makes devices resync."
+          }
+        },
+        "description": "One registry entry as the API and the console see it (E6.1): everything a settings page needs to render and validate a setting without knowing its CLR type."
+      },
+      "SettingKind": {
+        "enum": [
+          "Boolean",
+          "Integer",
+          "Number",
+          "Enum",
+          "String",
+          "Duration",
+          "Timestamp",
+          "Secret",
+          "Json"
+        ],
+        "description": "How a setting\u0027s value is edited and stored (E6.1). Every value is stored as invariant-culture text; the kind tells the settings page which editor to show and the accessor how to parse the text."
+      },
+      "SettingValue": {
+        "required": [
+          "name",
+          "scope",
+          "kind",
+          "configuredValue",
+          "effectiveValue",
+          "inheritedFrom",
+          "cascadeMode",
+          "allowedModes",
+          "rowVersion",
+          "updatedBy",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The setting name."
+          },
+          "scope": {
+            "type": "string",
+            "description": "The scope (\u0060organization\u0060, \u0060site:3\u0060)."
+          },
+          "kind": {
+            "description": "How the value is edited.",
+            "$ref": "#/components/schemas/SettingKind"
+          },
+          "configuredValue": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The text configured at this scope, or null when it inherits."
+          },
+          "effectiveValue": {
+            "type": "string",
+            "description": "The text that applies at this scope."
+          },
+          "inheritedFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The scope the effective value comes from (\u0060organization\u0060), \u0060default\u0060 for the key\u0027s default, or null when configured here."
+          },
+          "cascadeMode": {
+            "type": "string",
+            "description": "How this scope takes part in the cascade: \u0060value\u0060, or \u0060per_site\u0060/\u0060per_zone\u0060/\u0060per_sku\u0060 when it delegates (E7.2)."
+          },
+          "allowedModes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The modes this key allows at this scope."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The stored row\u0027s version, or null when no row exists at this scope yet.",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Who last wrote the row, if one exists."
+          },
+          "updatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the row was last written, if one exists.",
+            "format": "date-time"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag of the stored row (\u0060If-Match\u0060 on writes), or null when no row exists."
+          }
+        },
+        "description": "One setting at one scope as the API and the console see it (E6.3): what is configured here, what applies here, and where the effective value comes from when it is inherited. Secrets are masked."
       }
     }
   },

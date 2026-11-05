@@ -1,6 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -72,7 +73,7 @@ public sealed class OidcUnitTests
         Assert.Equal("Single sign-on", oidc.DisplayName);
         Assert.Equal((AuthProviderKind.Challenge, typeof(OpenIdConnectHandler), "oidc"), (oidc.Kind, oidc.HandlerType, oidc.Name));
         Assert.Same(OidcSettings.All, oidc.Settings);
-        Assert.Empty(monitor.Get("other").Scope.Where(s => string.Equals(s, "groups", StringComparison.Ordinal)));   // other names untouched
+        Assert.DoesNotContain("groups", monitor.Get("other").Scope);   // other names untouched
     }
 
 
@@ -157,6 +158,102 @@ public sealed class OidcUnitTests
         using var provider = services.BuildServiceProvider();
         Assert.Equal(["local", "oidc"], provider.GetRequiredService<AuthProviderCatalog>().All.Select(p => p.Name));
         Assert.Contains(provider.GetRequiredService<ModuleCollection>().Modules, m => string.Equals(m.Name, "oidc", StringComparison.Ordinal) && m.Settings.Count == 9);
+    }
+
+
+
+    [Theory]
+    [InlineData(ExternalSignInOutcome.Disabled, StatusCodes.Status403Forbidden)]
+    [InlineData(ExternalSignInOutcome.IntegrityFailure, StatusCodes.Status403Forbidden)]
+    public async Task A_refused_account_answers_a_problem(ExternalSignInOutcome outcome, int status)
+    {
+        using var provider = EventHost(new FakeAccounts(ExternalSignInResult.Refused(outcome)));
+        var context = TokenContext(provider, new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", "s1")], "test")));
+
+        await OidcEvents.OnTokenValidatedAsync(context);
+
+        Assert.Equal(status, context.HttpContext.Response.StatusCode);
+    }
+
+
+
+    [Fact]
+    public async Task A_valid_token_becomes_a_session_and_a_token_without_a_subject_is_refused()
+    {
+        var user = new LocalUser(7, "alice", "Alice", MustChangePassword: false, IsLocalAdmin: false, IsDisabled: false, Grants: ["*@organization"]);
+        using var provider = EventHost(new FakeAccounts(ExternalSignInResult.Succeeded(user)));
+        var signedIn = TokenContext(provider, new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", "s1")], "test")));
+        signedIn.Properties = null;
+        var noSubject = TokenContext(provider, principal: null);
+
+        await OidcEvents.OnTokenValidatedAsync(signedIn);
+        await OidcEvents.OnTokenValidatedAsync(noSubject);
+
+        Assert.Equal("alice", signedIn.Principal!.Identity!.Name);
+        Assert.False(signedIn.Properties!.IsPersistent);
+        Assert.Equal(StatusCodes.Status502BadGateway, noSubject.HttpContext.Response.StatusCode);
+        await Assert.ThrowsAsync<ArgumentNullException>(() => OidcEvents.OnTokenValidatedAsync(null!));
+    }
+
+
+
+    [Fact]
+    public async Task A_provider_failure_answers_a_problem()
+    {
+        using var provider = EventHost(new FakeAccounts(ExternalSignInResult.Refused(ExternalSignInOutcome.Disabled)));
+        var failed = new RemoteFailureContext(EventHttp(provider), Scheme, new OpenIdConnectOptions(), new InvalidOperationException("state mismatch"));
+        var unknown = new RemoteFailureContext(EventHttp(provider), Scheme, new OpenIdConnectOptions(), failure: null!);
+
+        await OidcEvents.OnRemoteFailureAsync(failed);
+        await OidcEvents.OnRemoteFailureAsync(unknown);
+
+        Assert.Equal(StatusCodes.Status502BadGateway, failed.HttpContext.Response.StatusCode);
+        Assert.Equal(StatusCodes.Status502BadGateway, unknown.HttpContext.Response.StatusCode);
+        Assert.True(failed.Result!.Handled);
+        await Assert.ThrowsAsync<ArgumentNullException>(() => OidcEvents.OnRemoteFailureAsync(null!));
+    }
+
+
+
+    private static readonly AuthenticationScheme Scheme = new("oidc", "oidc", typeof(OpenIdConnectHandler));
+
+
+
+    private static ServiceProvider EventHost(IExternalAccounts accounts)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddOptions();
+        services.AddHttpClient();
+        services.AddDataProtection();
+        services.AddSingleton<OidcAuthProvider>();
+        services.AddSingleton(accounts);
+        services.AddScoped<ISettings>(_ => new FakeSettings());
+        return services.BuildServiceProvider();
+    }
+
+
+
+    private static DefaultHttpContext EventHttp(IServiceProvider provider)
+    {
+        return new DefaultHttpContext { RequestServices = provider, Response = { Body = new MemoryStream() } };
+    }
+
+
+
+    private static TokenValidatedContext TokenContext(IServiceProvider provider, ClaimsPrincipal? principal)
+    {
+        return new TokenValidatedContext(EventHttp(provider), Scheme, new OpenIdConnectOptions(), principal!, new AuthenticationProperties());
+    }
+
+
+
+    private sealed class FakeAccounts(ExternalSignInResult result) : IExternalAccounts
+    {
+        public Task<ExternalSignInResult> SignInAsync(string provider, ExternalIdentity identity, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(result);
+        }
     }
 
 

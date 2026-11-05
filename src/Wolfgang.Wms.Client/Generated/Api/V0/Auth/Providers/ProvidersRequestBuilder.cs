@@ -47,7 +47,7 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers
         {
         }
         /// <summary>
-        /// The enabled identity providers in login-page order (E11.0).
+        /// The active identity provider, as a list of at most one (E11.0).
         /// </summary>
         /// <returns>A List&lt;global::Wolfgang.Wms.Client.Generated.Models.AuthProviderInfo&gt;</returns>
         /// <param name="cancellationToken">Cancellation token to use when cancelling requests</param>
@@ -66,7 +66,7 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers
             return collectionResult?.AsList();
         }
         /// <summary>
-        /// The enabled identity providers in login-page order (E11.0).
+        /// The active identity provider, as a list of at most one (E11.0).
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>

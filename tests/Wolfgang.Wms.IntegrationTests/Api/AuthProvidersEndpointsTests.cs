@@ -76,7 +76,7 @@ public sealed class AuthProvidersEndpointsTests : IClassFixture<WebApplicationFa
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var state = factory.Services.GetRequiredService<AuthProviderState>();
 
-        settings.Enabled = "teapot,local";
+        settings.Active = "teapot";
         await state.RefreshAsync(CancellationToken.None);
         var offered = await client.GetFromJsonAsync<List<AuthProviderInfo>>("/api/v0/auth/providers", Json);
         using var challenge = await client.GetAsync(new Uri("/api/v0/auth/teapot/challenge?returnUrl=/console", UriKind.Relative));
@@ -86,12 +86,12 @@ public sealed class AuthProvidersEndpointsTests : IClassFixture<WebApplicationFa
         using var scope = factory.Services.CreateScope();
         var authenticated = await scope.ServiceProvider.GetRequiredService<IAuthenticationService>().AuthenticateAsync(new Microsoft.AspNetCore.Http.DefaultHttpContext { RequestServices = scope.ServiceProvider }, "teapot");
 
-        settings.Enabled = "local";
+        settings.Active = "local";
         await state.RefreshAsync(CancellationToken.None);
         var withdrawn = await client.GetFromJsonAsync<List<AuthProviderInfo>>("/api/v0/auth/providers", Json);
         using var gone = await client.GetAsync(new Uri("/api/v0/auth/teapot/challenge", UriKind.Relative));
 
-        Assert.Equal(["teapot", "local"], offered!.Select(p => p.Name));
+        Assert.Equal(["teapot"], offered!.Select(p => p.Name));
         Assert.Equal("/auth/teapot/challenge", offered![0].ChallengeUrl);
         Assert.Equal((HttpStatusCode)418, challenge.StatusCode);
         Assert.Equal("/console", challenge.Headers.GetValues("X-Redirect").Single());
@@ -109,7 +109,7 @@ public sealed class AuthProvidersEndpointsTests : IClassFixture<WebApplicationFa
 
     private static async Task AssertReadOnlyAsync(ISettings settings)
     {
-        var key = AuthProviderSettings.Enabled;
+        var key = AuthProviderSettings.Active;
         var scope = SettingScopeRef.Organization;
         Assert.Equal(string.Empty, (await settings.FindAsync(key.Name, scope, CancellationToken.None)).EffectiveValue);
         await Assert.ThrowsAsync<NotSupportedException>(() => settings.SetAsync(key, scope, "x", "me", CancellationToken.None));
@@ -184,11 +184,11 @@ public sealed class AuthProvidersEndpointsTests : IClassFixture<WebApplicationFa
 
     private sealed class SwitchableSettings : ISettings
     {
-        public string Enabled { get; set; } = "local";
+        public string Active { get; set; } = "local";
 
         public Task<T> GetAsync<T>(SettingKey<T> key, SettingScopeRef scope, CancellationToken cancellationToken)
         {
-            var text = string.Equals(key.Name, AuthProviderSettings.Enabled.Name, StringComparison.Ordinal) ? Enabled : key.Codec.Format(key.DefaultValue);
+            var text = string.Equals(key.Name, AuthProviderSettings.Active.Name, StringComparison.Ordinal) ? Active : key.Codec.Format(key.DefaultValue);
             return Task.FromResult(key.Codec.TryParse(text, out var value) ? value : key.DefaultValue);
         }
 

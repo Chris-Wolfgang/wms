@@ -81,6 +81,6 @@ public sealed partial class AuthProviderSync : BackgroundService
 
 
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "Reading auth.providers.enabled failed; the enabled providers are unchanged until the next try.")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "Reading auth.provider failed; the active provider is unchanged until the next try.")]
     private static partial void LogRefreshFailed(ILogger logger, Exception exception);
 }

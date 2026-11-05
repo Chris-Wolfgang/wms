@@ -13,12 +13,12 @@ using Wolfgang.Wms.Domain.Keys;
 namespace Wolfgang.Wms.Core.Identity.Providers;
 
 /// <summary>
-/// The provider endpoints of the <c>auth</c> module (E11.0): the enabled list for the login page, the
+/// The provider endpoints of the <c>auth</c> module (E11.0): the active provider for the login page, the
 /// challenge that starts a redirect provider's sign-in, and the health check for administrators.
 /// </summary>
 public static class AuthProviderEndpoints
 {
-    /// <summary>Route of the enabled-provider list.</summary>
+    /// <summary>Route of the active provider, for the login page.</summary>
     public const string ProvidersRoute = "/auth/providers";
 
     /// <summary>Route of one provider's health check.</summary>
@@ -47,7 +47,7 @@ public static class AuthProviderEndpoints
         app.MapGet(ProvidersRoute, (AuthProviderState state) => TypedResults.Ok(state.Enabled))
             .AllowAnonymous()   // the login page asks before anyone is signed in
             .WithName("GetAuthProviders")
-            .WithSummary("The enabled identity providers in login-page order (E11.0).");
+            .WithSummary("The active identity provider, as a list of at most one (E11.0).");
         app.MapGet(ChallengeRoute, Challenge)
             .AllowAnonymous()   // the way in for a redirect provider
             .WithName("ChallengeAuthProvider")

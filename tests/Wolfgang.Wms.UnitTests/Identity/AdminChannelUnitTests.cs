@@ -1,10 +1,15 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Wolfgang.Wms.Admin;
 using Wolfgang.Wms.Core.Identity;
@@ -261,6 +266,74 @@ public sealed class AdminChannelUnitTests
 
 
 
+    [Fact]
+    public async Task The_server_outlasts_a_silent_client_and_a_failing_gate()
+    {
+        var gate = new FakeGate();
+        await using var services = Host(gate, forceLocal: false);
+        var ring = services.GetRequiredService<IDataProtectionProvider>().CreateProtector(AdminChannelProtocol.Purpose);
+        var line = AdminChannelProtocol.Seal(new AdminChannelRequest(AdminChannelCommands.Status, null, "HOST\\ops", Now), ring);
+        var name = "wms-admin-test-" + Guid.NewGuid().ToString("N");
+        var options = Options.Create(new AdminChannelOptions { ChannelName = name, ConnectionTimeout = TimeSpan.FromMilliseconds(300) });
+        using var server = new AdminChannelServer(services.GetRequiredService<AdminChannelHandler>(), options, NullLogger<AdminChannelServer>.Instance);
+        await server.StartAsync(CancellationToken.None);
+
+        await using (var silent = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous))
+        {
+            await silent.ConnectAsync(TimeSpan.FromSeconds(10), CancellationToken.None);   // holds the only instance and sends nothing until the deadline frees it
+            gate.Failure = new InvalidOperationException("secret database detail");
+            var failed = await AskAsync(name, line);
+            gate.Failure = null;
+            var answered = await AskAsync(name, line);
+
+            Assert.False(failed.Ok);
+            Assert.DoesNotContain("secret database detail", failed.Message, StringComparison.Ordinal);
+            Assert.True(answered.Ok);
+        }
+
+        await server.StopAsync(CancellationToken.None);
+        await server.ExecuteTask!;   // ended by the stop, not faulted
+    }
+
+
+
+    [Fact]
+    public async Task The_pipe_refuses_network_logons_on_windows()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;   // a Unix domain socket has no remote clients
+        }
+
+        var gate = new FakeGate();
+        await using var services = Host(gate, forceLocal: false);
+        var name = "wms-admin-test-" + Guid.NewGuid().ToString("N");
+        var options = Options.Create(new AdminChannelOptions { ChannelName = name, ConnectionTimeout = TimeSpan.FromSeconds(5) });
+        using var server = new AdminChannelServer(services.GetRequiredService<AdminChannelHandler>(), options, NullLogger<AdminChannelServer>.Instance);
+        await server.StartAsync(CancellationToken.None);
+        await using var client = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await client.ConnectAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+
+        var rules = client.GetAccessControl().GetAccessRules(includeExplicit: true, includeInherited: false, typeof(SecurityIdentifier)).Cast<PipeAccessRule>().ToList();
+        await server.StopAsync(CancellationToken.None);
+
+        Assert.Contains(rules, r => r.AccessControlType == AccessControlType.Deny && ((SecurityIdentifier)r.IdentityReference).IsWellKnown(WellKnownSidType.NetworkSid));
+    }
+
+
+
+    private static async Task<AdminChannelResponse> AskAsync(string name, string line)
+    {
+        await using var client = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await client.ConnectAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+        await client.WriteAsync(Encoding.UTF8.GetBytes(line + "\n"));
+        await client.FlushAsync();
+        using var reader = new StreamReader(client, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
+        return AdminChannelProtocol.Decode(await reader.ReadLineAsync())!;
+    }
+
+
+
     private static ServiceProvider Host(ILocalLoginGate gate, bool forceLocal)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal) { [AuthProviderSettings.ForceLocalKey] = forceLocal ? "true" : "false" }).Build();
@@ -296,6 +369,8 @@ public sealed class AdminChannelUnitTests
     {
         public LocalLoginGateInfo Info { get; set; } = LocalLoginGateInfo.Open;
 
+        public Exception? Failure { get; set; }
+
         public List<(string By, TimeSpan Window)> Unlocks { get; } = [];
 
         public string? LockedBy { get; private set; }
@@ -304,7 +379,7 @@ public sealed class AdminChannelUnitTests
 
         public Task<LocalLoginGateInfo> GetAsync(CancellationToken cancellationToken)
         {
-            return Task.FromResult(Info);
+            return Failure is null ? Task.FromResult(Info) : throw Failure;
         }
 
 

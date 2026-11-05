@@ -39,5 +39,5 @@ public interface ISites
     /// is refused while <see cref="IOpenReleases"/> reports open releases for it.
     /// </summary>
     /// <exception cref="SiteException"><see cref="SiteErrorCodes.NotFound"/>, <see cref="SiteErrorCodes.Invalid"/>, <see cref="SiteErrorCodes.CodeTaken"/> or <see cref="SiteErrorCodes.HasOpenReleases"/>.</exception>
-    Task<SiteInfo> UpdateAsync(long siteId, SiteDraft draft, string updatedBy, CancellationToken cancellationToken);
+    Task<SiteInfo> UpdateAsync(long siteId, long expectedRowVersion, SiteDraft draft, string updatedBy, CancellationToken cancellationToken);
 }

@@ -1662,7 +1662,7 @@
         "tags": [
           "wms"
         ],
-        "summary": "Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only; format=csv for the row results as CSV.",
+        "summary": "Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only.",
         "operationId": "ImportZones",
         "parameters": [
           {
@@ -1677,13 +1677,6 @@
           },
           {
             "name": "policy",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "format",
             "in": "query",
             "schema": {
               "type": "string"
@@ -1717,13 +1710,13 @@
         }
       }
     },
-    "/api/v0/sites/{siteId}/imports/locations": {
+    "/api/v0/sites/{siteId}/imports/zones/csv": {
       "post": {
         "tags": [
           "wms"
         ],
-        "summary": "Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only; format=csv for the row results as CSV.",
-        "operationId": "ImportLocations",
+        "summary": "The same import, answering with the row results as a downloadable CSV.",
+        "operationId": "ImportZonesCsv",
         "parameters": [
           {
             "name": "siteId",
@@ -1741,9 +1734,55 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ZoneImportRow"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/imports/locations": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only.",
+        "operationId": "ImportLocations",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
           },
           {
-            "name": "format",
+            "name": "policy",
             "in": "query",
             "schema": {
               "type": "string"
@@ -1770,6 +1809,59 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/imports/locations/csv": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "The same import, answering with the row results as a downloadable CSV.",
+        "operationId": "ImportLocationsCsv",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "policy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LocationImportRow"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }

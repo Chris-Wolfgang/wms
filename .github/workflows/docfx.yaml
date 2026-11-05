@@ -171,6 +171,21 @@ jobs:
           Get-ChildItem "docfx_project/_site/api"
         shell: pwsh
 
+      - name: Start SQL Server Express LocalDB (E13.1)
+        # Same step as pr.yaml's Windows stage: without an instance the SQL Server integration tests
+        # skip, and the published coverage (and the README badge computed from it) would be measured
+        # on a subset of the suite and read lower than the PR gate's numbers.
+        if: hashFiles('tests/**/*.csproj') != ''
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          if (-not (Get-Command sqllocaldb -ErrorAction SilentlyContinue)) {
+            choco install sqllocaldb -y --no-progress
+            $env:PATH = "$env:PATH;C:\Program Files\Microsoft SQL Server\150\Tools\Binn;C:\Program Files\Microsoft SQL Server\160\Tools\Binn"
+          }
+          sqllocaldb start MSSQLLocalDB
+          sqllocaldb info MSSQLLocalDB
+
       - name: Generate code-coverage report into docs site (T1)
         # Initiative T1 — publish coverage report to gh-pages alongside docs.
         # Runs the test suite with Cobertura coverage collection, then uses
@@ -181,6 +196,9 @@ jobs:
         if: hashFiles('tests/**/*.csproj') != ''
         continue-on-error: true
         shell: pwsh
+        env:
+          # E13.1: the SQL Server integration tests use the LocalDB instance started above (same value as pr.yaml).
+          WMS_TEST_SQLSERVER: 'Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true'
         run: |
           # Coverage report only needs one TFM's worth of runs. The per-PR
           # pr.yaml workflow already exercises every TFM across Stages 1/2/3,

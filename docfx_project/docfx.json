@@ -38,6 +38,13 @@
           "public/**",
           "versions.json"
         ]
+      },
+      {
+        "files": [
+          "openapi-v0.json"
+        ],
+        "src": "../docs/api",
+        "dest": "http-api"
       }
     ],
 

@@ -19,7 +19,7 @@ Every setting the product knows, from every module's declaration (E6.1). Scopes 
 | `auth.oidc.name_claim` | String | organization | preferred_username | The claim type used as the console sign-in name. |
 | `auth.oidc.require_https` | Boolean | organization | true | Refuse a provider whose discovery document is not served over HTTPS; switch off only in a lab. |
 | `auth.oidc.scopes` | String | organization | openid profile email | The scopes requested, space-separated; openid is always included. |
-| `auth.providers.enabled` | String | organization | local | Identity providers the console offers, comma-separated, in login-page order (local, oidc). |
+| `auth.provider` | String | organization | local | The identity provider this install signs in with (local, oidc). One only: an install does not run two at once. |
 | `auth.session.idle_timeout` | Duration | organization | 00:30:00 | How long a console session may sit idle before it ends. |
 | `auth.session.lifetime` | Duration | organization | 08:00:00 | How long a console session may last in total. |
 | `license.keys` | Secret | organization |  | The installed license keys, one signed document per line (stored encrypted). Managed through the license page; the compiled-in free tier needs none. |

@@ -160,7 +160,7 @@ public sealed class OidcClaimEdgeCaseTests
         await settings.SetAsync(OidcSettings.NameClaim, organization, nameClaim, "test", CancellationToken.None);
         await settings.SetAsync(OidcSettings.DisplayNameClaim, organization, displayNameClaim, "test", CancellationToken.None);
         await settings.SetAsync(OidcSettings.RequireHttps, organization, false, "test", CancellationToken.None);
-        await settings.SetAsync(AuthProviderSettings.Enabled, organization, "oidc,local", "test", CancellationToken.None);
+        await settings.SetAsync(AuthProviderSettings.Active, organization, "oidc", "test", CancellationToken.None);
         await services.GetRequiredService<AuthProviderState>().RefreshAsync(CancellationToken.None);
     }
 

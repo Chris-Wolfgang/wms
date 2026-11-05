@@ -61,6 +61,11 @@ they are an attack surface. The gate (`ILocalLoginGate`, one audited row in `cor
 - **`Wms:Auth:ForceLocal=true`** (the E11.0 emergency override) keeps local sign-in open whatever the gate
   says, so a broken provider change is still recoverable from `appsettings` on the host.
 
+The gate's row is signed like the other security tables (E10.4). A row edited through the database fails
+the check, is logged at Error and is read as closed (SSO verified, no window), so such an edit can never open
+local sign-in; the next unlock from the host or external sign-in repairs it in that state. The table holds one
+row, enforced by a unique index, and the loser of a race to create it retries against the winner's row.
+
 Without a database the gate is the always-open placeholder, and an unlock answers `auth.unavailable`.
 
 ## Permissions (E10.1)

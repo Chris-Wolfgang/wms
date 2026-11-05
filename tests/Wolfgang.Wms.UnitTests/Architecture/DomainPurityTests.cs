@@ -111,9 +111,10 @@ public sealed class DomainPurityTests
     /// <summary>
     /// Coverage collection (coverlet) rewrites the assembly under test: it injects a
     /// <c>Coverlet.Core.Instrumentation.Tracker</c> type that does file I/O and adds the references it needs.
-    /// None of that is Domain's code, so the scans skip it.
+    /// None of that is Domain's code, so the scans skip it. Coverlet 10.1 also adds <c>netstandard</c>, which its
+    /// tracker is compiled against.
     /// </summary>
-    private static readonly string[] InstrumentationReferences = ["System.Threading", "System.Threading.Thread"];
+    private static readonly string[] InstrumentationReferences = ["netstandard", "System.Threading", "System.Threading.Thread"];
 
 
 

@@ -146,6 +146,36 @@ public sealed class ModelConventionsTests
 
 
 
+    [Theory]
+    [InlineData(SqlServer)]
+    [InlineData(PostgreSql)]
+    public void Soft_deletable_entities_hide_deleted_rows_by_default_and_versioned_ones_declare_their_trigger(string provider)
+    {
+        using var context = Sample(provider);
+        var sku = context.Model.FindEntityType(typeof(Sku))!;
+
+        Assert.Equal("deleted_at", sku.FindProperty(nameof(Sku.DeletedAt))!.GetColumnName());
+        Assert.Single(sku.GetDeclaredQueryFilters());
+        Assert.Equal(["trg_sku_row_version"], sku.GetDeclaredTriggers().Select(t => t.ModelName));
+        Assert.Empty(context.Model.FindEntityType(typeof(Container))!.GetDeclaredTriggers());
+    }
+
+
+
+    [Fact]
+    public void Timestamps_are_truncated_to_the_millisecond_on_both_providers()
+    {
+        var boundary = new DateTimeOffset(2026, 9, 20, 6, 30, 0, 56, TimeSpan.Zero).AddTicks(9995);   // the servers would round this up to .057
+
+        Assert.Equal(new DateTimeOffset(2026, 9, 20, 6, 30, 0, 56, TimeSpan.Zero), Timestamps.TruncateToMillisecond(boundary));
+        Assert.Equal(new DateTime(2026, 9, 20, 6, 30, 0, 56, DateTimeKind.Utc), (DateTime)new UtcDateTimeOffsetConverter().ConvertToProvider(boundary)!);
+        Assert.Equal(new DateTimeOffset(2026, 9, 20, 6, 30, 0, 56, TimeSpan.Zero), (DateTimeOffset)new MillisecondDateTimeOffsetConverter().ConvertToProvider(boundary)!);
+        Assert.Equal(boundary, (DateTimeOffset)new MillisecondDateTimeOffsetConverter().ConvertFromProvider(boundary)!);
+        Assert.Equal(TimeSpan.Zero, Timestamps.TruncateToMillisecond(new DateTimeOffset(2026, 9, 20, 8, 30, 0, TimeSpan.FromHours(2))).Offset);
+    }
+
+
+
     [Fact]
     public void SqlServer_timestamps_round_trip_as_utc_through_the_converter()
     {
@@ -213,6 +243,8 @@ public sealed class ModelConventionsTests
                 "bad_parent.id: GUID columns are not allowed; identifiers are server-assigned long.",
                 "bad_parent: no module schema (tables never land in dbo/public).",
                 "bad_parent: primary key must be a single server-assigned long column named 'id'.",
+                "bad_soft: soft-deletable entities carry a nullable deleted_at timestamp.",
+                "bad_soft: soft-deletable tables hide deleted rows by default (query filter).",
             ],
             violations.Order(StringComparer.Ordinal)
         );
@@ -276,7 +308,7 @@ public sealed class ModelConventionsTests
 
 
 
-    private static DbContextOptions<TContext> Options<TContext>(string provider)
+    internal static DbContextOptions<TContext> Options<TContext>(string provider)
         where TContext : DbContext
     {
         var builder = new DbContextOptionsBuilder<TContext>();

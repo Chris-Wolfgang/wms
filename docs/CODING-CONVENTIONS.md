@@ -95,6 +95,36 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
   turning the error response into a 500 the first time an argument is passed.
 - Modules contribute their keys through `ModuleDescriptor.With…()` so the host can enumerate them.
 
+## Settings (E6)
+
+Every configurable value is a `SettingKey<T>` declared once in its module and contributed through
+`ModuleDescriptor.WithSettings(...)`; the host's `SettingRegistry` is the only list of settings the console,
+the documentation and the accessor use (docs/SETTINGS.md). A key states its kind (through its codec), the
+scopes it may be configured at, its default, description and validator, and whether a change needs a
+restart or a device resync. Values are stored as invariant-culture text; a type without a built-in codec
+passes `SettingCodecs.Json(...)` built on the module's source-generated JSON context. Code reads and writes
+settings only through `ISettings` with the key (`Get(PickingSettings.LeaseTimeout, scope)`); the API's
+by-name endpoints are the one place a name string appears. Nothing writes `core.setting` directly.
+`appsettings` carries bootstrap keys only (`BootstrapConfiguration.RecognizedKeys`, docs/CONFIGURATION.md);
+a new bootstrap key is added to that list with its story, never read ad hoc from `IConfiguration`.
+
+## Identity (E9, ADR 0005)
+
+Local accounts live in `core.user` and are reached only through `ILocalAccounts`; the password hash is
+`[NotAudited]` and never leaves Infrastructure. The API signs users in with a cookie protected by the shared
+Data Protection ring and answers 401/403 problems, never redirects. Endpoints that need a signed-in user say
+so with `RequirePermission(ModulePermissions.X)` (E10.1); an endpoint open to everyone says
+`AllowAnonymous()` with a comment naming why; the architecture test refuses an endpoint that says neither.
+Modules declare their permissions with `WithPermissions(...)`; the catalog is the only list. A signed-in user
+who must change the password reaches only `/auth/local/password`, `/auth/logout` and `/auth/me`.
+
+## Secrets (E8)
+
+A secret is encrypted and decrypted only through `ISecretProtector` (`Wolfgang.Wms.Core.Secrets`); the stored
+form is `enc:v1:…` (`ProtectedText`), a value without the prefix is plain and accepted. The default
+implementation is Data Protection over the ring `Wms:DataProtection` names; nothing else calls
+`IDataProtector` directly. Plain text never reaches a log or an exception message (`ProtectedText.Mask`).
+
 ## Data access (E1.11, ADR 0002)
 
 - Single tenant per install: no `tenant_id`. Site separation is `site_id` on every site-scoped entity with an
@@ -242,7 +272,8 @@ so a SqlServer install never runs the PostgreSql migrations and vice versa.
 [docs/DATABASE-CONVENTIONS.md](DATABASE-CONVENTIONS.md) is the contract: module schemas (never `dbo`/`public`),
 snake_case names (`container.zone_group_id`, `pk_`/`fk_`/`ix_`/`ux_` prefixes), server-assigned `long` `id`
 keys, no GUIDs, `Restrict` foreign keys with explicit indexes, `decimal(9,3)` quantities, UTC
-`DateTimeOffset` timestamps at millisecond precision. `ModelConventions.Apply` enforces the names and types;
+`DateTimeOffset` timestamps at millisecond precision (truncated, not rounded, on the way in on both
+providers, so a value read back equals the value written and signed). `ModelConventions.Apply` enforces the names and types;
 `ModelConventions.Verify` is asserted empty by `ModelConventionsTests` for both providers, so a violation
 fails the build.
 

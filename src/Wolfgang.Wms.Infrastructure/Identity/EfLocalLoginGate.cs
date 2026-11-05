@@ -206,7 +206,6 @@ public sealed partial class EfLocalLoginGate : ILocalLoginGate
     /// </summary>
     private async Task<bool> TryInsertAsync(LocalLoginGate candidate, CancellationToken cancellationToken)
     {
-        await _context.LocalLoginGates.AddAsync(candidate, cancellationToken).ConfigureAwait(false);
         try
         {
             await _context.Database
@@ -215,6 +214,10 @@ public sealed partial class EfLocalLoginGate : ILocalLoginGate
                 (
                     async token =>
                     {
+                        // Each attempt adds the row afresh: a save accepts it before the commit, so a retry over the same entry would write nothing.
+                        _context.Entry(candidate).State = EntityState.Detached;
+                        candidate.Id = 0;
+                        await _context.LocalLoginGates.AddAsync(candidate, token).ConfigureAwait(false);
                         var transaction = await _context.Database.BeginTransactionAsync(token).ConfigureAwait(false);
                         await using (transaction.ConfigureAwait(false))
                         {

@@ -23,6 +23,10 @@ SQL needs no quoting.
 | foreign key | `fk_<table>_<columns>` | `fk_container_zone_group_id` |
 | index | `ix_<table>_<columns>`; unique `ux_…` | `ix_container_zone_group_id`, `ux_container_barcode` |
 
+Every identifier is at most 63 characters. That is PostgreSQL's limit, and it is enforced on SQL Server too, so a
+name is never truncated on one engine and kept on the other; a conventional name that would run past it is
+given a shorter explicit name by the module that owns the table.
+
 Detail rows that belong to one parent (for example container lines) get their own table keyed by
 `(<parent table>_id, id)`. A small value stored with its parent (an address, say) is a set of prefixed
 columns on the parent's table (`ship_to_street`).

@@ -111,7 +111,11 @@ public static class RowVersioning
 
 
     /// <summary>
-    /// The SQL that creates the update trigger for a table on a provider.
+    /// The SQL that creates the update trigger for a table on a provider. On SQL Server the DDL is a nested batch
+    /// (<c>EXEC(N'...')</c>): <c>CREATE [OR ALTER] TRIGGER</c> must be the first statement of its batch, and the
+    /// idempotent script <c>wms-migrate --script</c> generates wraps every command in
+    /// <c>IF NOT EXISTS (...) BEGIN ... END</c>, where a bare <c>CREATE TRIGGER</c> is a syntax error. Applying
+    /// directly runs each command as its own batch, which is why only the script path showed it.
     /// </summary>
     /// <exception cref="ArgumentException">Unknown provider or blank names.</exception>
     public static string UpdateTriggerSql(string? providerName, string schema, string table)
@@ -122,13 +126,18 @@ public static class RowVersioning
         var trigger = TriggerName(table);
         return providerName switch
         {
+            // The body carries no single quote, so nothing needs doubling inside the N'...' literal.
+            // The trigger updates its own table: with the database option RECURSIVE_TRIGGERS on (a DBA can flip
+            // it) it would re-fire itself to the nesting limit, so a nested firing returns at once, as does an
+            // update that touched no row.
             SqlServer => $"""
-                CREATE OR ALTER TRIGGER [{schema}].[{trigger}] ON [{schema}].[{table}] AFTER UPDATE AS
+                EXEC(N'CREATE OR ALTER TRIGGER [{schema}].[{trigger}] ON [{schema}].[{table}] AFTER UPDATE AS
                 BEGIN
                     SET NOCOUNT ON;
+                    IF TRIGGER_NESTLEVEL(@@PROCID) > 1 OR NOT EXISTS (SELECT 1 FROM inserted) RETURN;
                     UPDATE t SET [{ColumnName}] = NEXT VALUE FOR [{Schema}].[{SequenceName}]
                     FROM [{schema}].[{table}] t INNER JOIN inserted i ON t.[id] = i.[id];
-                END
+                END');
                 """,
             PostgreSql => $"""
                 CREATE OR REPLACE FUNCTION {Schema}.set_row_version() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -146,7 +155,10 @@ public static class RowVersioning
 
 
     /// <summary>
-    /// The SQL that drops the update trigger of a table on a provider.
+    /// The SQL that drops the update trigger of a table on a provider. On PostgreSQL the shared trigger function
+    /// (<c>wms.set_row_version()</c>, created by every <see cref="AddUpdateTrigger"/>) goes with the last trigger
+    /// that uses it, so a full downgrade leaves nothing behind; while another table's trigger still references
+    /// it, it stays. The check is a <c>DO</c> block, which is legal inside the idempotent script's own block.
     /// </summary>
     /// <exception cref="ArgumentException">Unknown provider or blank names.</exception>
     public static string DropTriggerSql(string? providerName, string schema, string table)
@@ -158,7 +170,14 @@ public static class RowVersioning
         return providerName switch
         {
             SqlServer => $"DROP TRIGGER IF EXISTS [{schema}].[{trigger}];",
-            PostgreSql => $"DROP TRIGGER IF EXISTS {trigger} ON {schema}.{table};",
+            PostgreSql => $"""
+                DROP TRIGGER IF EXISTS {trigger} ON {schema}.{table};
+                DO $wms$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgfoid = to_regproc('{Schema}.set_row_version')) THEN
+                        DROP FUNCTION IF EXISTS {Schema}.set_row_version();
+                    END IF;
+                END $wms$;
+                """,
             _ => throw new ArgumentException($"Unknown provider '{providerName}'.", nameof(providerName)),
         };
     }

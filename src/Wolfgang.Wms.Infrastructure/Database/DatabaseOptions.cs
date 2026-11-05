@@ -1,6 +1,8 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using Microsoft.Data.SqlClient;
+using Npgsql;
+using Wolfgang.Wms.Core.Secrets;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -70,7 +72,19 @@ public sealed class DatabaseOptions
     /// </summary>
     public string EffectiveConnectionString()
     {
-        var connectionString = ConnectionString ?? string.Empty;
+        return EffectiveConnectionString(protector: null);
+    }
+
+
+
+    /// <summary>
+    /// The connection string the provider receives: decrypted by <paramref name="protector"/> when it is
+    /// stored in the <c>enc:v1:</c> form (E8.2), then with the SQL Server certificate flag applied.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The value is encrypted and <paramref name="protector"/> is null or cannot decrypt it.</exception>
+    public string EffectiveConnectionString(ISecretProtector? protector)
+    {
+        var connectionString = ProtectedText.Reveal(ConnectionString, protector) ?? string.Empty;
         if (ParsedProvider == DatabaseProvider.SqlServer && TrustServerCertificate)
         {
             var builder = new SqlConnectionStringBuilder(connectionString) { TrustServerCertificate = true };
@@ -87,6 +101,13 @@ public sealed class DatabaseOptions
 
 
     /// <summary>
+    /// True when the connection string is stored encrypted (E8.2).
+    /// </summary>
+    public bool ConnectionStringIsProtected => ProtectedText.IsProtected(ConnectionString);
+
+
+
+    /// <summary>
     /// Every problem with the options, each naming the setting; empty when valid.
     /// </summary>
     public IReadOnlyList<string> Validate()
@@ -99,7 +120,10 @@ public sealed class DatabaseOptions
     /// <summary>
     /// Every problem with the options, each naming the setting; empty when valid. With
     /// <paramref name="connectionStringRequired"/> false a missing connection string is accepted, for work that
-    /// never connects (<c>wms-migrate --script</c>); the provider and certificate rules still apply.
+    /// never connects (<c>wms-migrate --script</c>); the provider and certificate rules still apply. A connection
+    /// string the provider cannot parse is reported here (naming the setting, like every other problem) rather
+    /// than by the first context that is resolved, so <c>ValidateOnStart</c> and <c>wms-migrate</c> stop before
+    /// any work with the reason in front of the operator.
     /// </summary>
     public IReadOnlyList<string> Validate(bool connectionStringRequired)
     {
@@ -116,12 +140,45 @@ public sealed class DatabaseOptions
             errors.Add($"{SectionName}:ConnectionString is required when {SectionName}:Provider is {provider}.");
         }
 
+        if (!string.IsNullOrWhiteSpace(ConnectionString) && !ConnectionStringIsProtected && ParseProblem(provider.Value, ConnectionString) is { } problem)   // an enc:v1: string only parses once decrypted
+        {
+            errors.Add($"{SectionName}:ConnectionString is not valid: {problem}");
+        }
+
         if (provider != DatabaseProvider.SqlServer && TrustServerCertificate)
         {
             errors.Add($"{SectionName}:TrustServerCertificate applies to SqlServer only; remove it for {provider}.");
         }
 
         return errors;
+    }
+
+
+
+    /// <summary>
+    /// Why the provider's own connection string builder rejects <paramref name="connectionString"/>, or null when
+    /// it parses (or the provider is <see cref="DatabaseProvider.None"/>, which never connects).
+    /// </summary>
+    private static string? ParseProblem(DatabaseProvider provider, string connectionString)
+    {
+        try
+        {
+            switch (provider)
+            {
+                case DatabaseProvider.SqlServer:
+                    _ = new SqlConnectionStringBuilder(connectionString);
+                    break;
+                case DatabaseProvider.PostgreSql:
+                    _ = new NpgsqlConnectionStringBuilder(connectionString);
+                    break;
+            }
+
+            return null;
+        }
+        catch (ArgumentException exception)
+        {
+            return exception.Message;
+        }
     }
 
 

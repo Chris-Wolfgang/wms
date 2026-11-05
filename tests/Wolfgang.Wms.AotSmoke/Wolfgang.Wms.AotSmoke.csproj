@@ -8,6 +8,7 @@
   -->
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Wolfgang.Wms.Core\Wolfgang.Wms.Core.csproj" />
     <ProjectReference Include="..\..\src\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
   </ItemGroup>
 

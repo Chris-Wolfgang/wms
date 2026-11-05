@@ -1,7 +1,9 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Wolfgang.Wms.Infrastructure.Database.Sync;
 
 namespace Wolfgang.Wms.Infrastructure.Database.Conventions;
 
@@ -10,8 +12,8 @@ namespace Wolfgang.Wms.Infrastructure.Database.Conventions;
 /// model test (<see cref="Verify"/>): snake_case names, a module schema per table, <c>id</c> as the
 /// server-assigned <c>long</c> key, <c>&lt;table&gt;_id</c> foreign keys with explicit indexes and no
 /// database cascades, <c>decimal(9,3)</c> quantities, UTC <c>DateTimeOffset</c> timestamps at millisecond
-/// precision, and no GUID columns. Owned entity types follow the same rules, whether they have a table of their
-/// own or share their owner's.
+/// precision, and no GUID columns; plus E5.1 row versioning and E5.3 soft deletion for the entities that opt in.
+/// Owned entity types follow the same rules, whether they have a table of their own or share their owner's.
 /// </summary>
 public static class ModelConventions
 {
@@ -33,6 +35,16 @@ public static class ModelConventions
     /// Fractional-second precision of every timestamp (<c>datetime2(3)</c> / <c>timestamptz(3)</c>).
     /// </summary>
     public const int TimestampPrecision = 3;
+
+
+
+    /// <summary>
+    /// The longest identifier allowed on either provider: PostgreSQL's limit (63 bytes), applied to SQL Server
+    /// (128) as well, so a convention-built name is never truncated on one engine and kept on the other.
+    /// PostgreSQL truncates a longer name with a NOTICE, and two names that share their first 63 characters
+    /// collide there only; the verifier reports the length instead.
+    /// </summary>
+    public const int MaxIdentifierLength = 63;
 
 
 
@@ -63,7 +75,9 @@ public static class ModelConventions
     /// the owned rows with their owner, the database never cascades), and on SQL Server stores timestamps as UTC
     /// <c>datetime2(3)</c>. An owned type with a table of its own gets a snake_case table name; one that shares
     /// its owner's table leaves that table and the owner's key column alone, and its other columns keep EF's
-    /// navigation prefix (<c>ShipTo.Street</c> → <c>ship_to_street</c>). Schemas are not assigned here: each
+    /// navigation prefix (<c>ShipTo.Street</c> → <c>ship_to_street</c>). A table is named after its CLR type,
+    /// or after the name an explicit <c>ToTable(name, schema)</c> gives it (either way snake_cased); the
+    /// <c>DbSet</c> property name EF would use by default is ignored. Schemas are not assigned here: each
     /// module configures its own (<c>ToTable(name, schema)</c>), and <see cref="Verify"/> rejects a table
     /// without one.
     /// </summary>
@@ -84,7 +98,9 @@ public static class ModelConventions
             var sharesOwnerTable = ownership is not null && SharesTable(entity, ownership.PrincipalEntityType);
             if (ownership is null)
             {
-                entity.SetTableName(SnakeCase.Of(entity.ClrType.Name));
+                // Only a name set by ToTable counts; EF's convention-sourced default is the DbSet property name.
+                var explicitName = ((IConventionEntityType)entity).GetTableNameConfigurationSource() == ConfigurationSource.Explicit ? entity.GetTableName() : null;
+                entity.SetTableName(SnakeCase.Of(explicitName ?? entity.ClrType.Name));
             }
             else if (!sharesOwnerTable)
             {
@@ -94,7 +110,12 @@ public static class ModelConventions
             // E5.1: versioned (non-owned) entities get the row_version column and index before names are applied.
             if (ownership is null && typeof(IVersionedEntity).IsAssignableFrom(entity.ClrType))
             {
-                ConfigureRowVersion(entity, providerName);
+                ConfigureRowVersion(entity, providerName, entity.GetTableName()!);
+            }
+
+            if (ownership is null && typeof(ISoftDeletable).IsAssignableFrom(entity.ClrType))
+            {
+                ConfigureSoftDelete(entity);
             }
 
             var storeObject = StoreObjectIdentifier.Create(entity, StoreObjectType.Table)!.Value;
@@ -124,18 +145,16 @@ public static class ModelConventions
         {
             var storeObject = StoreObjectIdentifier.Create(entity, StoreObjectType.Table) ?? StoreObjectIdentifier.Table(entity.ShortName());
             var table = storeObject.Name;
-            if (string.IsNullOrEmpty(storeObject.Schema) || DefaultSchemas.Contains(storeObject.Schema, StringComparer.OrdinalIgnoreCase))
+            VerifyTableNames(entity, storeObject, violations);
+            if (IsLibraryOwned(entity.ClrType))
             {
-                violations.Add($"{table}: no module schema (tables never land in {string.Join('/', DefaultSchemas)}).");
+                continue;   // a library's tables keep the library's shape; only schema and naming are ours
             }
 
-            if (!SnakeCase.Is(table))
-            {
-                violations.Add($"{table}: table name is not snake_case.");
-            }
-
+            VerifyLength(table, "table", table, violations);
             VerifyKeys(entity, storeObject, violations);
             VerifyRowVersion(entity, table, violations);
+            VerifySoftDelete(entity, table, violations);
             foreach (var property in entity.GetProperties())
             {
                 VerifyProperty(property, storeObject, violations);
@@ -168,10 +187,17 @@ public static class ModelConventions
 
     /// <summary>
     /// E5.1: <c>row_version</c> is a database-assigned bigint (sequence default on insert, trigger on update),
-    /// the concurrency token, and indexed because it is the sync watermark.
+    /// the concurrency token, and indexed because it is the sync watermark. The update trigger is declared
+    /// on the entity so EF reads generated values back with a query instead of an <c>OUTPUT</c> clause, which
+    /// SQL Server refuses on a table with triggers.
     /// </summary>
-    private static void ConfigureRowVersion(IMutableEntityType entity, string? providerName)
+    private static void ConfigureRowVersion(IMutableEntityType entity, string? providerName, string table)
     {
+        if (entity.FindDeclaredTrigger(RowVersioning.TriggerName(table)) is null)
+        {
+            entity.AddTrigger(RowVersioning.TriggerName(table));
+        }
+
         var property = entity.FindProperty(nameof(IVersionedEntity.RowVersion)) ?? entity.AddProperty(nameof(IVersionedEntity.RowVersion), typeof(long));
         property.ValueGenerated = ValueGenerated.OnAddOrUpdate;
         property.IsConcurrencyToken = true;
@@ -179,6 +205,45 @@ public static class ModelConventions
         if (entity.FindIndex(property) is null)
         {
             entity.AddIndex(property);
+        }
+    }
+
+
+
+    /// <summary>
+    /// E5.3: soft-deleted rows are hidden from every query by default; delta reads opt out with
+    /// <c>IgnoreQueryFilters()</c>.
+    /// </summary>
+    private static void ConfigureSoftDelete(IMutableEntityType entity)
+    {
+        if (entity.FindProperty(nameof(ISoftDeletable.DeletedAt)) is null)
+        {
+            return;
+        }
+
+        var row = Expression.Parameter(entity.ClrType, "e");
+        var live = Expression.Equal(Expression.Property(row, nameof(ISoftDeletable.DeletedAt)), Expression.Constant(null, typeof(DateTimeOffset?)));
+        entity.SetQueryFilter(Expression.Lambda(live, row));
+    }
+
+
+
+    private static void VerifySoftDelete(IEntityType entity, string table, List<string> violations)
+    {
+        if (!typeof(ISoftDeletable).IsAssignableFrom(entity.ClrType))
+        {
+            return;
+        }
+
+        var property = entity.FindProperty(nameof(ISoftDeletable.DeletedAt));
+        if (property is null || property.ClrType != typeof(DateTimeOffset?) || !string.Equals(property.GetColumnName(), "deleted_at", StringComparison.Ordinal))
+        {
+            violations.Add($"{table}: soft-deletable entities carry a nullable deleted_at timestamp.");
+        }
+
+        if (entity.GetDeclaredQueryFilters().Count == 0)
+        {
+            violations.Add($"{table}: soft-deletable tables hide deleted rows by default (query filter).");
         }
     }
 
@@ -203,6 +268,31 @@ public static class ModelConventions
         if (property is not null && entity.FindIndex(property) is null)
         {
             violations.Add($"{table}.row_version: versioned tables index row_version (sync watermark).");
+        }
+    }
+
+
+
+    private static void VerifyTableNames(IEntityType entity, StoreObjectIdentifier storeObject, List<string> violations)
+    {
+        var table = storeObject.Name;
+        if (string.IsNullOrEmpty(storeObject.Schema) || DefaultSchemas.Contains(storeObject.Schema, StringComparer.OrdinalIgnoreCase))
+        {
+            violations.Add($"{table}: no module schema (tables never land in {string.Join('/', DefaultSchemas)}).");
+        }
+
+        if (!SnakeCase.Is(table))
+        {
+            violations.Add($"{table}: table name is not snake_case.");
+        }
+
+        foreach (var property in entity.GetProperties())
+        {
+            var column = property.GetColumnName(storeObject) ?? property.GetColumnName();
+            if (!SnakeCase.Is(column))
+            {
+                violations.Add($"{table}.{column}: column name is not snake_case.");
+            }
         }
     }
 
@@ -237,11 +327,27 @@ public static class ModelConventions
             property.SetColumnName(SnakeCase.Of(property.GetDefaultColumnName(storeObject)!));
         }
 
-        if (sqlServer && (property.ClrType == typeof(DateTimeOffset) || property.ClrType == typeof(DateTimeOffset?)))
+        if (property.ClrType == typeof(DateTimeOffset) || property.ClrType == typeof(DateTimeOffset?))
         {
-            property.SetValueConverter(new UtcDateTimeOffsetConverter());
-            property.SetPrecision(TimestampPrecision);
+            property.SetValueConverter(sqlServer ? new UtcDateTimeOffsetConverter() : new MillisecondDateTimeOffsetConverter());   // truncated to the millisecond on both providers
+            if (sqlServer)
+            {
+                property.SetPrecision(TimestampPrecision);   // the converter's DateTime loses the model-wide precision
+            }
         }
+    }
+
+
+
+    /// <summary>
+    /// True for an entity a library maps into the model (E6.4: AuditTrail's tables), which keeps the
+    /// library's keys and column types; the conventions still name it and place it in a module schema.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="clrType"/> is null.</exception>
+    public static bool IsLibraryOwned(Type clrType)
+    {
+        ArgumentNullException.ThrowIfNull(clrType);
+        return !(clrType.Assembly.GetName().Name ?? string.Empty).StartsWith("Wolfgang.Wms", StringComparison.Ordinal);
     }
 
 
@@ -326,10 +432,7 @@ public static class ModelConventions
         var table = storeObject.Name;
         var column = property.GetColumnName(storeObject);
         var type = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
-        if (!SnakeCase.Is(column))
-        {
-            violations.Add($"{table}.{column}: column name is not snake_case.");
-        }
+        VerifyLength(table, "column", column, violations);
 
         if (type == typeof(Guid))
         {
@@ -405,6 +508,18 @@ public static class ModelConventions
         if (name is null || !name.StartsWith(prefix, StringComparison.Ordinal) || !SnakeCase.Is(name))
         {
             violations.Add($"{table}: {kind} name '{name}' must start with '{prefix}' and be snake_case.");
+        }
+
+        VerifyLength(table, kind, name, violations);
+    }
+
+
+
+    private static void VerifyLength(string table, string kind, string? name, List<string> violations)
+    {
+        if (name is not null && name.Length > MaxIdentifierLength)
+        {
+            violations.Add($"{table}: {kind} name '{name}' is {name.Length} characters; identifiers are at most {MaxIdentifierLength} on both providers (PostgreSQL truncates longer ones silently). Give it a shorter explicit name.");
         }
     }
 

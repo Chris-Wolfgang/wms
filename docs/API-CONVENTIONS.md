@@ -21,6 +21,7 @@ message; they pick a code, and the catalog of codes is generated from the defini
 | `202` | work handed to the outbox; the body says where to look |
 | `204` | delete and body-less actions |
 | `400` | malformed request (bad cursor, both `after` and `before`, invalid key) |
+| `403` | the route's site is outside the caller's grants (E10.3); collection endpoints without a site in the route filter through `SiteScope` instead (E16.3, [SITES](SITES.md#site-scope-e163)) |
 | `404` | not in the caller's site scope (hidden endpoints and flags too) |
 | `412` | concurrency: `If-Match` did not match `row_version` (stale or weak tag), or the row changed between that check and the save (the stale-save race, reported the same way); reload and retry |
 | `422` | `Idempotency-Key` reused with a different body |
@@ -85,6 +86,16 @@ site's minimum gets `426 Upgrade Required` (`device.version_too_old`) with the m
 organisation → site (`IDeviceVersionPolicy`, E12), so rollouts can be phased one warehouse at a time while the
 server runs one version for all; until then no minimum is configured. The customer-facing description is
 `docfx_project/docs/device-app-version.md`; keep the two in step.
+
+## Deltas and manifests (device sync)
+
+Every synced master table exposes `GET /{table}?since={rowVersion}&size={n}` returning `{ items, nextSince,
+hasMore }` (rows in `row_version` order, soft-deleted rows included with `deletedAt` set) and
+`GET /{table}/manifest` returning `[{ id, rowVersion }]` of live rows. A device stores `nextSince` after each
+call and keeps calling while `hasMore`; it applies items as idempotent upserts, so the few rows the final
+watermark re-reads (safety margin, DATABASE-CONVENTIONS.md) are harmless. `since` defaults to 0 (everything),
+`size` to 500 and is clamped to 1..5000. Both endpoints come from one helper (`MapSyncedTable`) so no table
+hand-writes them.
 
 ## Natural keys and time
 

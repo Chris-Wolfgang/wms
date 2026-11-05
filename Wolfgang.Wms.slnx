@@ -67,7 +67,6 @@
     <File Path="docs/WORKFLOW_SECURITY.md" />
   </Folder>
   <Folder Name="/.root/scripts/">
-    <File Path="scripts/audit-repos.ps1" />
     <File Path="scripts/build-pr.ps1" />
     <File Path="scripts/changelog.ps1" />
     <File Path="scripts/Fix-BranchRuleset.ps1" />
@@ -76,16 +75,11 @@
     <File Path="scripts/restack.ps1" />
     <File Path="scripts/security-alerts.ps1" />
     <File Path="scripts/Setup-BranchRuleset.ps1" />
-    <File Path="scripts/Setup-GitHubPages.ps1" />
     <File Path="scripts/Setup-Labels.ps1" />
-    <File Path="scripts/Setup-Maintenance.ps1" />
     <File Path="scripts/setup.ps1" />
     <File Path="scripts/tfm-parity.ps1" />
     <File Path="scripts/upgrade.ps1" />
     <File Path="scripts/Validate-DocsDeploy.ps1" />
-  </Folder>
-  <Folder Name="/.root/scripts/templates/">
-    <File Path="scripts/templates/maintenance-parent-body.md" />
   </Folder>
   <Folder Name="/benchmarks/">
     <Project Path="benchmarks/Wolfgang.Wms.Benchmarks/Wolfgang.Wms.Benchmarks.csproj" />
@@ -94,12 +88,15 @@
   <Folder Name="/src/">
     <Project Path="src/Wolfgang.Wms.Android/Wolfgang.Wms.Android.csproj" />
     <Project Path="src/Wolfgang.Wms.Api/Wolfgang.Wms.Api.csproj" />
+    <Project Path="src/Wolfgang.Wms.Auth.Oidc/Wolfgang.Wms.Auth.Oidc.csproj" />
     <Project Path="src/Wolfgang.Wms.Client/Wolfgang.Wms.Client.csproj" />
     <Project Path="src/Wolfgang.Wms.Core/Wolfgang.Wms.Core.csproj" />
     <Project Path="src/Wolfgang.Wms.Domain/Wolfgang.Wms.Domain.csproj" />
     <Project Path="src/Wolfgang.Wms.Infrastructure/Wolfgang.Wms.Infrastructure.csproj" />
+    <Project Path="src/Wolfgang.Wms.Logging/Wolfgang.Wms.Logging.csproj" />
     <Project Path="src/Wolfgang.Wms.Infrastructure.Migrations.PostgreSql/Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.csproj" />
     <Project Path="src/Wolfgang.Wms.Infrastructure.Migrations.SqlServer/Wolfgang.Wms.Infrastructure.Migrations.SqlServer.csproj" />
+    <Project Path="src/Wolfgang.Wms.Admin/Wolfgang.Wms.Admin.csproj" />
     <Project Path="src/Wolfgang.Wms.Migrate/Wolfgang.Wms.Migrate.csproj" />
     <Project Path="src/Wolfgang.Wms.Simulator/Wolfgang.Wms.Simulator.csproj" />
     <Project Path="src/Wolfgang.Wms.Web/Wolfgang.Wms.Web.csproj" />

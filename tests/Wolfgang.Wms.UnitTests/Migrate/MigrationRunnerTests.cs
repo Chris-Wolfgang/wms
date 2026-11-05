@@ -26,6 +26,8 @@ public sealed class MigrationRunnerTests
         Assert.Null(MigrationRunner.Resolve(shipped, MigrationRunner.Empty));
         Assert.Equal("20260920025830_Initial", MigrationRunner.Resolve(shipped, "20260920025830_Initial"));
         Assert.Equal("20260920025830_Initial", MigrationRunner.Resolve(shipped, "Initial"));
+        Assert.Equal("20260920025830_Initial", MigrationRunner.Resolve(shipped, "initial"));   // a name, like --provider, is matched in any case
+        Assert.Equal("20261001120000_AddZones", MigrationRunner.Resolve(shipped, "ADDZONES"));
         Assert.Equal("20261001120000_AddZones", MigrationRunner.Resolve(shipped, "20261001"));
         Assert.Throws<ArgumentException>(() => MigrationRunner.Resolve(shipped, "Nope"));
         Assert.Throws<ArgumentNullException>(() => MigrationRunner.Resolve(null!, "x"));
@@ -201,9 +203,10 @@ public sealed class MigrationRunnerTests
 
         var status = await MigrateProgram.RunAsync(["--status"], output, error, configuration: Configuration("SqlServer", UnreachableSqlServer), cancellationToken: CancellationToken.None);
 
-        Assert.Equal(MigrateProgram.ExitOk, status);
+        Assert.Equal(MigrateProgram.ExitRefused, status);   // a script cannot gate on text; unreachable is a refusal here too
         Assert.Contains("Reachable: no: ", output.ToString(), StringComparison.Ordinal);
-        Assert.Matches(@"Pending \([1-9]\d*\)", output.ToString());
+        Assert.Contains("Pending: unknown (the database cannot be queried; this build ships ", output.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotMatch(@"Pending \(\d+\)", output.ToString());   // the tool has not compared anything, so it lists nothing as pending
         Assert.Contains("Schema is not up to date.", output.ToString(), StringComparison.Ordinal);
     }
 
@@ -223,6 +226,62 @@ public sealed class MigrationRunnerTests
         Assert.Equal(MigrateProgram.ExitUsage, code);
         Assert.Contains("Wms:Database:Provider", error.ToString(), StringComparison.Ordinal);
         Assert.Equal(string.Empty, output.ToString());
+    }
+
+
+
+    [Fact]
+    public async Task Cancellation_ends_with_exit_130_and_one_line_not_a_stack_trace()
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var status = await MigrateProgram.RunAsync(["--status"], output, error, Configuration("PostgreSql", TestConnectionStrings.PostgreSql("nowhere")), cancellation.Token);
+        var apply = await MigrateProgram.RunAsync([], output, error, Configuration("SqlServer", UnreachableSqlServer), cancellation.Token);
+        var script = await MigrateProgram.RunAsync(["--script", "--provider", "PostgreSql"], output, error, new ConfigurationBuilder().Build(), cancellation.Token);
+
+        Assert.Equal(MigrateProgram.ExitCancelled, status);
+        Assert.Equal(MigrateProgram.ExitCancelled, apply);
+        Assert.Equal(MigrateProgram.ExitCancelled, script);
+        Assert.Equal(string.Empty, output.ToString());   // no script reached standard output
+        Assert.Equal("Cancelled." + Environment.NewLine + "Cancelled." + Environment.NewLine + "Cancelled." + Environment.NewLine, error.ToString());
+    }
+
+
+
+    [Fact]
+    public async Task An_output_path_that_cannot_be_written_is_a_usage_error_naming_the_path()
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var file = Path.Combine(Path.GetTempPath(), "wms-migrate-" + Guid.NewGuid().ToString("N"), "no-such-directory", "script.sql");
+
+        var code = await MigrateProgram.RunAsync(["--script", "--output", file], output, error, Configuration("PostgreSql", TestConnectionStrings.PostgreSql("nowhere")), CancellationToken.None);
+
+        Assert.Equal(MigrateProgram.ExitUsage, code);
+        Assert.StartsWith("Cannot write --output " + file + ": ", error.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("Wrote ", output.ToString(), StringComparison.Ordinal);
+    }
+
+
+
+    [Fact]
+    public async Task A_failure_outside_a_migration_ends_with_exit_1_and_its_message()
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        // No provider configured: EF throws InvalidOperationException before any migration can run.
+        using var context = new WmsDbContext(new DbContextOptionsBuilder<WmsDbContext>().Options);
+        var runner = new MigrationRunner(context);
+
+        var apply = await MigrateProgram.ApplyAsync(runner, MigrateCommandLine.Parse([]), output, error, CancellationToken.None);
+        var script = await MigrateProgram.ScriptAsync(runner, MigrateCommandLine.Parse(["--script"]), output, error, CancellationToken.None);
+
+        Assert.Equal(MigrateProgram.ExitMigrationFailed, apply);
+        Assert.Equal(MigrateProgram.ExitMigrationFailed, script);
+        Assert.StartsWith("wms-migrate failed: No database provider has been configured", error.ToString(), StringComparison.Ordinal);
     }
 
 
@@ -422,10 +481,20 @@ public sealed class MigrationRunnerTests
             Unknown = ["20991231000000_FromTheFuture"],
         };
         var behind = new MigrationStatus(Reachable: true, Applied: [], Pending: ["20260920025830_Initial"], Expected: "20260920025830_Initial");
+        // Initial applied, RowVersionSequence pending: an ordinary database one release behind, not a gap.
+        var partlyBehind = new MigrationStatus(Reachable: true, Applied: ["20260920025830_Initial"], Pending: ["20260920035312_RowVersionSequence"], Expected: "20260920035312_RowVersionSequence");
+        // RowVersionSequence applied, Initial not: a hand-edited or partially restored history.
+        var gapped = new MigrationStatus(Reachable: true, Applied: ["20260920035312_RowVersionSequence"], Pending: ["20260920025830_Initial"], Expected: "20260920035312_RowVersionSequence");
 
         Assert.Equal("Wms:Database: the database cannot be reached; check the connection string and that the server is up. connection refused", MigrationRunner.Refusal(unreachable));
         Assert.Equal("The database schema is newer than this build (unknown migrations: 20991231000000_FromTheFuture). Upgrade the application, or restore the backup taken before the upgrade.", MigrationRunner.Refusal(newer));
         Assert.Null(MigrationRunner.Refusal(behind));
+        Assert.Equal(["20260920025830_Initial"], gapped.Gaps);
+        Assert.Empty(behind.Gaps);
+        Assert.Empty(partlyBehind.Gaps);
+        Assert.Null(MigrationRunner.Refusal(partlyBehind));
+        Assert.Empty(unreachable.Gaps);
+        Assert.Equal("The migrations history is inconsistent: 20260920025830_Initial not applied although the later migration 20260920035312_RowVersionSequence is. Nothing is applied in either direction; repair wms.migrations_history from the backup or with the DBA, then run wms-migrate.", MigrationRunner.Refusal(gapped));
         Assert.Throws<ArgumentNullException>(() => MigrationRunner.Refusal(null!));
     }
 

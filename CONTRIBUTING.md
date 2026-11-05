@@ -73,7 +73,9 @@ You can contribute in several ways:
    ```
    `type` is one of `breaking`, `feature`, `fix`, `docs`, `internal`. `CHANGELOG.md` is never edited by
    hand — the fragments are assembled into it at release time (`scripts/changelog.ps1 assemble`). A
-   `src/` change with no user-visible effect can carry the `no-changelog` label instead. Details in
+   `src/` change with no user-visible effect can carry the `no-changelog` label instead. A `feature` or
+   `breaking` fragment must come with a documentation change in the same PR (under `docs/`,
+   `docfx_project/` or a top-level `*.md`), or the `no-docs` label with a reason (E85.10). Details in
    [changelog/unreleased/README.md](changelog/unreleased/README.md).
 
 ---
@@ -218,6 +220,9 @@ dotnet test --configuration Release
 
 # Run with coverage (if configured)
 dotnet test --collect:"XPlat Code Coverage"
+
+# SQL Server tests without Docker: point them at a local instance (LocalDB, Express); PostgreSQL tests need Docker
+WMS_TEST_SQLSERVER="Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true" dotnet test tests/Wolfgang.Wms.IntegrationTests
 ```
 
 ### Run the PR checks locally
@@ -282,6 +287,11 @@ View the complete configuration in [.editorconfig](.editorconfig).
 - Ensure all analyzer warnings are addressed (they're treated as errors in Release builds).
 - Use async/await patterns - no blocking calls allowed.
 - Include `CancellationToken` parameters in async methods where appropriate.
+- Log at the level [docs/LOGGING.md](docs/LOGGING.md) prescribes (Verbose per-scan detail, Debug decisions,
+  Information milestones, Warning recovered problems, Error failed operations, Fatal cannot continue),
+  through `[LoggerMessage]` methods with templates; never `Console.Write` and never an interpolated string in
+  a log call. Run `scripts/Check-LogLevels.ps1` before opening a PR; the PR workflow runs it once its
+  wiring (#222) is merged.
 
 ---
 

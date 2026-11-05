@@ -46,13 +46,15 @@ internal sealed class SampleModelDbContext : DbContext
 
 
 
-public sealed class Sku : Wolfgang.Wms.Infrastructure.Database.IVersionedEntity
+public sealed class Sku : Wolfgang.Wms.Infrastructure.Database.Sync.ISyncedEntity
 {
     public long Id { get; set; }
 
     public string Code { get; set; } = string.Empty;
 
     public long RowVersion { get; set; }
+
+    public DateTimeOffset? DeletedAt { get; set; }
 }
 
 
@@ -111,6 +113,97 @@ public sealed class ContainerLine
 
 
 /// <summary>
+/// A module that names a table explicitly (<c>ToTable("PickTask", "picking")</c> on a class called
+/// <see cref="WorkItem"/>) through a DbSet whose property name is a third spelling: the explicit name wins,
+/// snake_cased, and the DbSet name is never used.
+/// </summary>
+internal sealed class ExplicitNamesDbContext : DbContext
+{
+    public ExplicitNamesDbContext(DbContextOptions<ExplicitNamesDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<WorkItem> OpenWork => Set<WorkItem>();
+
+    public DbSet<Bin> Bins => Set<Bin>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        ModelConventions.Configure(configurationBuilder);
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<WorkItem>().ToTable("PickTask", "picking");
+        modelBuilder.Entity<Bin>().ToTable("Bin", "layout");
+        ModelConventions.Apply(modelBuilder, Database.ProviderName);
+    }
+}
+
+
+
+internal sealed class WorkItem
+{
+    public long Id { get; set; }
+
+    public string Code { get; set; } = "";
+}
+
+
+
+internal sealed class Bin
+{
+    public long Id { get; set; }
+
+    public string Code { get; set; } = "";
+}
+
+
+
+/// <summary>
+/// A compliant model whose convention-built index name runs past PostgreSQL's 63 characters (E3.2): the one
+/// violation the verifier must report on both providers before a migration is generated.
+/// </summary>
+internal sealed class LongNamesDbContext : DbContext
+{
+    public LongNamesDbContext(DbContextOptions<LongNamesDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<InventoryAdjustmentReconciliationLine> Lines => Set<InventoryAdjustmentReconciliationLine>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        ModelConventions.Configure(configurationBuilder);
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasDefaultSchema("picking");
+        modelBuilder.Entity<InventoryAdjustmentReconciliationLine>().HasIndex(l => new { l.WarehouseLocationIdentifier, l.ReconciliationBatchIdentifier });
+        ModelConventions.Apply(modelBuilder, Database.ProviderName);
+    }
+}
+
+
+
+/// <summary>
+/// A 40-character table name; with its two long columns the conventional index name is 105 characters.
+/// </summary>
+internal sealed class InventoryAdjustmentReconciliationLine
+{
+    public long Id { get; set; }
+
+    public string WarehouseLocationIdentifier { get; set; } = "";
+
+    public string ReconciliationBatchIdentifier { get; set; } = "";
+}
+
+
+
+/// <summary>
 /// A model that breaks every checked convention at least once, so the verifier's messages are pinned.
 /// </summary>
 internal sealed class BadModelDbContext : DbContext
@@ -130,6 +223,8 @@ internal sealed class BadModelDbContext : DbContext
 
     public DbSet<BadDefaulted> Defaulted => Set<BadDefaulted>();
 
+    public DbSet<BadSoft> Softs => Set<BadSoft>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         ModelConventions.Configure(configurationBuilder);
@@ -141,6 +236,8 @@ internal sealed class BadModelDbContext : DbContext
     {
         modelBuilder.Entity<BadParent>().ToTable("BadParent", "dbo");
         modelBuilder.Entity<BadChild>().ToTable("BadChild", "picking");
+        modelBuilder.Entity<BadSoft>().ToTable("BadSoft", "picking");
+        modelBuilder.Entity<BadSoft>().Ignore(s => s.DeletedAt);
         modelBuilder.Entity<BadChild>().Property(c => c.Amount).HasPrecision(18, 2);
         modelBuilder.Entity<BadChild>().Property(c => c.When).HasPrecision(7);
         modelBuilder.Entity<BadChild>().HasOne(c => c.Parent).WithMany().HasForeignKey(c => c.Owner).OnDelete(DeleteBehavior.Cascade);
@@ -297,4 +394,13 @@ internal sealed class ClientIdGeneratorFactory : ValueGeneratorFactory
     {
         return new ClientIdGenerator();
     }
+}
+
+
+
+public sealed class BadSoft : Wolfgang.Wms.Infrastructure.Database.Sync.ISoftDeletable
+{
+    public long Id { get; set; }
+
+    public DateTimeOffset? DeletedAt { get; set; }
 }

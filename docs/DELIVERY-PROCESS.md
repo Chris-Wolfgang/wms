@@ -7,7 +7,7 @@ this page is the map, [CONTRIBUTING.md](../CONTRIBUTING.md) is the human summary
 | Gate | Trigger | Skill | Workflow |
 |------|---------|-------|----------|
 | PR gate (E85.1) | every pull request | `pr-gate` | `pr.yaml` |
-| Main gate (E85.2) | squash-merge to `main` | — | `release.yaml` dev mode (E83) |
+| Main gate (E85.2) | squash-merge to `main` | — | arrives with E83 (today no release-pipeline run follows a merge) |
 | Prerelease gate (E85.3) | tag `vX.Y.Z-rc.N` | `prerelease-review` | `release.yaml` prerelease |
 | Release gate (E85.4) | tag `vX.Y.Z` | `release` | `release.yaml` release mode |
 | Hotfix gate (E85.5) | fix on `release/N.x` | `hotfix` | same `pr.yaml` / `release.yaml` |
@@ -39,19 +39,28 @@ Playwright + axe) run on `main` merges and nightly, never per PR. A `paths:` fil
 a **required** status check (a PR the filter skips would wait forever for it); path-based skipping is done
 inside the job with `dorny/paths-filter`-style detection, or the job is not required.
 
-Provider tests run against real engines in containers (`ProviderStartupTests`: SQL Server 2022, SQL Server 2025
-Express, PostgreSQL 16; they need Docker, which CI has, and skip on a developer machine without it); the
-migration-drift check is the Stage 1 step over `scripts/Check-Migrations.ps1`; the OpenAPI diff is the
-`openapi-diff` job. Not yet wired: Playwright + axe (E82 UI stories).
+Provider tests run against real engines: containers on the Linux job (SQL Server 2022 and 2025 Express,
+PostgreSQL 16, the mock OIDC provider), and on the Windows job the SQL Server tests run against SQL Server
+Express LocalDB (`WMS_TEST_SQLSERVER` names the instance; `SqlServerTestDatabase` creates a database per
+test) while the Docker-only tests are skipped naming Chris-Wolfgang/wms#220 — every skip must name an open
+issue, which `scripts/Check-Skips.ps1` verifies from the TRX files (E13.1). Test assemblies are measured at
+100% line coverage. The migration-drift check is the Stage 1 step over `scripts/Check-Migrations.ps1`; the
+logging rules (docs/LOGGING.md) are the Stage 1 step over `scripts/Check-LogLevels.ps1`; the OpenAPI diff is
+the `openapi-diff` job. The compose smoke (`compose-smoke.yaml`: images built from the tree, the stack
+provisioned and migrated, `/health/ready` through Caddy, torn down) runs on `main` merges, weekly and on
+demand, opening an issue on failure (E13.3). Not yet wired: Playwright + axe (E82 UI stories).
 
 ## Main gate (E85.2)
 
-A squash-merge to `main` runs `release.yaml` in **dev mode**: same build, images, installers, SBOM, dev-identity
-signing, docs published under `/dev/`, simulator smoke load. Versions are MinVer heights,
-`0.x.y-alpha.0.N`. Dev mode changes only the publish destination, the signing identity and the version
-suffix; the pipeline is the release pipeline, exercised on every merge so release day holds no surprises. The
-image, installer and signing stages arrive with E83; until then the dev-mode run is the template's
-validate-and-pack path.
+**Arrives with E83.** Today no release-pipeline run follows a merge to `main`: `release.yaml` is triggered only
+by a published GitHub release (`on: release: types: [published]`), and the docs site is deployed by `docfx.yaml`
+under `versions/<tag>/` and `versions/latest/`. What a push to `main` does run is the per-push analysis (CodeQL,
+Semgrep, actionlint and zizmor, the SBOM, SourceLink and license audits, the benchmarks): checks on the merged
+code, not a build of the product. The planned gate: a squash-merge to `main` runs `release.yaml` in
+**dev mode**, the same build, images, installers, SBOM and simulator smoke load as a release, with dev-identity
+signing, docs published as a dev version and MinVer-height versions (`0.x.y-alpha.0.N`). Dev mode changes only
+the publish destination, the signing identity and the version suffix; the pipeline is the release pipeline,
+exercised on every merge so release day holds no surprises.
 
 ## Versioning (E85.4)
 
@@ -82,10 +91,12 @@ not notes.
 ## Release gate (E85.4)
 
 Tag `vX.Y.Z` (a GitHub release, immutable). The same `release.yaml` in **release mode**: build, real signing
-identity, images, installers and docs published under `/vX.Y/`, GitHub release with the assembled changelog,
+identity, images, installers and docs published under `versions/vX.Y.Z/` (and `versions/latest/`), GitHub
+release with the assembled changelog,
 SBOM attached (E85.8). The `release` skill assembles the changelog (`changelog.ps1 assemble`), writes migration
-notes, runs the upgrade test from the previous version, regenerates notices, closes the milestone and creates
-the next one.
+notes, runs the upgrade test from the previous version, regenerates notices, refreshes the licensing baseline
+(`docs/licensing/tier-table.txt` from `TierTables.Current.ToLines()`, docfx_project/docs/licensing.md), closes the milestone
+and creates the next one.
 
 ## Hotfix gate (E85.5)
 

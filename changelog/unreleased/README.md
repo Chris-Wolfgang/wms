@@ -38,11 +38,19 @@ and are not worth an `internal` entry (typo in a comment, formatting). Dependabo
 The CI check reads labels at the time the PR event fires. After adding the label, re-run the
 *Changelog Fragment Check* job or push a commit.
 
+## Documentation (E85.10)
+
+A `feature` or `breaking` fragment ships with its documentation: the same PR must change something under
+`docs/`, `docfx_project/` or a top-level `*.md`. When the change genuinely needs no documentation, add the
+`no-docs` label with a reason in the PR description. Like `no-changelog`, the label is read when the PR
+event fires, so re-run the check or push a commit after adding it.
+
 ## The check
 
 `scripts/changelog.ps1 check` fails a PR when files under `src/` changed and no fragment was added,
-unless the PR carries `no-changelog`. It also validates every fragment in this directory: a recognised
-`type:` on line 1 and a non-empty description.
+unless the PR carries `no-changelog`, and when a `feature` or `breaking` fragment was added with no
+documentation change, unless the PR carries `no-docs`. It also validates every fragment in this directory:
+a recognised `type:` on line 1 and a non-empty description.
 
 ```powershell
 pwsh ./scripts/changelog.ps1 check                     # against origin/main

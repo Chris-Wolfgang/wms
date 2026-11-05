@@ -1,0 +1,170 @@
+# Settings
+
+Everything an administrator configures after installation is a setting: defined once in code, stored in the
+database, edited in the Configure workspace, and read through one typed accessor. `appsettings.json` holds
+only what the process needs before it can reach the database (docs/CONFIGURATION.md, E6.5).
+
+## The registry (E6.1)
+
+A setting is a `SettingKey<T>` (`Wolfgang.Wms.Domain.Keys`, E1.13) declared as a `static readonly` field
+in the module that owns it and contributed through `ModuleDescriptor.WithSettings(...)`. The host builds one
+`SettingRegistry` from every registered module; the console's settings pages, the generated documentation
+and the accessor read it, so a key that is not registered cannot be shown, documented or written. Each key
+carries:
+
+| Member | Meaning |
+|--------|---------|
+| `Name` | Lower-case dotted identifier, `picking.lease_timeout`; unique across all modules (the registry refuses duplicates at startup). |
+| `Kind` | How the value is edited and stored: `Boolean`, `Integer`, `Number`, `Enum`, `String`, `Duration`, `Timestamp`, `Secret`, `Json`. Derived from `T` through the codec. |
+| `Scopes` | Where it may be configured: `OrganizationToZone` (default), `OrganizationToSku`, `OrganizationToSite`, or `Organization` alone (E7). |
+| `DefaultValue` / `DefaultText` | Used when nothing is configured at any scope. |
+| `Description` | One line, user-facing. |
+| `Validator` | `Func<T, string?>` returning a reason when the kind alone cannot reject a value (a range, a format). |
+| `RequiresRestart` | The console warns that the change takes effect after a restart. |
+| `TriggersDeviceResync` | Devices resync their settings cache before continuing. |
+
+```csharp
+public static class PickingSettings
+{
+    public static readonly SettingKey<TimeSpan> LeaseTimeout = new("picking.lease_timeout", TimeSpan.FromMinutes(15), "How long a picker holds a task.")
+    {
+        Validator = v => v >= TimeSpan.FromMinutes(1) && v <= TimeSpan.FromHours(1) ? null : "must be between 1 minute and 1 hour",
+        TriggersDeviceResync = true,
+    };
+}
+
+services.AddWmsModule(ModuleDescriptor.Create("picking").WithSettings(PickingSettings.LeaseTimeout));
+```
+
+`GET /api/v0/settings/registry` returns every entry (`name`, `kind`, `scopes`, `default`, `description`,
+`choices`, `requiresRestart`, `triggersDeviceResync`); a secret's default is masked. Values arrive with
+E6.3.
+
+## Stored text and codecs
+
+Every value is stored as invariant-culture text so the console, the API and the CLI write the same bytes on
+every engine (E6.3). `SettingCodec<T>` converts between the value and the text; `SettingCodecs.For<T>()`
+supplies the built-in codecs:
+
+| `T` | Kind | Stored as |
+|-----|------|-----------|
+| `bool` | Boolean | `true` / `false` |
+| `int`, `long` | Integer | digits |
+| `decimal`, `double` | Number | `1.5` (`.` decimal point; `NaN`/infinity rejected) |
+| enum | Enum | the name, parsed case-insensitively; `Choices` lists the names |
+| `string` | String | as is |
+| `TimeSpan` | Duration | `[d.]hh:mm:ss[.fffffff]` |
+| `DateTimeOffset` | Timestamp | ISO 8601 round-trip (`2026-09-20T08:30:00.0000000+02:00`) |
+| `SecretText` | Secret | plain in the codec; encrypted by the store (E8.3), masked on screen |
+| anything else | Json | `SettingCodecs.Json(serialize, deserialize)` with the module's source-generated `JsonTypeInfo`; a key with no codec fails at construction |
+
+Invalid text is reported, never thrown: `key.Validate(text)` returns a reason (kind first, then the
+validator) or null, and the registry's `Check(name, scope, text)` maps failures to the module's error codes:
+`settings.unknown_key` (404), `settings.scope_not_allowed` (400), `settings.invalid_value` (400).
+
+## Storage (E6.2)
+
+Values live in `core.setting`, on both engines through the normal migrations (`wms migrate`). **A row records
+a decision** (ADR 0009): there is one row per (scope type, scope id, key) only where an administrator set a value
+or a cascade mode at that scope. A scope that inherits has no row; what applies there is resolved on read
+(E6.3), never stored.
+
+| Column | Meaning |
+|--------|---------|
+| `scope_type`, `scope_id` | The `SettingScopeRef`: `organization` (id 0), `site`, `zone` or `sku` and the row id. |
+| `key` | The registered setting name. |
+| `value` | What an administrator set at this scope as stored text; null only while the scope delegates (`cascade_mode`, E7.2). |
+| `cascade_mode` | `value`, or `per_site` / `per_zone` / `per_sku` when the scope hands the decision down (E7.2). |
+| `row_version` | The E6.2 "version": sequence-backed, reassigned by the trigger on every write; the concurrency token, the `ETag` and the device sync watermark. |
+| `updated_by`, `updated_at` | Who made the decision last and when (UTC). |
+| `deleted_at` | Soft delete: a reset removes the decision, and the deleted row reaches devices as a delta (E5.3); writing at the scope again revives it. |
+
+The unique index `ux_setting_scope_type_scope_id_key` serves the accessor's lookup and enforces one row per
+scope and key. Nothing writes the table directly: the accessor (E6.3) validates against the registry, writes
+the one row and audits the change. The row count is the number of decisions, not scopes × keys: an
+installation with thousands of SKUs holds a few hundred rows, and a site-level change is one row written and
+one audit entry.
+
+## Reading and writing (E6.3)
+
+`ISettings` (`Wolfgang.Wms.Core.Settings`) is the one way to read or change a setting; the console, the API
+and the CLI all go through it, and nothing writes `core.setting` directly.
+
+- `GetAsync(key, scope)` resolves the effective value at a scope: the scope's own configured value, else the
+  nearest ancestor's (organisation → site → zone, or organisation → site → SKU), else the key's default; a
+  scope that delegates holds no value and is passed over like one that inherits. `T` is inferred from the key.
+  A cold read is one query over the scope's ancestor chain; a warm read is a dictionary hit, because the
+  store is decorated by `CachedSettings` (ADR 0003), which memoises what the store resolves until the
+  settings or zones tables' highest `row_version` moves (probed at most every 5 seconds) or this instance
+  saves a setting or a zone, whichever store saved it (the `OwnWritesInvalidation` interceptor).
+  `ProtectedSettings` sits outside the cache and keeps secret-kind values encrypted at rest (E8.3), so the
+  cache holds ciphertext.
+- `SetAsync(key, scope, value, updatedBy)` checks the key is registered, the scope allowed and the value
+  accepted by the validator, stores the invariant text as `value` in that scope's one row, and
+  invalidates the cache. Nothing else is written: descendants that inherit see the change through resolution,
+  and a descendant with its own configured value keeps it and shields its subtree (E7.1). `ResetAsync` removes
+  the decision (the row is soft-deleted) so the scope and its inheriting descendants resolve the nearest
+  ancestor's value again. `SetTextAsync`/`FindAsync` are the same operations by name for the API.
+- Failures are `SettingException`s carrying an error code; the module's exception handler answers the
+  matching problem: `settings.unknown_key` (404), `settings.unknown_scope` (400), `settings.scope_not_allowed`
+  (400), `settings.invalid_value` (400), `settings.store_unavailable` (503, before a database is configured;
+  reads then answer defaults).
+- `ISettingScopeHierarchy` supplies parents and children. With a database it runs over the stored sites and
+  zones (E16.1, E16.2): the organisation's children are every site, a site's children are its zones, and each
+  has its parent; SKUs will extend it. Without a database the placeholder knows only that a site's parent is
+  the organisation.
+- Secrets are masked in every `SettingValue` and stored encrypted (`enc:v1:`, E8.3) through `ISecretProtector`;
+  only `GetAsync<SecretText>` sees the plain value.
+
+| Endpoint | Meaning |
+|----------|---------|
+| `GET /settings/registry` | Every registered setting (E6.1). |
+| `GET /settings/{scope}/{id}` | Every setting at a scope: `configuredValue`, `effectiveValue`, `inheritedFrom` (`organization`, `site:3`, `default` or null when configured here), `rowVersion`, `etag`, `updatedBy`, `updatedAt`. |
+| `GET /settings/{scope}/{id}/{key}` | One setting; the `ETag` header is the stored row's version. |
+| `PUT /settings/{scope}/{id}/{key}` | Body `{ "value": "text" }` (null resets). `If-Match` with the row's tag is required once a row exists (428/412, E5.2); the first write at a scope has no row. |
+| `DELETE /settings/{scope}/{id}/{key}` | Reset to inherit; same `If-Match` rule. |
+
+`{scope}` is `organization` (id 0), `site`, `zone` or `sku`. Writes record the caller as `updatedBy`
+(`anonymous` until E9).
+
+## Audit (E6.4)
+
+Every change to `core.setting` is recorded by the AuditTrail library, not a hand-written table: `WmsDbContext`
+derives from `AuditingDbContext` (Model 1, required because the connection retries on transient failures),
+so each save writes one `core.audit_header` row per changed row (`user_id` = the host's application name,
+`on_behalf_of_user_id` = the signed-in user, entity, key, `I`/`U`/`D`, `transaction_id` shared by everything
+one save changed, `audited_at_utc`) and one `core.audit_detail` row per changed column, in the same
+transaction as the change. Deleted rows keep their last values. The same store serves every audited table
+(master data, roles, leases, API keys, validation profiles); high-volume picking tables opt out with
+`[NotAudited]`. The console's audit viewer, grouping headers by transaction, arrives with the console
+stories; ordering within a transaction and a WMS correlation on the header are upstream requests
+(Chris-Wolfgang/AuditTrail#344, #345; DATABASE-CONVENTIONS.md, "Audit tables").
+
+## Cascade modes and inheritance on creation (E7)
+
+A change at a parent applies to every descendant that inherits the moment it is saved (E7.1): the descendant
+resolves the new value on its next read, and one with its own configured value keeps it and shields its
+subtree. Nothing is written below the scope that changed (ADR 0009).
+
+A scope can also hand the decision down instead of holding a value (E7.2). `PUT` with `{ "mode": "per_site" }`
+(or `per_zone`, `per_sku`) sets the scope's `cascadeMode`: it drops its own configured value, inherits for
+display, and the scopes it delegates to decide. `allowedModes` on every `SettingValue` lists what the key
+permits there: an organisation may delegate to any scope type below it that the key allows, a site to zones
+or SKUs, a zone or a SKU only holds a value. While an ancestor delegates past a scope (organisation
+`per_zone` and a write at a site), the write is refused with `settings.decided_elsewhere` (409); the deciding
+level and everything above it write normally, and a value written at a delegating scope switches it back to
+`value`. The console shows overridden children greyed with their retained values (`configuredValue` is
+present while `inheritedFrom` is null).
+
+A newly created site, zone or SKU gets no setting rows (E7.3 as decided in ADR 0009): it resolves every
+setting from its ancestors and the defaults until an administrator decides something there, so a new scope is
+never unresolved and never carries copies that could go stale. SKU-scoped keys (E7.4) declare
+`SettingScopes.OrganizationToSku` and resolve organisation → site → SKU through the same code; the hierarchy
+answers SKU parents once SKUs are entities.
+
+## Scopes (E6.2, E7)
+
+A value lives at a `SettingScopeRef`: a scope type (`organization`, `site`, `zone`, `sku`) and the id of the
+site, zone or SKU (0 for the single organisation). Values resolve organisation → site → zone, or
+organisation → site → SKU for product policies; a child without its own decision takes the nearest ancestor's
+value, computed when it is read (ADR 0009). The delegation modes are E7.

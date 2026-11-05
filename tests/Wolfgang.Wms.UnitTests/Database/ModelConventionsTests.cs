@@ -146,6 +146,36 @@ public sealed class ModelConventionsTests
 
 
 
+    [Theory]
+    [InlineData(SqlServer)]
+    [InlineData(PostgreSql)]
+    public void Soft_deletable_entities_hide_deleted_rows_by_default_and_versioned_ones_declare_their_trigger(string provider)
+    {
+        using var context = Sample(provider);
+        var sku = context.Model.FindEntityType(typeof(Sku))!;
+
+        Assert.Equal("deleted_at", sku.FindProperty(nameof(Sku.DeletedAt))!.GetColumnName());
+        Assert.Single(sku.GetDeclaredQueryFilters());
+        Assert.Equal(["trg_sku_row_version"], sku.GetDeclaredTriggers().Select(t => t.ModelName));
+        Assert.Empty(context.Model.FindEntityType(typeof(Container))!.GetDeclaredTriggers());
+    }
+
+
+
+    [Fact]
+    public void Timestamps_are_truncated_to_the_millisecond_on_both_providers()
+    {
+        var boundary = new DateTimeOffset(2026, 9, 20, 6, 30, 0, 56, TimeSpan.Zero).AddTicks(9995);   // the servers would round this up to .057
+
+        Assert.Equal(new DateTimeOffset(2026, 9, 20, 6, 30, 0, 56, TimeSpan.Zero), Timestamps.TruncateToMillisecond(boundary));
+        Assert.Equal(new DateTime(2026, 9, 20, 6, 30, 0, 56, DateTimeKind.Utc), (DateTime)new UtcDateTimeOffsetConverter().ConvertToProvider(boundary)!);
+        Assert.Equal(new DateTimeOffset(2026, 9, 20, 6, 30, 0, 56, TimeSpan.Zero), (DateTimeOffset)new MillisecondDateTimeOffsetConverter().ConvertToProvider(boundary)!);
+        Assert.Equal(boundary, (DateTimeOffset)new MillisecondDateTimeOffsetConverter().ConvertFromProvider(boundary)!);
+        Assert.Equal(TimeSpan.Zero, Timestamps.TruncateToMillisecond(new DateTimeOffset(2026, 9, 20, 8, 30, 0, TimeSpan.FromHours(2))).Offset);
+    }
+
+
+
     [Fact]
     public void SqlServer_timestamps_round_trip_as_utc_through_the_converter()
     {
@@ -213,9 +243,50 @@ public sealed class ModelConventionsTests
                 "bad_parent.id: GUID columns are not allowed; identifiers are server-assigned long.",
                 "bad_parent: no module schema (tables never land in dbo/public).",
                 "bad_parent: primary key must be a single server-assigned long column named 'id'.",
+                "bad_soft: soft-deletable entities carry a nullable deleted_at timestamp.",
+                "bad_soft: soft-deletable tables hide deleted rows by default (query filter).",
             ],
             violations.Order(StringComparer.Ordinal)
         );
+    }
+
+
+
+    [Theory]
+    [InlineData(SqlServer)]
+    [InlineData(PostgreSql)]
+    public void Verify_reports_a_convention_built_name_longer_than_63_characters_on_both_providers(string provider)
+    {
+        using var context = new LongNamesDbContext(Options<LongNamesDbContext>(provider));
+
+        var violations = ModelConventions.Verify(context.Model);
+
+        Assert.Equal
+        (
+            [
+                "inventory_adjustment_reconciliation_line: index name 'ix_inventory_adjustment_reconciliation_line_warehouse_location_identifier_reconciliation_batch_identifier' is 105 characters; identifiers are at most 63 on both providers (PostgreSQL truncates longer ones silently). Give it a shorter explicit name.",
+            ],
+            violations
+        );
+    }
+
+
+
+    [Theory]
+    [InlineData(SqlServer)]
+    [InlineData(PostgreSql)]
+    public void Apply_honours_an_explicit_table_name_and_ignores_the_DbSet_name(string provider)
+    {
+        using var context = new ExplicitNamesDbContext(Options<ExplicitNamesDbContext>(provider));
+
+        var pickTask = context.Model.FindEntityType(typeof(WorkItem))!;
+        var bin = context.Model.FindEntityType(typeof(Bin))!;
+
+        Assert.Equal("pick_task", pickTask.GetTableName());
+        Assert.Equal("picking", pickTask.GetSchema());
+        Assert.Equal("pk_pick_task", pickTask.FindPrimaryKey()!.GetName());
+        Assert.Equal("bin", bin.GetTableName());
+        Assert.Empty(ModelConventions.Verify(context.Model));
     }
 
 
@@ -237,7 +308,7 @@ public sealed class ModelConventionsTests
 
 
 
-    private static DbContextOptions<TContext> Options<TContext>(string provider)
+    internal static DbContextOptions<TContext> Options<TContext>(string provider)
         where TContext : DbContext
     {
         var builder = new DbContextOptionsBuilder<TContext>();

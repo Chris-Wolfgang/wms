@@ -2,7 +2,9 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Wolfgang.Wms.Core.Secrets;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Secrets;
 
 namespace Wolfgang.Wms.Migrate;
 
@@ -15,7 +17,11 @@ public static class MigrateProgram
     /// <summary>Everything ran.</summary>
     public const int ExitOk = 0;
 
-    /// <summary>A migration failed; its name is in the output.</summary>
+    /// <summary>The <c>--connection-string</c> value that reads the string from standard input.</summary>
+    public const string StandardInput = "-";
+
+    /// <summary>A migration failed (its name is in the output), or the tool failed before one could run: the provider
+    /// could not be loaded, EF rejected the model or an unexpected I/O error occurred (the message is in the output).</summary>
     public const int ExitMigrationFailed = 1;
 
     /// <summary>Usage or configuration error.</summary>
@@ -24,8 +30,18 @@ public static class MigrateProgram
     /// <summary>A downgrade needs <c>--confirm-data-loss</c>.</summary>
     public const int ExitConfirmationRequired = 3;
 
-    /// <summary>Nothing was applied: the database cannot be reached or its schema is newer than this build.</summary>
+    /// <summary>Nothing was applied (or, with <c>--status</c>, nothing could be): the database cannot be reached, its schema is newer than this build, or its migrations history has a gap.</summary>
     public const int ExitRefused = 4;
+
+
+
+    /// <summary><c>--status</c> only: the database is reachable and consistent but lacks shipped migrations (listed in the output).</summary>
+    public const int ExitSchemaBehind = 5;
+
+
+
+    /// <summary>Cancelled (Ctrl+C) before the run completed; a migration in flight was rolled back by the database.</summary>
+    public const int ExitCancelled = 130;
 
 
 
@@ -39,13 +55,30 @@ public static class MigrateProgram
     /// <param name="cancellationToken">Cancels a running migration.</param>
     /// <returns>The process exit code.</returns>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public static async Task<int> RunAsync(IReadOnlyList<string> args, TextWriter output, TextWriter error, IConfiguration? configuration, CancellationToken cancellationToken)
+    public static Task<int> RunAsync(IReadOnlyList<string> args, TextWriter output, TextWriter error, IConfiguration? configuration, CancellationToken cancellationToken)
+    {
+        return RunAsync(args, TextReader.Null, output, error, configuration, cancellationToken);
+    }
+
+
+
+    /// <summary>
+    /// Runs the tool with <paramref name="input"/> as standard input, which <c>--connection-string -</c> reads.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">An argument other than <paramref name="configuration"/> is null.</exception>
+    public static async Task<int> RunAsync(IReadOnlyList<string> args, TextReader input, TextWriter output, TextWriter error, IConfiguration? configuration, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(args);
+        ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(error);
 
-        var command = MigrateCommandLine.Parse(args);
+        var command = await WithStandardInputAsync(MigrateCommandLine.Parse(args), input, error, cancellationToken).ConfigureAwait(false);
+        if (command is null)
+        {
+            return ExitUsage;
+        }
+
         if (command.Help)
         {
             await output.WriteLineAsync(MigrateCommandLine.Usage).ConfigureAwait(false);
@@ -59,10 +92,16 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        var options = await LoadOptionsAsync(command, configuration, error).ConfigureAwait(false);
-        if (options is null)
+        var loaded = await LoadOptionsAsync(command, configuration, error).ConfigureAwait(false);
+        if (loaded is null)
         {
             return ExitUsage;
+        }
+
+        var (resolved, options) = loaded.Value;
+        if (command.Protect)
+        {
+            return await ProtectAsync(command, resolved, options, output, error).ConfigureAwait(false);
         }
 
         var problems = options.Validate(connectionStringRequired: !command.Script);
@@ -81,10 +120,49 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        WmsDbContext context;
+        return await ExecuteAsync(command, resolved, options, output, error, cancellationToken).ConfigureAwait(false);
+    }
+
+
+
+    /// <summary>
+    /// <c>--connection-string -</c>: the command with the connection string read from <paramref name="input"/>;
+    /// null (after a message on <paramref name="error"/>) when nothing was read. Any other command unchanged.
+    /// </summary>
+    private static async Task<MigrateCommandLine?> WithStandardInputAsync(MigrateCommandLine command, TextReader input, TextWriter error, CancellationToken cancellationToken)
+    {
+        if (!string.Equals(command.ConnectionString, StandardInput, StringComparison.Ordinal))
+        {
+            return command;
+        }
+
+        var line = await input.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            await error.WriteLineAsync("--connection-string - read no connection string from standard input.").ConfigureAwait(false);
+            return null;
+        }
+
+        return command with { ConnectionString = line.Trim() };
+    }
+
+
+
+    /// <summary>
+    /// Opens the context (decrypting an <c>enc:v1:</c> connection string with the key ring, E8.2) and runs
+    /// the chosen mode.
+    /// </summary>
+    private static async Task<int> ExecuteAsync(MigrateCommandLine command, IConfiguration configuration, DatabaseOptions options, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    {
+        var builder = new DbContextOptionsBuilder<WmsDbContext>();
         try
         {
-            context = CreateContext(options);
+            DatabaseServiceCollectionExtensions.Configure(builder, options, options.ConnectionStringIsProtected ? Protector(command, configuration) : null);
+        }
+        catch (InvalidOperationException exception)
+        {
+            await error.WriteLineAsync(exception.Message).ConfigureAwait(false);
+            return ExitUsage;
         }
         catch (ArgumentException exception)
         {
@@ -92,10 +170,8 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        using (context)
-        {
-            return await RunModeAsync(new MigrationRunner(context), command, output, error, cancellationToken).ConfigureAwait(false);
-        }
+        using var context = new WmsDbContext(builder.Options);
+        return await RunModeAsync(new MigrationRunner(context), command, output, error, cancellationToken).ConfigureAwait(false);
     }
 
 
@@ -136,7 +212,7 @@ public static class MigrateProgram
         {
             if (command.Status)
             {
-                return await StatusAsync(runner, output, cancellationToken).ConfigureAwait(false);
+                return await GuardAsync(() => StatusAsync(runner, output, cancellationToken), error).ConfigureAwait(false);
             }
 
             if (command.Script)
@@ -155,20 +231,50 @@ public static class MigrateProgram
 
 
 
-    private static WmsDbContext CreateContext(DatabaseOptions options)
+    /// <summary>
+    /// <c>--protect</c> (E8.2): prints the connection string encrypted with the key ring, for the installer to
+    /// put in appsettings or an environment variable.
+    /// </summary>
+    private static async Task<int> ProtectAsync(MigrateCommandLine command, IConfiguration configuration, DatabaseOptions options, TextWriter output, TextWriter error)
     {
-        var builder = new DbContextOptionsBuilder<WmsDbContext>();
-        DatabaseServiceCollectionExtensions.Configure(builder, options);
-        return new WmsDbContext(builder.Options);
+        if (string.IsNullOrWhiteSpace(options.ConnectionString))
+        {
+            await error.WriteLineAsync("--protect needs a connection string (--connection-string or Wms:Database:ConnectionString).").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        if (options.ConnectionStringIsProtected)
+        {
+            await error.WriteLineAsync("The connection string is already encrypted (enc:v1:).").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        var protector = Protector(command, configuration);
+        if (protector is null)
+        {
+            await error.WriteLineAsync($"--protect needs the key ring: --key-ring <path> or {KeyRingOptions.PathKey}.").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        await output.WriteLineAsync(protector.Protect(options.ConnectionString)).ConfigureAwait(false);
+        return ExitOk;
     }
 
 
 
-    private static async Task<DatabaseOptions?> LoadOptionsAsync(MigrateCommandLine command, IConfiguration? configuration, TextWriter error)
+    private static ISecretProtector? Protector(MigrateCommandLine command, IConfiguration configuration)
+    {
+        return command.KeyRing is not null ? KeyRing.CreateProtector(command.KeyRing) : KeyRing.TryCreateProtector(configuration);
+    }
+
+
+
+    private static async Task<(IConfiguration Configuration, DatabaseOptions Options)?> LoadOptionsAsync(MigrateCommandLine command, IConfiguration? configuration, TextWriter error)
     {
         try
         {
-            return Options(command, configuration ?? DefaultConfiguration());
+            var resolved = configuration ?? DefaultConfiguration();
+            return (resolved, Options(command, resolved));
         }
         catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException)
         {
@@ -192,20 +298,66 @@ public static class MigrateProgram
 
 
 
+    /// <summary>
+    /// The <c>--status</c> mode. The exit code says what was found, so an installer or health script can gate on
+    /// it without parsing: <see cref="ExitOk"/> up to date, <see cref="ExitSchemaBehind"/> pending migrations,
+    /// <see cref="ExitRefused"/> unreachable, newer than this build, or an inconsistent history. When the
+    /// database cannot be queried the pending list is unknown and is reported as such rather than as every
+    /// shipped migration.
+    /// </summary>
     private static async Task<int> StatusAsync(MigrationRunner runner, TextWriter output, CancellationToken cancellationToken)
     {
         var status = await runner.StatusAsync(cancellationToken).ConfigureAwait(false);
         await output.WriteLineAsync("Expected: " + (status.Expected ?? "(no migrations shipped)")).ConfigureAwait(false);
         await output.WriteLineAsync("Reachable: " + (status.Reachable ? "yes" : "no: " + status.Error)).ConfigureAwait(false);
         await WriteListAsync(output, "Applied", status.Applied).ConfigureAwait(false);
-        await WriteListAsync(output, "Pending", status.Pending).ConfigureAwait(false);
+        if (status.Reachable)
+        {
+            await WriteListAsync(output, "Pending", status.Pending).ConfigureAwait(false);
+        }
+        else
+        {
+            await output.WriteLineAsync($"Pending: unknown (the database cannot be queried; this build ships {status.Pending.Count} migration(s))").ConfigureAwait(false);
+        }
+
         if (status.SchemaIsNewer)
         {
             await WriteListAsync(output, "Unknown to this build", status.Unknown).ConfigureAwait(false);
         }
 
         await output.WriteLineAsync(status.UpToDate ? "Schema is up to date." : "Schema is not up to date.").ConfigureAwait(false);
-        return ExitOk;
+        if (MigrationRunner.Refusal(status) is not null)
+        {
+            return ExitRefused;
+        }
+
+        return status.Pending.Count > 0 ? ExitSchemaBehind : ExitOk;
+    }
+
+
+
+    /// <summary>
+    /// Runs a mode so that a cancellation (Ctrl+C) or a failure outside a migration (the provider cannot be
+    /// loaded, EF rejects the model, an unexpected I/O error) ends with a documented exit code and a one-line
+    /// message instead of a stack trace and the runtime's unhandled-exception code. A usage error
+    /// (<see cref="ArgumentException"/>) passes through to the caller's usage handling.
+    /// </summary>
+    private static async Task<int> GuardAsync(Func<Task<int>> mode, TextWriter error)
+    {
+        try
+        {
+            return await mode().ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            await error.WriteLineAsync("Cancelled.").ConfigureAwait(false);
+            return ExitCancelled;
+        }
+        catch (Exception exception) when (exception is not ArgumentException)
+        {
+            await error.WriteLineAsync("wms-migrate failed: " + exception.Message).ConfigureAwait(false);
+            return ExitMigrationFailed;
+        }
     }
 
 
@@ -216,17 +368,31 @@ public static class MigrateProgram
     /// <see cref="MigrateCommandLine.ConfirmDataLoss"/>, lists the steps on <paramref name="error"/> and writes
     /// nothing (E4.6).
     /// </summary>
-    /// <returns><see cref="ExitOk"/> or <see cref="ExitConfirmationRequired"/>.</returns>
+    /// <returns><see cref="ExitOk"/>, <see cref="ExitConfirmationRequired"/>, <see cref="ExitUsage"/> when
+    /// <see cref="MigrateCommandLine.Output"/> cannot be written, <see cref="ExitCancelled"/> or
+    /// <see cref="ExitMigrationFailed"/>.</returns>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
     /// <exception cref="ArgumentException">A target names no shipped migration, or more than one.</exception>
-    public static async Task<int> ScriptAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    public static Task<int> ScriptAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, TextWriter error, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(error);
 
+        return GuardAsync(() => ScriptCoreAsync(runner, command, output, error, cancellationToken), error);
+    }
+
+
+
+    private static async Task<int> ScriptCoreAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    {
+        // Generation is synchronous, so the token is checked on both sides of it: Ctrl+C (which the entry point
+        // turns into a cancellation instead of a process kill) must end with exit 130 and no script, not a full
+        // script and exit 0.
+        cancellationToken.ThrowIfCancellationRequested();
         var script = runner.Script(command.From, command.To, command.ConfirmDataLoss);
+        cancellationToken.ThrowIfCancellationRequested();
         if (script.Sql is null)
         {
             await WriteConfirmationRequiredAsync(error, "This downgrade script loses data", script.DestructiveSteps).ConfigureAwait(false);
@@ -235,11 +401,20 @@ public static class MigrateProgram
 
         if (command.Output is null)
         {
-            await output.WriteAsync(script.Sql).ConfigureAwait(false);
+            await output.WriteAsync(script.Sql.AsMemory(), cancellationToken).ConfigureAwait(false);
             return ExitOk;
         }
 
-        await File.WriteAllTextAsync(command.Output, script.Sql, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await File.WriteAllTextAsync(command.Output, script.Sql, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            await error.WriteLineAsync($"Cannot write --output {command.Output}: {exception.Message}").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
         await output.WriteLineAsync("Wrote " + command.Output).ConfigureAwait(false);
         return ExitOk;
     }
@@ -250,17 +425,24 @@ public static class MigrateProgram
     /// The apply mode (no <c>--status</c> or <c>--script</c>) over <paramref name="runner"/>: moves the schema
     /// to <see cref="MigrateCommandLine.To"/> and reports the direction and the migrations it ran.
     /// </summary>
-    /// <returns><see cref="ExitOk"/>, <see cref="ExitMigrationFailed"/>, <see cref="ExitConfirmationRequired"/>
-    /// or <see cref="ExitRefused"/>.</returns>
+    /// <returns><see cref="ExitOk"/>, <see cref="ExitMigrationFailed"/>, <see cref="ExitConfirmationRequired"/>,
+    /// <see cref="ExitRefused"/> or <see cref="ExitCancelled"/>.</returns>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
     /// <exception cref="ArgumentException">The target names no shipped migration, or more than one.</exception>
-    public static async Task<int> ApplyAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    public static Task<int> ApplyAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, TextWriter error, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(error);
 
+        return GuardAsync(() => ApplyCoreAsync(runner, command, output, error, cancellationToken), error);
+    }
+
+
+
+    private static async Task<int> ApplyCoreAsync(MigrationRunner runner, MigrateCommandLine command, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    {
         var result = await runner.ApplyAsync(command.To, command.ConfirmDataLoss, cancellationToken).ConfigureAwait(false);
         if (result.Refused)
         {

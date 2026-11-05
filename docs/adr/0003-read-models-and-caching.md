@@ -47,3 +47,14 @@ column, which is a free, monotonic change signal per row and per table.
 - The per-provider `IRowVersionSource` and the compare in `EntityTag` assume `row_version` is monotonic per
   table; the EF stories (E2–E5) must map it that way on both providers. Only versioned entity types carry the
   column, so a read model may name only those in its `IRowVersionSource` call.
+
+## Amendment (2026-10-12): caches as decorators, own writes drop them
+
+A per-instance cache over a store is a decorator on the store's interface (`CachedSettings`,
+`CachedSessionRevocations`), not a field inside the store: the store stays plain, the cache is one class with
+one job, and the composition is one line in the container. A cache names the entity types it watches
+(`IWatchingCache`). Writes by other instances still arrive through the row-version probe within one poll
+interval; writes by this instance drop every cache watching a type that was just saved, whichever store
+saved it, through a save interceptor (`OwnWritesInvalidation`) that fires after the save, or after the
+commit when the save ran inside a transaction. A store that sets a column another cache depends on (a
+password change moving a user's "sessions valid after") therefore needs no knowledge of that cache.

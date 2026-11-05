@@ -123,8 +123,41 @@ re-verifies every signed row every `auth.integrity.verify_interval` (1 minute by
 failures; sessions need no revoking, as their grants are recomputed on every request. Threat model, signed fields, key
 handling and repair: [docfx_project/docs/integrity.md](../docfx_project/docs/integrity.md).
 
+## Identity providers (E11.0)
+
+The operator-facing version of this section is [docfx_project/docs/sign-in.md](../docfx_project/docs/sign-in.md)
+(published with the documentation site); keep the two in step.
+
+Providers sit behind one interface (`IAuthProvider`; challenge providers also `IChallengeAuthProvider`):
+a name, a display name, a kind (credentials posted to the API, or a challenge the browser is sent to), a
+settings schema (the keys the console renders as the provider's configuration block, declared by the
+`auth` module so they are registered, validated and audited like any setting) and a health check ("test
+connection"). Implementations are registered in DI at startup, each provider kind in its own project
+(`local` is built into Core; `oidc` arrives with E11.1); adding a kind is a release.
+
+An install uses one identity provider, the `auth.provider` setting (one name; default `local`), plus the
+local administrator as the break-glass path under single sign-on (E9.3). Running two providers at once is not
+supported. The provider is chosen at installation; changing it later is a reconfiguration of the system
+(the new provider's settings, its users and groups, a planned window), not a routine switch, and switching
+without an outage is not a requirement. Instances re-read the setting every 5 seconds, adding a challenge
+provider's scheme to `IAuthenticationSchemeProvider` when it becomes active, removing it when it stops being,
+and telling a provider whose settings changed to drop its cached handler options; a restart is an acceptable
+part of a reconfiguration. A name that is not registered is logged and leaves no provider offered.
+
+- `GET /auth/providers` (anonymous): the active provider for the login page, as a list of at most one, with
+  its kind and, for a challenge provider, the URL that starts its sign-in.
+- `GET /auth/{provider}/challenge?returnUrl=` (anonymous): starts a challenge provider's sign-in; only
+  local return URLs are honoured; `404 auth.provider_not_enabled` otherwise.
+- `POST /auth/providers/{name}/check` (`auth.providers.manage`): the provider's health check.
+- `Wms:Auth:ForceLocal=true` in `appsettings` is the emergency override: only `local` is offered whatever
+  the setting says (a lock-out recovery after a broken provider change), never the normal selection.
+
+Pickers (badge/PIN) and integrations (API keys) are separate from console providers and arrive with the
+device and integration stories.
+
 ## What comes next
 
 - E9.3: local sign-in disabled once SSO is verified and re-enabled for a timed window from the host only.
 - A periodic job that audits expired assignments.
-- E11: OIDC and other providers behind one interface, chosen in the console.
+- E11.1: the OIDC provider (authority, client, scopes, group claim as settings; discovery as the check),
+  E11.2 group-to-role mapping, E11.3 verification against Keycloak and a mock provider on every PR.

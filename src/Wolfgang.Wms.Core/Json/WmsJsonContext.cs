@@ -3,6 +3,7 @@
 using System.Text.Json.Serialization;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Identity.Providers;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
 
@@ -22,6 +23,8 @@ namespace Wolfgang.Wms.Core.Json;
 [JsonSerializable(typeof(LocalLoginRequest))]
 [JsonSerializable(typeof(ChangePasswordRequest))]
 [JsonSerializable(typeof(SessionInfo))]
+[JsonSerializable(typeof(IReadOnlyList<AuthProviderInfo>))]
+[JsonSerializable(typeof(AuthProviderHealth))]
 [JsonSerializable(typeof(IReadOnlyList<PermissionDescriptor>))]
 [JsonSerializable(typeof(RoleInfo))]
 [JsonSerializable(typeof(IReadOnlyList<RoleInfo>))]

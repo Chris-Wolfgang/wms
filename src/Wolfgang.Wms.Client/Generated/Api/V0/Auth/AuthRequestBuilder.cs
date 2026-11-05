@@ -7,10 +7,12 @@ using System.IO;
 using System.Threading.Tasks;
 using System;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Assignments;
+using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Item;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Logout;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Me;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Permissions;
+using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Roles;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Users;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth
@@ -46,6 +48,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth
         {
             get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Permissions.PermissionsRequestBuilder(PathParameters, RequestAdapter);
         }
+        /// <summary>The providers property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.ProvidersRequestBuilder Providers
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.ProvidersRequestBuilder(PathParameters, RequestAdapter);
+        }
         /// <summary>The roles property</summary>
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Roles.RolesRequestBuilder Roles
         {
@@ -55,6 +62,18 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Users.UsersRequestBuilder Users
         {
             get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Users.UsersRequestBuilder(PathParameters, RequestAdapter);
+        }
+        /// <summary>Gets an item from the Wolfgang.Wms.Client.Generated.api.v0.auth.item collection</summary>
+        /// <param name="position">Unique identifier of the item</param>
+        /// <returns>A <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Item.WithProviderItemRequestBuilder"/></returns>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Item.WithProviderItemRequestBuilder this[string position]
+        {
+            get
+            {
+                var urlTplParams = new Dictionary<string, object>(PathParameters);
+                urlTplParams.Add("provider", position);
+                return new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Item.WithProviderItemRequestBuilder(urlTplParams, RequestAdapter);
+            }
         }
         /// <summary>
         /// Instantiates a new <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.AuthRequestBuilder"/> and sets the default values.

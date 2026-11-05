@@ -69,7 +69,8 @@ public static class AuthModule
         .Create("auth")
         .WithEndpoints(MapEndpoints)
         .WithSettings(AuthSettings.All)
-        .WithErrorCodes(AuthErrorCodes.InvalidCredentials, AuthErrorCodes.LockedOut, AuthErrorCodes.Disabled, AuthErrorCodes.IntegrityFailure, AuthErrorCodes.NotSignedIn, AuthErrorCodes.Forbidden, AuthErrorCodes.PasswordChangeRequired, AuthErrorCodes.PasswordRejected, AuthErrorCodes.Unavailable);
+        .WithPermissions(Providers.AuthProviderEndpoints.Manage)
+        .WithErrorCodes(AuthErrorCodes.InvalidCredentials, AuthErrorCodes.LockedOut, AuthErrorCodes.Disabled, AuthErrorCodes.IntegrityFailure, AuthErrorCodes.ProviderNotEnabled, AuthErrorCodes.NotSignedIn, AuthErrorCodes.Forbidden, AuthErrorCodes.PasswordChangeRequired, AuthErrorCodes.PasswordRejected, AuthErrorCodes.Unavailable);
 
 
 
@@ -97,6 +98,10 @@ public static class AuthModule
         services.TryAddScoped<ILocalAccounts, NoLocalAccounts>();
         services.TryAddScoped<ISessionRevocations, NoSessionRevocations>();
         services.TryAddScoped<ISessionGrants, NoSessionGrants>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<Providers.IAuthProvider, Providers.LocalAuthProvider>());   // E11.0: the built-in provider; others register in their own projects
+        services.TryAddSingleton<Providers.AuthProviderCatalog>();
+        services.TryAddSingleton<Providers.AuthProviderState>();
+        services.AddHostedService<Providers.AuthProviderSync>();
         services.AddWmsModule(Descriptor);
         return services;
     }
@@ -185,15 +190,17 @@ public static class AuthModule
             .RequireAuthorization()
             .WithName("GetPermissionCatalog")
             .WithSummary("Every permission the host knows, with its module (E10.1).");
+        Providers.AuthProviderEndpoints.Map(app);   // E11.0
     }
 
 
 
-    private static async Task<IResult> LoginAsync(LocalLoginRequest body, ILocalAccounts accounts, CancellationToken cancellationToken)
+    private static async Task<IResult> LoginAsync(HttpContext http, LocalLoginRequest body, Providers.AuthProviderCatalog catalog, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(body);
 
-        var result = await accounts.LoginAsync(body.UserName ?? string.Empty, body.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
+        var local = (Providers.ICredentialAuthProvider)catalog.Find(Providers.AuthProviderSettings.Local)!;   // always registered by this module
+        var result = await local.ValidateAsync(body.UserName ?? string.Empty, body.Password ?? string.Empty, http.RequestServices, cancellationToken).ConfigureAwait(false);
         return result.Outcome switch
         {
             LocalLoginOutcome.Success => TypedResults.SignIn(SessionClaims.Principal(result.User!), new AuthenticationProperties { IsPersistent = false }, CookieAuthenticationDefaults.AuthenticationScheme),

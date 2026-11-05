@@ -19,9 +19,6 @@ public static class ImportRules
     /// <summary>The <c>policy</c> query value for <see cref="ImportPolicy.ValidateOnly"/>.</summary>
     public const string ValidateOnly = "validate_only";
 
-    /// <summary>The <c>format</c> query value that returns the rows as CSV instead of the JSON result.</summary>
-    public const string CsvFormat = "csv";
-
 
 
     /// <summary>

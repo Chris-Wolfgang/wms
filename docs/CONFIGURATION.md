@@ -45,7 +45,7 @@ environment variables are left alone.
 | Key | Values | Notes |
 |-----|--------|-------|
 | `Wms:Database:Provider` | `SqlServer`, `PostgreSql`, `None` | Chosen at install time. `None` starts the host without a database (only `GET /api/v0/system/schema` is useful; nothing that needs data works); it is the shipped default so a fresh install can be probed before it is configured. Anything else fails startup with the accepted names taken from `DatabaseProvider` (`DatabaseOptions.AcceptedProviders`): `Wms:Database:Provider must be one of None, SqlServer or PostgreSql; got 'Oracle'.` |
-| `Wms:Database:ConnectionString` | provider connection string, plain or `enc:v1:…` | Required for `SqlServer` and `PostgreSql`; startup fails when missing. Store it encrypted (`wms-migrate --protect`, E8.2) or supply it from an environment variable / container secret (E8.4); a plain string is accepted for development. |
+| `Wms:Database:ConnectionString` | provider connection string, plain or `enc:v1:…` | Required for `SqlServer` and `PostgreSql`; startup fails when missing or when the provider cannot parse a plain string (`Wms:Database:ConnectionString is not valid: ...`). Store it encrypted (`wms-migrate --protect`, E8.2) or supply it from an environment variable / container secret (E8.4); a plain string is accepted for development. |
 | `Wms:Database:TrustServerCertificate` | `true` / `false` (default) | SQL Server only. Trusts the server certificate without validating its chain, which SQL Server Express and self-signed development servers need. Never on a shared network: install a certificate instead. Setting it with `PostgreSql` fails startup. |
 
 Examples:

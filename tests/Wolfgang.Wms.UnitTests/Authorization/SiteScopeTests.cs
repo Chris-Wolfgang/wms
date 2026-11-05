@@ -90,6 +90,45 @@ public sealed class SiteScopeTests
 
 
 
+    [Fact]
+    public async Task The_markers_ignore_the_header_and_relax_only_the_permission_they_name()
+    {
+        var handler = new PermissionAuthorizationHandler();
+
+        var otherHeaderSite = await DecideWithHeaderAsync(handler, SitesModule.Read, Principal("sites.read@site:3"), "4", new CollectionScopeMetadata(SitesModule.Read));
+        var writeNotOptedIn = await DecideWithHeaderAsync(handler, SitesModule.Write, Principal("sites.read@site:3", "sites.write@site:4"), null, new CollectionScopeMetadata(SitesModule.Read));
+        var unmarkedHeaderCheck = await DecideWithHeaderAsync(handler, SitesModule.Read, Principal("sites.read@site:3"), "4");
+        var organizationWide = await DecideWithHeaderAsync(handler, SitesModule.Write, Principal("sites.write@site:3"), "3", new OrganizationScopeMetadata(SitesModule.Write));
+        var otherPermission = await DecideWithHeaderAsync(handler, SitesModule.Read, Principal("sites.read@site:3"), "3", new OrganizationScopeMetadata(SitesModule.Write));
+        var organizationGrant = await DecideWithHeaderAsync(handler, SitesModule.Write, Principal("sites.write@organization"), "3", new OrganizationScopeMetadata(SitesModule.Write));
+
+        Assert.True(otherHeaderSite);
+        Assert.False(writeNotOptedIn);
+        Assert.False(unmarkedHeaderCheck);
+        Assert.False(organizationWide);
+        Assert.True(otherPermission);
+        Assert.True(organizationGrant);
+    }
+
+
+
+    private static async Task<bool> DecideWithHeaderAsync(PermissionAuthorizationHandler handler, Wolfgang.Wms.Domain.Keys.Permission permission, ClaimsPrincipal principal, string? headerSite, params object[] metadata)
+    {
+        var http = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        http.SetEndpoint(new Microsoft.AspNetCore.Http.Endpoint(requestDelegate: null, new Microsoft.AspNetCore.Http.EndpointMetadataCollection(metadata), "test"));
+        if (headerSite is not null)
+        {
+            http.Request.Headers[SiteContext.Header] = headerSite;
+        }
+
+        var requirement = new PermissionRequirement(permission);
+        var context = new Microsoft.AspNetCore.Authorization.AuthorizationHandlerContext([requirement], principal, http);
+        await handler.HandleAsync(context);
+        return context.HasSucceeded;
+    }
+
+
+
     private static async Task<bool> DecideAsync(PermissionAuthorizationHandler handler, PermissionRequirement requirement, ClaimsPrincipal principal, bool marked, long? routeSiteId)
     {
         var http = new Microsoft.AspNetCore.Http.DefaultHttpContext();

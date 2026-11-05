@@ -15,6 +15,12 @@ namespace Wolfgang.Wms.Infrastructure.Locations;
 /// </summary>
 public sealed class EfLocations : ILocations
 {
+    /// <summary>The unique index on the site and the normalized code.</summary>
+    private const string CodeIndex = "ux_location_site_id_code_normalized";
+
+    /// <summary>The unique index on the site and the barcode.</summary>
+    private const string BarcodeIndex = "ux_location_site_id_barcode";
+
     private readonly WmsDbContext _context;
     private readonly TimeProvider _timeProvider;
 
@@ -58,8 +64,12 @@ public sealed class EfLocations : ILocations
             rows.Reverse();   // read backwards, reported in the requested sort
         }
 
-        var hasNext = page.Direction == PageDirection.Forward ? hasMore : !page.IsFirstPage;
-        var hasPrevious = page.Direction == PageDirection.Backward ? hasMore : !page.IsFirstPage;
+        var hasNext = page.Direction == PageDirection.Forward
+            ? hasMore
+            : await HasRowsBeyondAsync(scope, page, PageDirection.Forward, rows, cancellationToken).ConfigureAwait(false);
+        var hasPrevious = page.Direction == PageDirection.Backward
+            ? hasMore
+            : await HasRowsBeyondAsync(scope, page, PageDirection.Backward, rows, cancellationToken).ConfigureAwait(false);
         var next = rows.Count > 0 && hasNext ? CursorOf(page.Sort, rows[^1]).Encode() : null;
         var previous = rows.Count > 0 && hasPrevious ? CursorOf(page.Sort, rows[0]).Encode() : null;
         var minId = await scope.MinAsync(l => l.Id, cancellationToken).ConfigureAwait(false);
@@ -92,14 +102,14 @@ public sealed class EfLocations : ILocations
         var row = new Location { SiteId = siteId };
         row.Apply(draft, _timeProvider.GetUtcNow(), updatedBy);
         await _context.Locations.AddAsync(row, cancellationToken).ConfigureAwait(false);
-        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await SaveAsync(siteId, draft, cancellationToken).ConfigureAwait(false);
         return row.ToInfo();
     }
 
 
 
     /// <inheritdoc/>
-    public async Task<LocationInfo> UpdateAsync(long siteId, long locationId, LocationDraft draft, string updatedBy, CancellationToken cancellationToken)
+    public async Task<LocationInfo> UpdateAsync(long siteId, long locationId, long expectedRowVersion, LocationDraft draft, string updatedBy, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);
@@ -107,11 +117,33 @@ public sealed class EfLocations : ILocations
         Validate(draft);
         await RequireSiteAsync(siteId, cancellationToken).ConfigureAwait(false);
         var row = await _context.Locations.FirstOrDefaultAsync(l => l.SiteId == siteId && l.Id == locationId, cancellationToken).ConfigureAwait(false) ?? throw NotFound(locationId);
+        if (row.RowVersion != expectedRowVersion)
+        {
+            throw new DbUpdateConcurrencyException($"Location {locationId} changed after its version was checked.");   // the same 412 a lost save answers
+        }
+
         await RequireZoneAsync(siteId, draft, cancellationToken).ConfigureAwait(false);
         await RequireFreeAsync(siteId, draft, locationId, cancellationToken).ConfigureAwait(false);
         row.Apply(draft, _timeProvider.GetUtcNow(), updatedBy);
-        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await SaveAsync(siteId, draft, cancellationToken).ConfigureAwait(false);
         return row.ToInfo();
+    }
+
+
+
+    /// <summary>
+    /// True when a row of <paramref name="scope"/> lies past this page in <paramref name="direction"/>, the way
+    /// the page was not read. A cursor alone does not prove it: it may come from another filter, and rows move.
+    /// </summary>
+    private static async Task<bool> HasRowsBeyondAsync(IQueryable<Location> scope, PageQuery page, PageDirection direction, List<Location> rows, CancellationToken cancellationToken)
+    {
+        if (page.IsFirstPage || rows.Count == 0)
+        {
+            return false;
+        }
+
+        var edge = direction == PageDirection.Forward ? rows[^1] : rows[0];
+        return await Seek(scope, page with { Direction = direction, Cursor = CursorOf(page.Sort, edge) }).AnyAsync(cancellationToken).ConfigureAwait(false);
     }
 
 
@@ -201,6 +233,29 @@ public sealed class EfLocations : ILocations
 
 
 
+    /// <summary>
+    /// Saves, reporting the loser of a race on the code or the barcode as the conflict
+    /// <see cref="RequireFreeAsync"/> would have reported had it come second.
+    /// </summary>
+    /// <exception cref="LocationException">Another writer took the code or the barcode first.</exception>
+    private async Task SaveAsync(long siteId, LocationDraft draft, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException exception) when (UniqueIndexViolation.Is(exception, CodeIndex))
+        {
+            throw CodeTaken(siteId, draft);
+        }
+        catch (DbUpdateException exception) when (UniqueIndexViolation.Is(exception, BarcodeIndex))
+        {
+            throw BarcodeTaken(siteId, draft.Barcode.Trim());
+        }
+    }
+
+
+
     private async Task RequireSiteAsync(long siteId, CancellationToken cancellationToken)
     {
         if (!await _context.Sites.AnyAsync(s => s.Id == siteId, cancellationToken).ConfigureAwait(false))
@@ -229,13 +284,27 @@ public sealed class EfLocations : ILocations
         var barcode = draft.Barcode.Trim();
         if (await _context.Locations.AnyAsync(l => l.SiteId == siteId && l.CodeNormalized == code && l.Id != exceptLocationId, cancellationToken).ConfigureAwait(false))
         {
-            throw new LocationException(LocationErrorCodes.CodeTaken, $"A location with code '{draft.Code.Trim()}' already exists in site {siteId}.");
+            throw CodeTaken(siteId, draft);
         }
 
         if (await _context.Locations.AnyAsync(l => l.SiteId == siteId && l.Barcode == barcode && l.Id != exceptLocationId, cancellationToken).ConfigureAwait(false))
         {
-            throw new LocationException(LocationErrorCodes.BarcodeTaken, $"A location with barcode '{barcode}' already exists in site {siteId}.");
+            throw BarcodeTaken(siteId, barcode);
         }
+    }
+
+
+
+    private static LocationException CodeTaken(long siteId, LocationDraft draft)
+    {
+        return new LocationException(LocationErrorCodes.CodeTaken, $"A location with code '{draft.Code.Trim()}' already exists in site {siteId}.");
+    }
+
+
+
+    private static LocationException BarcodeTaken(long siteId, string barcode)
+    {
+        return new LocationException(LocationErrorCodes.BarcodeTaken, $"A location with barcode '{barcode}' already exists in site {siteId}.");
     }
 
 

@@ -1,8 +1,9 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Testcontainers.MsSql;
+using Npgsql;
 using Testcontainers.PostgreSql;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Migrate;
@@ -13,7 +14,8 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 /// E4.1 / E4.3 / E4.5 / E4.6 against real engines: <c>wms-migrate</c> reports a never-migrated database as
 /// reachable with nothing applied, installs the schema into it (history table in schema <c>wms</c>), reports
 /// status, goes down to an empty schema and back up (the up → down → up run CI requires on both providers), and
-/// refuses to touch a schema a newer build migrated, all through the tool's own entry point.
+/// refuses to touch a schema a newer build migrated, all through the tool's own entry point. A database that
+/// does not exist is reported as unreachable and never created (E4.5: the DBA creates it, the tool fills it).
 /// </summary>
 public sealed class MigrateToolTests
 {
@@ -38,6 +40,66 @@ public sealed class MigrateToolTests
 
 
 
+    [SqlServerFact]
+    public async Task SqlServer_a_database_that_does_not_exist_is_reported_and_never_created()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+        var missing = "wms_missing_" + Guid.NewGuid().ToString("N")[..12];
+        var connectionString = new SqlConnectionStringBuilder(database.ConnectionString) { InitialCatalog = missing }.ConnectionString;
+
+        await AssertMissingDatabaseIsRefusedAsync("SqlServer", connectionString, missing, ["--trust-server-certificate"]);
+
+        await using var server = new SqlConnection(database.ConnectionString);
+        await server.OpenAsync();
+        await using var exists = server.CreateCommand();
+        exists.CommandText = "SELECT DB_ID(@name)";
+        exists.Parameters.AddWithValue("@name", missing);
+        Assert.Equal(DBNull.Value, await exists.ExecuteScalarAsync());
+    }
+
+
+
+    [DockerFact]
+    public async Task PostgreSql_a_database_that_does_not_exist_is_reported_and_never_created()
+    {
+        await using var container = new PostgreSqlBuilder("postgres:16").Build();
+        await container.StartAsync();
+        var missing = "wms_missing_" + Guid.NewGuid().ToString("N")[..12];
+        var connectionString = new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = missing }.ConnectionString;
+
+        await AssertMissingDatabaseIsRefusedAsync("PostgreSql", connectionString, missing, []);
+
+        await using var server = new NpgsqlConnection(container.GetConnectionString());
+        await server.OpenAsync();
+        await using var exists = server.CreateCommand();
+        exists.CommandText = "SELECT count(*) FROM pg_database WHERE datname = @name";
+        exists.Parameters.AddWithValue("name", missing);
+        Assert.Equal(0L, await exists.ExecuteScalarAsync());
+    }
+
+
+
+    private static async Task AssertMissingDatabaseIsRefusedAsync(string provider, string connectionString, string missing, string[] extra)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["Wms:Database:Provider"] = provider,
+                ["Wms:Database:ConnectionString"] = connectionString,
+            })
+            .Build();
+
+        var status = await RunAsync(configuration, ["--status", .. extra]);
+        var apply = await RunAsync(configuration, extra);
+
+        Assert.Equal(MigrateProgram.ExitOk, status.Code);
+        Assert.Contains("Reachable: no: database '" + missing + "' does not exist on the server", status.Output, StringComparison.Ordinal);
+        Assert.Equal(MigrateProgram.ExitRefused, apply.Code);
+        Assert.Contains("does not exist on the server", apply.Error, StringComparison.Ordinal);
+    }
+
+
+
     private static async Task AssertUpDownUpAsync(string provider, string connectionString, string[] extra)
     {
         var configuration = new ConfigurationBuilder()
@@ -52,7 +114,8 @@ public sealed class MigrateToolTests
         var up = await RunAsync(configuration, extra);
         var status = await RunAsync(configuration, ["--status", .. extra]);
         var again = await RunAsync(configuration, extra);
-        var down = await RunAsync(configuration, ["--to", "0", .. extra]);
+        var refused = await RunAsync(configuration, ["--to", "0", .. extra]);   // reverting everything drops wms.row_version_seq and core.setting (E6.2): data loss
+        var down = await RunAsync(configuration, ["--to", "0", "--confirm-data-loss", .. extra]);
         var statusAfterDown = await RunAsync(configuration, ["--status", .. extra]);
         var backUp = await RunAsync(configuration, ["--to", "Initial", .. extra]);
         var latest = await RunAsync(configuration, extra);
@@ -69,6 +132,9 @@ public sealed class MigrateToolTests
         Assert.Contains("Pending (0)", status.Output, StringComparison.Ordinal);
         Assert.Contains("Direction: None", again.Output, StringComparison.Ordinal);
         Assert.Contains("Nothing to do.", again.Output, StringComparison.Ordinal);
+        Assert.Equal(MigrateProgram.ExitConfirmationRequired, refused.Code);
+        Assert.Contains("drop sequence wms.row_version_seq", refused.Error, StringComparison.Ordinal);
+        Assert.Contains("drop table core.setting", refused.Error, StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitOk, down.Code);
         Assert.Contains("Direction: Down", down.Output, StringComparison.Ordinal);
         Assert.Matches(@"Reverted \([1-9]\d*\)", down.Output);

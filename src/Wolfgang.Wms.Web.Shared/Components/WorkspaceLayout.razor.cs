@@ -1,5 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Microsoft.Extensions.Logging;
+
 namespace Wolfgang.Wms.Web.Shared.Components;
 
 /// <summary>
@@ -14,4 +16,9 @@ public abstract partial class WorkspaceLayout
     /// The workspace this layout belongs to.
     /// </summary>
     protected abstract Workspace Workspace { get; }
+
+
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "A scan handler on the {Workspace} workspace threw; the scan was reported to the user as failed and the console kept running.")]
+    private static partial void LogScanFailed(ILogger logger, string workspace, Exception exception);
 }

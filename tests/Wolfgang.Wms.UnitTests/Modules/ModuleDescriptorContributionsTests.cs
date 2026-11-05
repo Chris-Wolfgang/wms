@@ -17,7 +17,7 @@ public sealed class ModuleDescriptorContributionsTests
     private static readonly FeatureFlag Bulk = new("bulk_picking");
     private static readonly LicenseFeature BulkFeature = new("picking.bulk", "Bulk picking");
     private static readonly IssueType ShortPick = new("picking.short_pick", "A pick came up short");
-    private static readonly ErrorCode ToteClosed = new("picking.tote_already_closed", 409, "Tote {tote} is closed.", "tote-closed", ErrorSeverity.Error);
+    private static readonly ErrorCode ToteClosed = new("picking.tote_already_closed", 409, "Tote {0} is closed.", "tote-closed", ErrorSeverity.Error);
 
 
 

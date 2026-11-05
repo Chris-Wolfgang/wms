@@ -103,6 +103,39 @@ public readonly record struct EntityTag
 
 
 
+    /// <summary>
+    /// True when an <c>If-Match</c> header names this tag under the strong comparison RFC 9110 requires for
+    /// it: the header is <c>*</c>, or one of its comma-separated entries equals <see cref="Value"/> exactly.
+    /// A <c>W/</c> weak entry never matches, so a client that holds only a weak tag cannot pass a
+    /// precondition meant to prove it read the current <c>row_version</c>.
+    /// </summary>
+    public bool IsStronglyMatchedBy(string? ifMatch)
+    {
+        if (string.IsNullOrWhiteSpace(ifMatch))
+        {
+            return false;
+        }
+
+        var header = ifMatch.AsSpan().Trim();
+        if (header.SequenceEqual("*"))
+        {
+            return true;
+        }
+
+        foreach (var range in header.Split(','))
+        {
+            var candidate = header[range].Trim();
+            if (!candidate.StartsWith("W/", StringComparison.Ordinal) && candidate.SequenceEqual(Value))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+
     /// <inheritdoc/>
     public override string ToString()
     {

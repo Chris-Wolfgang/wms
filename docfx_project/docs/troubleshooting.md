@@ -56,8 +56,8 @@ window from the host (`wms-admin unlock --minutes N`, audited) or sets `Wms:Auth
 
 <a id="auth-provider-not-enabled"></a>
 ### `auth.provider_not_enabled`
-The named identity provider is not in `auth.providers.enabled` or is not registered on this host. Enable it
-in the settings, or use a provider the sign-in page offers.
+The named identity provider is not the one `auth.provider` names, or is not registered on this host. Set it
+in the settings, or use the provider the sign-in page offers.
 
 <a id="auth-provider-failed"></a>
 ### `auth.provider_failed`

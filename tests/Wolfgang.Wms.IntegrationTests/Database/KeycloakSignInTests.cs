@@ -204,7 +204,7 @@ public sealed partial class KeycloakSignInTests
         await settings.SetAsync(OidcSettings.ClientId, organization, ClientId, "test", CancellationToken.None);
         await settings.SetAsync(OidcSettings.ClientSecret, organization, new SecretText(ClientSecret), "test", CancellationToken.None);
         await settings.SetAsync(OidcSettings.RequireHttps, organization, false, "test", CancellationToken.None);
-        await settings.SetAsync(AuthProviderSettings.Enabled, organization, "oidc,local", "test", CancellationToken.None);
+        await settings.SetAsync(AuthProviderSettings.Active, organization, "oidc", "test", CancellationToken.None);
         await services.GetRequiredService<AuthProviderState>().RefreshAsync(CancellationToken.None);
     }
 

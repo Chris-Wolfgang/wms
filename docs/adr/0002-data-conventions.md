@@ -47,4 +47,7 @@ domain and stays AOT-safe (E1.9). Reads for screens and reports have very differ
 - Adding an aggregate means one repository interface (a few lines) and one EF implementation in
   Infrastructure; the generic bases carry the boilerplate.
 - The site filter is applied once, in Infrastructure, not remembered per query.
-- Items 7 and 8 are implemented with the EF stories (E2–E5); this ADR fixes the shape they implement.
+- Item 7 is how the read side is built (ADR 0003). Item 8's site query filter is **not built yet**
+  (2026-10-15); it is E16.3 (#365). The only global query filter today is soft delete (E5.3): every query
+  hides soft-deleted rows, and delta reads opt out with `IgnoreQueryFilters()`. When the site filter lands, an
+  opt-out must name the filter it skips, so a delta read never drops site scoping along with soft delete.

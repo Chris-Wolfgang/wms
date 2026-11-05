@@ -55,7 +55,7 @@ public sealed class MigrateCommandLineTests
     [InlineData(new[] { "--to" }, "--to needs a value.")]
     [InlineData(new[] { "--to", "--status" }, "--to needs a value.")]
     [InlineData(new[] { "--up" }, "Unknown argument '--up'.")]
-    [InlineData(new[] { "--status", "--script" }, "--status and --script cannot be combined.")]
+    [InlineData(new[] { "--status", "--script" }, "--status, --script and --protect cannot be combined.")]
     [InlineData(new[] { "--from", "0" }, "--from applies to --script only.")]
     [InlineData(new[] { "--output", "upgrade.sql" }, "--output applies to --script only.")]
     [InlineData(new[] { "--status", "--output", "status.txt" }, "--output applies to --script only.")]
@@ -73,6 +73,8 @@ public sealed class MigrateCommandLineTests
         Assert.True(MigrateCommandLine.Parse(["--help"]).Help);
         Assert.True(MigrateCommandLine.Parse(["--to", "0", "--confirm-data-loss"]).ConfirmDataLoss);
         Assert.Contains("--confirm-data-loss", MigrateCommandLine.Usage, StringComparison.Ordinal);
+        Assert.Contains("schemas or sequences, restarts a sequence, deletes or updates rows,", MigrateCommandLine.Usage, StringComparison.Ordinal);   // the help names every data-losing category the gate checks
+        Assert.Contains("narrows a column, or runs raw SQL", MigrateCommandLine.Usage, StringComparison.Ordinal);
         Assert.Throws<ArgumentNullException>(() => MigrateCommandLine.Parse(null!));
     }
 

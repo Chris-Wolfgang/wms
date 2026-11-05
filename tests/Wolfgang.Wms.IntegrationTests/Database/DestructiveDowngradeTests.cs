@@ -46,6 +46,50 @@ public sealed class DestructiveDowngradeTests
 
 
 
+    [SqlServerFact]
+    public async Task SqlServer_a_database_that_vanishes_before_a_migration_fails_that_step_and_is_not_recreated()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertVanishedMidRunAsync("SqlServer", database.ConnectionString);
+    }
+
+
+
+    [DockerFact]
+    public async Task PostgreSql_a_database_that_vanishes_before_a_migration_fails_that_step_and_is_not_recreated()
+    {
+        await using var container = new PostgreSqlBuilder("postgres:16").Build();
+        await container.StartAsync();
+
+        await AssertVanishedMidRunAsync("PostgreSql", container.GetConnectionString());
+    }
+
+
+
+    /// <summary>
+    /// The existence check passes the preflight and fails before the first migration: the run stops there, names
+    /// that migration, applies nothing, and EF's create-on-migrate branch is never reached (the real database,
+    /// still present, has no history row afterwards).
+    /// </summary>
+    private static async Task AssertVanishedMidRunAsync(string provider, string connectionString)
+    {
+        using var context = Context(provider, connectionString);
+        var checks = 0;
+        var runner = new MigrationRunner(context, _ => Task.FromResult(++checks == 1));
+
+        var result = await runner.ApplyAsync(target: null, confirmDataLoss: false, CancellationToken.None);
+        var applied = await context.Database.GetAppliedMigrationsAsync();
+
+        Assert.Equal(2, checks);
+        Assert.Equal(Base, result.FailedMigration);
+        Assert.Contains("does not exist on the server", result.Error, StringComparison.Ordinal);
+        Assert.Empty(result.Steps);
+        Assert.Empty(applied);
+    }
+
+
+
     private static async Task AssertDowngradeAsync(string provider, string connectionString)
     {
         using var context = Context(provider, connectionString);

@@ -1127,7 +1127,7 @@
         "tags": [
           "wms"
         ],
-        "summary": "Every site, active and retired, in code order.",
+        "summary": "Every site the caller may see (all with an organization-level grant, their own with site-level grants), active and retired, in code order.",
         "operationId": "ListSites",
         "responses": {
           "200": {

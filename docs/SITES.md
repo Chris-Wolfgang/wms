@@ -59,3 +59,15 @@ populating the new site's scope gives it the organisation's current values.
 - **Everything beneath a site** (zones, locations, paths, SKUs, barcodes, validation profiles) can be created one
   at a time through the API or loaded in bulk through the master data import contract (E16.6), which serves
   the console upload, the file drop and ERP pushes alike.
+
+## Site scope (E16.3)
+
+Every endpoint under `/sites/{siteId}/…` is gated by the route's site: a grant at the organisation or at
+that site admits the caller, anything else is `403`. Collection endpoints without a site in the route
+(`GET /sites` today; the cross-site picking lists later) are marked `RequirePermissionInScope`: a caller who
+holds the permission at the organisation or at any site is admitted, and the store filters the rows through
+`SiteScope` (`SiteScope.Of(user, permission)`: unrestricted for an organisation-level grant, else exactly the
+sites of the caller's site-level grants) with the one query helper `InScope` (a translated
+`site_id IN (...)`). A supervisor granted at one warehouse therefore lists that warehouse only, and never
+sees another's rows; a caller with no grant of the permission anywhere is refused. Retired sites stay in
+scope so their history remains readable.

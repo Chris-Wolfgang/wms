@@ -21,6 +21,7 @@ message; they pick a code, and the catalog of codes is generated from the defini
 | `202` | work handed to the outbox; the body says where to look |
 | `204` | delete and body-less actions |
 | `400` | malformed request (bad cursor, both `after` and `before`, invalid key) |
+| `403` | the route's site is outside the caller's grants (E10.3); collection endpoints without a site in the route filter through `SiteScope` instead (E16.3, [SITES](SITES.md#site-scope-e163)) |
 | `404` | not in the caller's site scope (hidden endpoints and flags too) |
 | `412` | concurrency: `If-Match` did not match `row_version` (stale or weak tag), or the row changed between that check and the save (the stale-save race, reported the same way); reload and retry |
 | `422` | `Idempotency-Key` reused with a different body |

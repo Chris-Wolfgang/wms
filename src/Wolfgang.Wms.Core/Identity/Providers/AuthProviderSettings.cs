@@ -6,8 +6,9 @@ using Wolfgang.Wms.Domain.Settings;
 namespace Wolfgang.Wms.Core.Identity.Providers;
 
 /// <summary>
-/// The provider selection (E11.0): which providers are enabled is a setting, applied without a restart;
-/// <c>appsettings</c> holds one emergency override that forces <c>local</c> only.
+/// The provider selection (E11.0): an install uses one identity provider, chosen with a setting;
+/// <c>appsettings</c> holds one emergency override that forces <c>local</c> only. Under single sign-on the
+/// local administrator stays available as the break-glass path, which is not part of this setting.
 /// </summary>
 public static class AuthProviderSettings
 {
@@ -25,9 +26,9 @@ public static class AuthProviderSettings
 
 
     /// <summary>
-    /// The enabled providers, comma-separated, in the order the login page lists them.
+    /// The install's one identity provider.
     /// </summary>
-    public static readonly SettingKey<string> Enabled = new("auth.providers.enabled", Local, "Identity providers the console offers, comma-separated, in login-page order (local, oidc).")
+    public static readonly SettingKey<string> Active = new("auth.provider", Local, "The identity provider this install signs in with (local, oidc). One only: an install does not run two at once.")
     {
         Scopes = SettingScopes.Organization,
         Validator = Validate,
@@ -36,22 +37,11 @@ public static class AuthProviderSettings
 
 
     /// <summary>
-    /// The names in an <see cref="Enabled"/> value: trimmed, distinct, in order.
-    /// </summary>
-    public static IReadOnlyList<string> Parse(string? value)
-    {
-        return (value ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.Ordinal).ToList();
-    }
-
-
-
-    /// <summary>
-    /// Null for a list of well-formed names (registration is checked when the setting is applied, so a
-    /// provider can be named before its release arrives), else the reason.
+    /// Null for one well-formed name (registration is checked when the setting is applied, so a provider can
+    /// be named before its release arrives), else the reason.
     /// </summary>
     public static string? Validate(string? value)
     {
-        var bad = Parse(value).FirstOrDefault(n => !AuthProviderCatalog.IsName(n));
-        return bad is null ? null : $"'{bad}' is not a provider name (lower-case letters, digits and dashes)";
+        return AuthProviderCatalog.IsName(value) ? null : $"'{value}' is not one provider name (lower-case letters, digits and dashes)";
     }
 }

@@ -87,7 +87,7 @@ Runs on `pull_request_target` (the workflow file and protected config come from 
 2. **Changelog Fragment Check** and **ReSharper InspectCode** run in parallel with the test stages.
 3. **Stage 1 Linux** (.NET 5.0–10.0 + coverage gate) → **Stage 2 Windows** (.NET Core 3.1, .NET 5.0–10.0, .NET Framework 4.6.2–4.8.1; integration tests; the full-TFM backstop) → **Stage 3 macOS** (.NET 6.0–10.0). Each stage discovers the projects' target frameworks at run time.
 4. **Security Scan (DevSkim)**; CodeQL, actionlint/zizmor, license audit and SBOM run from their own workflows.
-5. **Required checks** (ruleset): Detect .NET Projects, the three stages, DevSkim, CodeQL, gitleaks, Changelog Fragment Check. InspectCode, actionlint/zizmor, license audit and SBOM are advisory.
+5. **Required checks** (ruleset, `scripts/Setup-BranchRuleset.ps1`): every gate that is written to fail the PR blocks the merge: Detect .NET Projects, Stage 1, Stage 2, ReSharper InspectCode, AOT Smoke, OpenAPI Diff, DevSkim, gitleaks, Changelog Fragment Check, CodeQL, actionlint, zizmor, Semgrep, License audit, Generate SBOM, Verify SourceLink.
 
 ### Branch Protection Configuration
 Branch protection rules are configured by running the local PowerShell script `scripts/Setup-BranchRuleset.ps1`. The script prompts you to choose repository settings during setup.

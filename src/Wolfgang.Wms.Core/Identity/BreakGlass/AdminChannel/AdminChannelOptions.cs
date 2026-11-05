@@ -42,4 +42,12 @@ public sealed class AdminChannelOptions
     /// False turns the channel off; <c>Wms:Auth:ForceLocal</c> is then the only way back in.
     /// </summary>
     public bool Enabled { get; set; } = true;
+
+
+
+    /// <summary>
+    /// How long one connection may take from accept to reply. The channel serves one client at a time, so a
+    /// client that connects and sends nothing would otherwise block every later command.
+    /// </summary>
+    public TimeSpan ConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
 }

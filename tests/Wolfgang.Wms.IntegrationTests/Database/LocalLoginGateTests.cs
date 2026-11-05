@@ -29,7 +29,9 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 /// sign-in (simulated through the gate the OIDC events call) closes it with <c>403 auth.local_login_closed</c>;
 /// a timed window opened on behalf of a host user re-opens it and shows in the anonymous status; closing the
 /// window early shuts it again; a second host with <c>Wms:Auth:ForceLocal</c> ignores the gate; every change
-/// is audited with the actor.
+/// is audited with the actor. The row stays single and trustworthy: a no-op lock adds nothing, concurrent first
+/// writes end in one row holding both, and a row edited through the database reads as closed until the host's
+/// next write repairs it.
 /// </summary>
 public sealed class LocalLoginGateTests
 {
@@ -54,6 +56,100 @@ public sealed class LocalLoginGateTests
         await container.StartAsync();
 
         await AssertGateAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    [SqlServerFact]
+    public async Task SqlServer_keeps_one_signed_row()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertOneSignedRowAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
+    }
+
+
+
+    [DockerFact]
+    public async Task PostgreSql_keeps_one_signed_row()
+    {
+        await using var container = new PostgreSqlBuilder("postgres:16").Build();
+        await container.StartAsync();
+
+        await AssertOneSignedRowAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    private static async Task AssertOneSignedRowAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+        await using var app = await StartHostAsync(provider, runtime, trustServerCertificate, forceLocal: false);
+
+        // A lock with nothing to lock adds no row, so a later write in the same scope cannot add a second one.
+        using (var scope = app.Services.CreateScope())
+        {
+            var gate = scope.ServiceProvider.GetRequiredService<ILocalLoginGate>();
+            Assert.Equal(LocalLoginGateInfo.Open, await gate.LockAsync("HOST\\ops", CancellationToken.None));
+            Assert.Equal("oidc", (await gate.MarkSsoVerifiedAsync("oidc", CancellationToken.None)).SsoVerifiedProvider);
+            Assert.Equal(1, await scope.ServiceProvider.GetRequiredService<WmsDbContext>().LocalLoginGates.CountAsync());
+        }
+
+        await AssertConcurrentFirstWritesAsync(app.Services);
+        await AssertTamperedRowReadsClosedAsync(app.Services);
+    }
+
+
+
+    private static async Task AssertConcurrentFirstWritesAsync(IServiceProvider services)
+    {
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using (var scope = services.CreateScope())
+            {
+                await scope.ServiceProvider.GetRequiredService<WmsDbContext>().Database.ExecuteSqlRawAsync("DELETE FROM core.local_login_gate");
+            }
+
+            await Task.WhenAll
+            (
+                WithGateAsync(services, gate => gate.UnlockAsync(TimeSpan.FromMinutes(5), "HOST\\ops", CancellationToken.None)),
+                WithGateAsync(services, gate => gate.MarkSsoVerifiedAsync("oidc", CancellationToken.None))
+            );
+
+            using var check = services.CreateScope();
+            var rows = await check.ServiceProvider.GetRequiredService<WmsDbContext>().LocalLoginGates.CountAsync();
+            var info = await check.ServiceProvider.GetRequiredService<ILocalLoginGate>().GetAsync(CancellationToken.None);
+            Assert.Equal(1, rows);
+            Assert.Equal("oidc", info.SsoVerifiedProvider);
+            Assert.Equal("HOST\\ops", info.UnlockedBy);
+        }
+    }
+
+
+
+    private static async Task AssertTamperedRowReadsClosedAsync(IServiceProvider services)
+    {
+        var expired = await WithGateAsync(services, gate => gate.LockAsync("HOST\\ops", CancellationToken.None));
+        Assert.False(expired.IsUnlockedAt(DateTimeOffset.UtcNow));
+
+        using (var scope = services.CreateScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<WmsDbContext>().Database.ExecuteSqlRawAsync("UPDATE core.local_login_gate SET sso_verified_at = NULL, sso_verified_provider = NULL, unlocked_until = '2099-01-01T00:00:00'");
+        }
+
+        var tampered = await WithGateAsync(services, gate => gate.GetAsync(CancellationToken.None));
+        Assert.True(tampered.IsSsoVerified);
+        Assert.False(tampered.IsUnlockedAt(DateTimeOffset.UtcNow));
+        Assert.False(tampered.IsOpenAt(DateTimeOffset.UtcNow, forceLocal: false));
+
+        // The host's unlock still works and repairs the row: the window is real, SSO stays verified afterwards.
+        var repaired = await WithGateAsync(services, gate => gate.UnlockAsync(TimeSpan.FromMinutes(5), "HOST\\ops", CancellationToken.None));
+        var reread = await WithGateAsync(services, gate => gate.GetAsync(CancellationToken.None));
+        Assert.True(repaired.IsSsoVerified);
+        Assert.Equal("HOST\\ops", reread.UnlockedBy);
+        Assert.True(reread.IsUnlockedAt(DateTimeOffset.UtcNow));
+        Assert.Equal("integrity-repair", reread.SsoVerifiedProvider);
     }
 
 

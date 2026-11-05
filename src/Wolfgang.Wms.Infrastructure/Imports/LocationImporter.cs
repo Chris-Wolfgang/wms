@@ -30,35 +30,58 @@ internal sealed class LocationImporter
 
 
 
-    public async Task<ImportResult> RunAsync(long siteId, IReadOnlyList<LocationImportRow> rows, ImportPolicy policy, string updatedBy, CancellationToken cancellationToken)
+    public Task<ImportResult> RunAsync(long siteId, IReadOnlyList<LocationImportRow> rows, ImportPolicy policy, string updatedBy, CancellationToken cancellationToken)
     {
-        var zones = await _context.Zones.AsNoTracking().Where(z => z.SiteId == siteId).Select(z => new ZoneRef(z.Id, z.CodeNormalized, z.WalkOrderPrefix)).ToListAsync(cancellationToken).ConfigureAwait(false);
-        var existing = await _context.Locations.Where(l => l.SiteId == siteId).ToListAsync(cancellationToken).ConfigureAwait(false);
-        var site = new SiteRows(zones.ToDictionary(z => z.CodeNormalized, StringComparer.Ordinal), existing.ToDictionary(l => l.CodeNormalized, StringComparer.Ordinal), existing.ToDictionary(l => l.Barcode, StringComparer.Ordinal));
-        var plan = new List<Planned>(rows.Count);
-        for (var i = 0; i < rows.Count; i++)
-        {
-            plan.Add(Decide(i + 1, rows[i], site));
-        }
+        return _context.Database.CreateExecutionStrategy().ExecuteAsync(() => AttemptAsync(siteId, rows, policy, updatedBy, cancellationToken));
+    }
 
-        var results = plan.Select(p => p.Result).ToList();
-        var written = ImportRules.ShouldWrite(policy, results);
-        if (written)
-        {
-            await ApplyAsync(siteId, plan, updatedBy, cancellationToken).ConfigureAwait(false);
-        }
 
-        return ImportResult.From(Entity, policy, written, results);
+
+    /// <summary>
+    /// One attempt of the whole import, inside the execution strategy so a transient failure replays it. Everything
+    /// is rebuilt on each attempt: <c>SaveChanges</c> accepts tracked changes before the commit, so a retry over the
+    /// same entities would find nothing left to write and report success.
+    /// </summary>
+    private async Task<ImportResult> AttemptAsync(long siteId, IReadOnlyList<LocationImportRow> rows, ImportPolicy policy, string updatedBy, CancellationToken cancellationToken)
+    {
+        _context.ChangeTracker.Clear();
+        var transaction = await _context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await using (transaction.ConfigureAwait(false))
+        {
+            var zones = await _context.Zones.AsNoTracking().Where(z => z.SiteId == siteId).Select(z => new ZoneRef(z.Id, z.CodeNormalized, z.WalkOrderPrefix)).ToListAsync(cancellationToken).ConfigureAwait(false);
+            var existing = await _context.Locations.Where(l => l.SiteId == siteId).ToListAsync(cancellationToken).ConfigureAwait(false);
+            var site = new SiteRows(zones.ToDictionary(z => z.CodeNormalized, StringComparer.Ordinal), existing.ToDictionary(l => l.CodeNormalized, StringComparer.Ordinal), ByBarcode(existing));
+            var plan = new List<Planned>(rows.Count);
+            for (var i = 0; i < rows.Count; i++)
+            {
+                plan.Add(Decide(i + 1, rows[i], site));
+            }
+
+            var results = plan.Select(p => p.Result).ToList();
+            var written = ImportRules.ShouldWrite(policy, results);
+            if (written)
+            {
+                await ApplyAsync(siteId, plan, updatedBy, cancellationToken).ConfigureAwait(false);
+            }
+
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return ImportResult.From(Entity, policy, written, results);
+        }
     }
 
 
 
     private static Planned Decide(int number, LocationImportRow row, SiteRows site)
     {
-        var key = (row.Code ?? string.Empty).Trim();
+        var key = (row?.Code ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(key))
         {
             return Planned.Failed(number, key, ImportErrorCodes.Invalid, "code is required.");
+        }
+
+        if (!Enum.IsDefined(row!.Action))
+        {
+            return Planned.Failed(number, key, ImportErrorCodes.Invalid, "action must be upsert or delete.");
         }
 
         var normalized = LocationRules.Normalize(key);
@@ -122,7 +145,7 @@ internal sealed class LocationImporter
 
 
 
-    private Task ApplyAsync(long siteId, List<Planned> plan, string updatedBy, CancellationToken cancellationToken)
+    private async Task ApplyAsync(long siteId, List<Planned> plan, string updatedBy, CancellationToken cancellationToken)
     {
         var now = _timeProvider.GetUtcNow();
         var inserted = new List<Location>();
@@ -148,18 +171,26 @@ internal sealed class LocationImporter
             }
         }
 
-        // The providers retry transient failures, so a user transaction must run inside the execution strategy;
-        // the tracked changes above are the same on every attempt.
-        return _context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        await _context.Locations.AddRangeAsync(inserted, cancellationToken).ConfigureAwait(false);
+        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+
+
+    /// <summary>
+    /// Barcodes compare ignoring case: SQL Server's unique index does under the usual collation, and a barcode that
+    /// differs only in case would pass here and then fail the whole save there. PostgreSQL could hold two such rows;
+    /// the first found stands for both.
+    /// </summary>
+    private static Dictionary<string, Location> ByBarcode(List<Location> existing)
+    {
+        var byBarcode = new Dictionary<string, Location>(existing.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var location in existing)
         {
-            var transaction = await _context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-            await using (transaction.ConfigureAwait(false))
-            {
-                await _context.Locations.AddRangeAsync(inserted, cancellationToken).ConfigureAwait(false);
-                await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            }
-        });
+            byBarcode.TryAdd(location.Barcode, location);
+        }
+
+        return byBarcode;
     }
 
 
@@ -173,7 +204,7 @@ internal sealed class LocationImporter
     {
         public HashSet<string> SeenCodes { get; } = new(StringComparer.Ordinal);
 
-        public HashSet<string> SeenBarcodes { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> SeenBarcodes { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
 

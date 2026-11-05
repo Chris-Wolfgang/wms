@@ -65,7 +65,7 @@ the script).
    - Require a pull request before merging, with conversation-resolution required
    - Require status checks to pass - add the contexts listed in
      [scripts/Setup-BranchRuleset.ps1](scripts/Setup-BranchRuleset.ps1)
-     (Stage 1/2/3 Linux/Windows/macOS, Detect .NET Projects, Secrets Scan
+     (Stage 1 Linux and Stage 2 Windows, Detect .NET Projects, Secrets Scan
      (gitleaks), Security Scan (DevSkim), Security Scan (CodeQL) (csharp))
    - Require code scanning results from CodeQL, errors threshold
 7. Save the ruleset.
@@ -82,9 +82,7 @@ These settings require that all checks in the pr.yaml file succeed before you ca
 3. Check “Require status checks to pass before merging.”
 4. In the "Status checks that are required" list, select the status check contexts produced by your PR workflow jobs. These options appear after the workflow has run at least once on `main`. For example:
    - "Stage 1: Linux Tests (.NET 5.0-10.0) + Coverage Gate"
-   - "Stage 2a: Windows Tests (.NET 5.0-10.0)"
-   - "Stage 2b: Windows .NET Framework Tests (4.6.2-4.8.1)"
-   - "Stage 3: macOS Tests (.NET 6.0-10.0)"
+   - "Stage 2: Windows Tests (.NET 5.0-10.0, Framework 4.6.2-4.8.1)"
    - "Security Scan (DevSkim)"
 
 5. Enable “Require branches to be up to date before merging.”
@@ -298,7 +296,7 @@ because they are useful in steady-state:
 | `scripts/Fix-BranchRuleset.ps1` | Replace the branch ruleset when the canonical definition changes upstream (a required check renamed or added) and the rule gets stuck waiting. Deletes "Protect main branch", disables any other active ruleset, then recreates it with `Setup-BranchRuleset.ps1` (pass `-RequireLinearHistory` to keep linear history). It does not patch rules in place. |
 | `scripts/Setup-Labels.ps1` | Re-run when new canonical labels are added (e.g. a new `maintenance - X` kind). Idempotent. |
 | `scripts/Validate-DocsDeploy.ps1` | Post-deploy validation of the `gh-pages` branch. See the **Setup GitHub Pages** section above. |
-| `scripts/build-pr.ps1` | Local dry-run of the PR workflow's Windows stage (build, every-TFM tests, coverage gates, DevSkim, gitleaks) on this machine; the Linux and macOS stages only run in CI. |
+| `scripts/build-pr.ps1` | Local dry-run of the PR workflow's Windows stage (build, every-TFM tests, coverage gates, DevSkim, gitleaks) on this machine; the Linux stage only runs in CI. |
 | `scripts/tfm-parity.ps1` | Warns when a `src/` project targets a framework no test project exercises (test-matrix guard 3). Runs on the Windows PR stage and inside `build-pr.ps1`; warning-only. |
 | `scripts/format.ps1` | One-shot formatter (CSharpier + analyzer auto-fixups). Mirrors what the CI build expects, so running it locally avoids surprise CI failures. |
 | `scripts/pin-actions.ps1` | Rewrites every `uses:` in `.github/workflows` to `@<sha> # vMAJOR.MINOR.PATCH`: fixes major-only comments (`# v7`) that zizmor's `ref-version-mismatch` flags, and with `-PinTags` converts tag references (`@v7`) to SHA pins. Resolves tags with one `git ls-remote --tags` per action (no API budget). Dry run by default; `-Apply` writes. Dependabot keeps whatever precision it finds, so a converted repository stays converted. Workflow files need the protected-file bypass on the PR. |

@@ -424,7 +424,7 @@
         "tags": [
           "wms"
         ],
-        "summary": "The enabled identity providers in login-page order (E11.0).",
+        "summary": "The active identity provider, as a list of at most one (E11.0).",
         "operationId": "GetAuthProviders",
         "responses": {
           "200": {

@@ -12,7 +12,7 @@ namespace Wolfgang.Wms.Auth.Oidc;
 /// <summary>
 /// Registers the <c>oidc</c> provider (E11.1): the provider, the handler's options plumbing (built from
 /// settings, never from <c>appsettings</c>), the handler itself, and a module declaring the settings.
-/// The scheme is added at runtime when <c>auth.providers.enabled</c> names <c>oidc</c>.
+/// The scheme is added at runtime when <c>auth.provider</c> names <c>oidc</c>.
 /// </summary>
 public static class OidcServiceCollectionExtensions
 {

@@ -5,7 +5,19 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Wolfgang.Wms.Core.Caching;
+using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Schema;
+using Wolfgang.Wms.Core.Settings;
+using Wolfgang.Wms.Infrastructure.Database.Auditing;
+using Wolfgang.Wms.Infrastructure.Database.Settings;
+using Wolfgang.Wms.Core.Secrets;
+using Wolfgang.Wms.Infrastructure.Secrets;
+using Microsoft.AspNetCore.Identity;
+using Wolfgang.Wms.Core.Authorization;
+using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Infrastructure.Identity;
+using Wolfgang.Wms.Infrastructure.Integrity;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -72,12 +84,50 @@ public static class DatabaseServiceCollectionExtensions
             return services;
         }
 
-        services.AddDbContext<WmsDbContext>((provider, builder) => Configure(builder, provider.GetRequiredService<IOptions<DatabaseOptions>>().Value));
+        services.AddWmsAuditing();   // E6.4: AuditTrail options and the on-behalf-of user provider the context needs
+        services.AddHostedService<SecretsStartupCheck>();   // E8.2: an encrypted connection string that cannot be decrypted fails here, clearly
+        services.AddWmsIntegritySigning();   // E10.4: rows are signed on save
+        services.AddDbContext<WmsDbContext>((provider, builder) =>
+        {
+            var database = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+            // The protector is resolved only for an encrypted string: the database ring (E8.6) would need this very context.
+            Configure(builder, database, database.ConnectionStringIsProtected ? provider.GetRequiredService<ISecretProtector>() : null);
+            builder.AddInterceptors(provider.GetRequiredService<IntegritySigningInterceptor>());
+        });
         services.RemoveAll<ISchemaVersionSource>();
         services.AddScoped<ISchemaVersionSource, MigrationsSchemaVersionSource>();
         services.AddScoped<MigrationRunner>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddWmsModules();
+        services.TryAddSingleton(provider => new SettingRegistry(provider.GetRequiredService<ModuleCollection>()));   // hosts without the settings module (the worker) still get the accessor
+        services.TryAddSingleton<ISettingScopeHierarchy, OrganizationOnlyScopeHierarchy>();
+        services.TryAddSingleton(provider => new PermissionCatalog(provider.GetRequiredService<ModuleCollection>()));   // the roles store's catalog, for hosts without the auth module
+        services.TryAddSingleton<IRowVersionSource, MaxRowVersionSource>();   // E1.12: the caches' one invalidation signal
+        services.TryAddSingleton<SettingsCache>();
+        services.RemoveAll<ISettings>();
+        services.AddScoped<ISettings, EfSettings>();   // E6.3: the stored accessor replaces the defaults-only one
         services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead
+        AddIdentity(services, configuration);   // E9, E10: accounts, roles, sessions, integrity
         return services;
+    }
+
+
+
+    private static void AddIdentity(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddHostedService<IntegrityBackfillCheck>();   // E10.4: before any security row is written, the key exists and pre-existing rows are signed
+        services.AddOptions<BootstrapOptions>().Bind(configuration.GetSection(BootstrapOptions.SectionName));
+        services.TryAddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.RemoveAll<ILocalAccounts>();
+        services.AddScoped<ILocalAccounts, EfLocalAccounts>();   // E9: the stored accounts replace the placeholder
+        services.AddHostedService<BootstrapAdminCheck>();   // E9.1: after the schema check, the administrator exists
+        services.RemoveAll<IRoles>();
+        services.AddScoped<IRoles, EfRoles>();   // E10.2: the stored roles replace the placeholder
+        services.RemoveAll<ISessionRevocations>();
+        services.AddScoped<ISessionRevocations, EfSessionRevocations>();   // E10.5: per-user "sessions valid after"
+        services.RemoveAll<ISessionGrants>();
+        services.AddScoped<ISessionGrants, EfSessionGrants>();   // E10.4: a session's grants recomputed on every request
+        services.AddHostedService<BuiltInRolesCheck>();   // E10.2: built-in roles follow the catalog; local administrators hold Administrator
     }
 
 
@@ -92,10 +142,23 @@ public static class DatabaseServiceCollectionExtensions
     /// <see cref="DatabaseOptions.TrustServerCertificate"/> is set (it is parsed to apply the switch).</exception>
     public static DbContextOptionsBuilder Configure(DbContextOptionsBuilder builder, DatabaseOptions options)
     {
+        return Configure(builder, options, protector: null);
+    }
+
+
+
+    /// <summary>
+    /// Configures the provider, decrypting an <c>enc:v1:</c> connection string with <paramref name="protector"/>
+    /// (E8.2).
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="options"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">The provider cannot host a context, or the connection string is encrypted and cannot be decrypted.</exception>
+    public static DbContextOptionsBuilder Configure(DbContextOptionsBuilder builder, DatabaseOptions options, ISecretProtector? protector)
+    {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(options);
 
-        var connectionString = options.EffectiveConnectionString();
+        var connectionString = options.EffectiveConnectionString(protector);
         if (connectionString.Length == 0)
         {
             connectionString = null;
@@ -103,8 +166,11 @@ public static class DatabaseServiceCollectionExtensions
 
         return options.ParsedProvider switch
         {
-            DatabaseProvider.SqlServer => builder.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema)),
-            DatabaseProvider.PostgreSql => builder.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema)),
+            // Both providers retry transient failures, which is safe because the audited context (E6.4) owns the
+            // execution-strategy wrap. PostgreSQL batches are capped at 100 rows, where AuditTrail's own benchmarks
+            // stop paying off.
+            DatabaseProvider.SqlServer => builder.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(SqlServerMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema).EnableRetryOnFailure()),
+            DatabaseProvider.PostgreSql => builder.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(PostgreSqlMigrationsAssembly).MigrationsHistoryTable(HistoryTable, HistorySchema).EnableRetryOnFailure().MaxBatchSize(WmsAuditing.PostgreSqlMaxBatchSize)),
             _ => throw new InvalidOperationException($"{DatabaseOptions.SectionName}:Provider '{options.Provider}' cannot host a database context."),
         };
     }

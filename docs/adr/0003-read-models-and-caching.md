@@ -5,9 +5,9 @@
 ## Context
 
 Supervisors watch dashboards and lists all shift; those reads must stay fast and must never risk changing
-data (E1.12). Repositories serve writes (ADR 0002) and are the wrong shape for projections. Every product
-table already carries a `row_version` column (ADR 0002 concurrency), which is a free, monotonic change
-signal per row and per table.
+data (E1.12). Repositories serve writes (ADR 0002) and are the wrong shape for projections. Every versioned
+table (`IVersionedEntity`, E5.1, [DATABASE-CONVENTIONS](../DATABASE-CONVENTIONS.md)) carries a `row_version`
+column, which is a free, monotonic change signal per row and per table.
 
 ## Decision
 
@@ -45,4 +45,5 @@ signal per row and per table.
   key to invent and no invalidation to forget, because the version column does both.
 - A second process instance sees changes within one poll interval; the design accepts that window.
 - The per-provider `IRowVersionSource` and the compare in `EntityTag` assume `row_version` is monotonic per
-  table; the EF stories (E2–E5) must map it that way on both providers.
+  table; the EF stories (E2–E5) must map it that way on both providers. Only versioned entity types carry the
+  column, so a read model may name only those in its `IRowVersionSource` call.

@@ -25,7 +25,9 @@ public sealed class RowVersioningTests
     {
         var sql = RowVersioning.UpdateTriggerSql(RowVersioning.SqlServer, "picking", "container");
 
-        Assert.Contains("CREATE OR ALTER TRIGGER [picking].[trg_container_row_version] ON [picking].[container] AFTER UPDATE", sql, StringComparison.Ordinal);
+        Assert.StartsWith("EXEC(N'CREATE OR ALTER TRIGGER [picking].[trg_container_row_version] ON [picking].[container] AFTER UPDATE AS", sql, StringComparison.Ordinal);
+        Assert.EndsWith("END');", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("''", sql, StringComparison.Ordinal);   // nothing to double: the body has no single quote
         Assert.Contains("UPDATE t SET [row_version] = NEXT VALUE FOR [wms].[row_version_seq]", sql, StringComparison.Ordinal);
         Assert.Contains("INNER JOIN inserted i ON t.[id] = i.[id]", sql, StringComparison.Ordinal);
         Assert.Equal("DROP TRIGGER IF EXISTS [picking].[trg_container_row_version];", RowVersioning.DropTriggerSql(RowVersioning.SqlServer, "picking", "container"));

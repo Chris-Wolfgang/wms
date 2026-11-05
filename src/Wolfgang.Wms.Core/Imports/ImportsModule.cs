@@ -32,6 +32,12 @@ public static class ImportsModule
     /// <summary>Route of the locations import of a site.</summary>
     public const string LocationsRoute = "/sites/{siteId:long}/imports/locations";
 
+    /// <summary>What an import route ends with to answer with the row results as a CSV download.</summary>
+    public const string CsvSuffix = "/csv";
+
+    /// <summary>The media type of the CSV download.</summary>
+    public const string CsvContentType = "text/csv";
+
     /// <summary>The default policy for zones: structural data, so a partial load is refused.</summary>
     public const ImportPolicy ZonesDefaultPolicy = ImportPolicy.AllOrNothing;
 
@@ -69,29 +75,51 @@ public static class ImportsModule
 
     private static void MapEndpoints(IEndpointRouteBuilder app)
     {
-        app.MapPost(ZonesRoute, async (HttpContext http, long siteId, List<ZoneImportRow> body, [FromQuery(Name = "policy")] string? policy, [FromQuery(Name = "format")] string? format, IImports imports, CancellationToken cancellationToken) =>
-            {
-                var request = Resolve(body, policy, ZonesDefaultPolicy, format);
-                return Answer(await imports.ImportZonesAsync(siteId, request.Rows, request.Policy, User(http), cancellationToken).ConfigureAwait(false), request.Csv);
-            })
+        app.MapPost(ZonesRoute, async (HttpContext http, long siteId, List<ZoneImportRow> body, [FromQuery(Name = "policy")] string? policy, IImports imports, CancellationToken cancellationToken) =>
+                TypedResults.Ok(await ImportZonesAsync(http, siteId, body, policy, imports, cancellationToken).ConfigureAwait(false)))
             .RequirePermission(Write)
             .WithName("ImportZones")
-            .WithSummary("Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only; format=csv for the row results as CSV.")
+            .WithSummary("Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only.")
             .Produces<ImportResult>();
-        app.MapPost(LocationsRoute, async (HttpContext http, long siteId, List<LocationImportRow> body, [FromQuery(Name = "policy")] string? policy, [FromQuery(Name = "format")] string? format, IImports imports, CancellationToken cancellationToken) =>
-            {
-                var request = Resolve(body, policy, LocationsDefaultPolicy, format);
-                return Answer(await imports.ImportLocationsAsync(siteId, request.Rows, request.Policy, User(http), cancellationToken).ConfigureAwait(false), request.Csv);
-            })
+        app.MapPost(ZonesRoute + CsvSuffix, async (HttpContext http, long siteId, List<ZoneImportRow> body, [FromQuery(Name = "policy")] string? policy, IImports imports, CancellationToken cancellationToken) =>
+                TypedResults.Text((await ImportZonesAsync(http, siteId, body, policy, imports, cancellationToken).ConfigureAwait(false)).ToCsv(), CsvContentType))
+            .RequirePermission(Write)
+            .WithName("ImportZonesCsv")
+            .WithSummary("The same import, answering with the row results as a downloadable CSV.")
+            .Produces<string>(StatusCodes.Status200OK, CsvContentType);
+        app.MapPost(LocationsRoute, async (HttpContext http, long siteId, List<LocationImportRow> body, [FromQuery(Name = "policy")] string? policy, IImports imports, CancellationToken cancellationToken) =>
+                TypedResults.Ok(await ImportLocationsAsync(http, siteId, body, policy, imports, cancellationToken).ConfigureAwait(false)))
             .RequirePermission(Write)
             .WithName("ImportLocations")
-            .WithSummary("Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only; format=csv for the row results as CSV.")
+            .WithSummary("Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only.")
             .Produces<ImportResult>();
+        app.MapPost(LocationsRoute + CsvSuffix, async (HttpContext http, long siteId, List<LocationImportRow> body, [FromQuery(Name = "policy")] string? policy, IImports imports, CancellationToken cancellationToken) =>
+                TypedResults.Text((await ImportLocationsAsync(http, siteId, body, policy, imports, cancellationToken).ConfigureAwait(false)).ToCsv(), CsvContentType))
+            .RequirePermission(Write)
+            .WithName("ImportLocationsCsv")
+            .WithSummary("The same import, answering with the row results as a downloadable CSV.")
+            .Produces<string>(StatusCodes.Status200OK, CsvContentType);
     }
 
 
 
-    private static (IReadOnlyList<T> Rows, ImportPolicy Policy, bool Csv) Resolve<T>(List<T>? body, string? policyText, ImportPolicy fallback, string? format)
+    private static Task<ImportResult> ImportZonesAsync(HttpContext http, long siteId, List<ZoneImportRow>? body, string? policy, IImports imports, CancellationToken cancellationToken)
+    {
+        var request = Resolve(body, policy, ZonesDefaultPolicy);
+        return imports.ImportZonesAsync(siteId, request.Rows, request.Policy, User(http), cancellationToken);
+    }
+
+
+
+    private static Task<ImportResult> ImportLocationsAsync(HttpContext http, long siteId, List<LocationImportRow>? body, string? policy, IImports imports, CancellationToken cancellationToken)
+    {
+        var request = Resolve(body, policy, LocationsDefaultPolicy);
+        return imports.ImportLocationsAsync(siteId, request.Rows, request.Policy, User(http), cancellationToken);
+    }
+
+
+
+    private static (IReadOnlyList<T> Rows, ImportPolicy Policy) Resolve<T>(List<T>? body, string? policyText, ImportPolicy fallback)
     {
         var rows = body ?? [];
         if (ImportRules.ValidateSize(rows.Count) is { } sizeReason)
@@ -101,20 +129,7 @@ public static class ImportsModule
 
         var policy = ImportRules.ParsePolicy(policyText, fallback)
             ?? throw new ImportException(ImportErrorCodes.Invalid, $"policy must be {ImportRules.AllOrNothing}, {ImportRules.AcceptValidRows} or {ImportRules.ValidateOnly}.");
-        var csv = !string.IsNullOrWhiteSpace(format) && string.Equals(format.Trim(), ImportRules.CsvFormat, StringComparison.OrdinalIgnoreCase);
-        if (!csv && !string.IsNullOrWhiteSpace(format) && !string.Equals(format.Trim(), "json", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ImportException(ImportErrorCodes.Invalid, $"format must be json or {ImportRules.CsvFormat}.");
-        }
-
-        return (rows, policy, csv);
-    }
-
-
-
-    private static IResult Answer(ImportResult result, bool csv)
-    {
-        return csv ? TypedResults.Text(result.ToCsv(), "text/csv") : TypedResults.Ok(result);
+        return (rows, policy);
     }
 
 

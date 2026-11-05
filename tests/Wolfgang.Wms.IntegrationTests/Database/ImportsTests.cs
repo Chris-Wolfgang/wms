@@ -128,7 +128,7 @@ public sealed class ImportsTests
         var nameAfter = await ZoneNameAsync(services, siteId, "A01");
         groups.Open[a01] = 1;
         var blocked = await ImportAsync(client, Zones(siteId, "accept_valid_rows"), [new ZoneImportRow("A01", "Aisle one", ZoneType.Pick, ImportAction.Upsert, "A", IsActive: false)]);
-        using var csv = await client.PostAsync(Zones(siteId, "validate_only&format=csv"), Body(changes));
+        using var csv = await client.PostAsync(new Uri($"/api/v0/sites/{siteId}/imports/zones/csv?policy=validate_only", UriKind.Relative), Body(changes));
         var csvText = await csv.Content.ReadAsStringAsync();
 
         Assert.Equal((false, 1, 1, 2), (predicted.Written, predicted.Updated, predicted.Deleted, predicted.Failed));
@@ -141,6 +141,13 @@ public sealed class ImportsTests
         Assert.StartsWith("text/csv", csv.Content.Headers.ContentType!.MediaType, StringComparison.Ordinal);
         Assert.StartsWith("row,key,outcome,code,message\r\n1,A01,Unchanged,,\r\n2,B01,Unchanged,,\r\n3,a01,Failed,imports.duplicate_in_file,", csvText, StringComparison.Ordinal);   // the changes were applied just before, so the re-run predicts nothing to do
         Assert.Equal(5, csvText.Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Length);
+
+        // A null element and an undefined action fail their own row; the rest of the file still loads.
+        using var odd = await client.PostAsync(Zones(siteId, "accept_valid_rows"), new StringContent("""[null, { "code": "N01", "name": "Fine" }, { "code": "N02", "name": "Bad action", "action": 2 }]""", Encoding.UTF8, "application/json"));
+        var oddResult = (await odd.Content.ReadFromJsonAsync<ImportResult>(Json))!;
+        Assert.Equal((true, 1, 2), (oddResult.Written, oddResult.Inserted, oddResult.Failed));
+        Assert.Equal([ImportRowOutcome.Failed, ImportRowOutcome.Inserted, ImportRowOutcome.Failed], oddResult.Rows.Select(row => row.Outcome));
+        Assert.True(await PopulatedAsync(services, await ZoneIdAsync(services, siteId, "N01")));
     }
 
 
@@ -170,6 +177,11 @@ public sealed class ImportsTests
         var applied = await ImportAsync(client, Locations(siteId, "accept_valid_rows"), changes);
         var barcodeAfter = await BarcodeAsync(services, siteId, "A-01-01");
         var retired = await IsActiveAsync(services, siteId, "A-01-02");
+
+        // Barcodes differing only in case are one barcode, here as in SQL Server's index: the second row fails alone.
+        var caseOnly = await ImportAsync(client, Locations(siteId, "accept_valid_rows"), [new LocationImportRow("CASE-1", "CASE-X", "A01", "A-0301", ImportAction.Upsert), new LocationImportRow("CASE-2", "case-x", "A01", "A-0302", ImportAction.Upsert)]);
+        Assert.Equal((true, 1, 1), (caseOnly.Written, caseOnly.Inserted, caseOnly.Failed));
+        Assert.Equal("imports.duplicate_in_file", caseOnly.Rows[1].Code);
 
         Assert.Equal((ImportPolicy.AcceptValidRows, true, 3, 3), (loaded.Policy, loaded.Written, loaded.Inserted, loaded.Failed));
         Assert.Equal(["imports.reference_not_found", "imports.duplicate_in_file", "locations.invalid"], loaded.Rows.Where(r => r.Outcome == ImportRowOutcome.Failed).Select(r => r.Code));

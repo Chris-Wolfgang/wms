@@ -28,8 +28,10 @@ SKUs, barcodes, paths and validation profiles join as their entities land).
 | `POST /sites/{siteId}/imports/zones` | `all_or_nothing` (structural: a partial load leaves the site inconsistent) | `code` |
 | `POST /sites/{siteId}/imports/locations` | `accept_valid_rows` (independent rows: the good ones load) | `code` |
 
-Query parameters: `policy=all_or_nothing|accept_valid_rows|validate_only`, `format=json` (default) or
-`format=csv` (the row list as a downloadable CSV with the header `row,key,outcome,code,message`).
+Query parameter: `policy=all_or_nothing|accept_valid_rows|validate_only`. Each route also has a `/csv` form that runs
+the same import and answers with the row list as a downloadable `text/csv` file (header
+`row,key,outcome,code,message`). A value a spreadsheet would run as a formula (starting `=`, `+`, `-`, `@`, tab or
+carriage return) is prefixed with `'` in that file; the JSON answer keeps the exact value.
 
 Request-level problems answer at once: `404 imports.site_not_found`, `400 imports.invalid` (no rows, too many
 rows, an unknown policy or format), `503 imports.unavailable` without a database.

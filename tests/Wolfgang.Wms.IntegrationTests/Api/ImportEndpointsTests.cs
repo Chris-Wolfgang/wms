@@ -36,11 +36,10 @@ public sealed class ImportEndpointsTests : IClassFixture<WebApplicationFactory<P
 
         using var notSignedIn = await anonymous.PostAsync(new Uri("/api/v0/sites/1/imports/zones", UriKind.Relative), Json(Zones));
         using var zones = await granted.SendAsync(TestAuth.As(HttpMethod.Post, "/api/v0/sites/1/imports/zones", "imports.write@organization", Json(Zones)));
-        using var locations = await granted.SendAsync(TestAuth.As(HttpMethod.Post, "/api/v0/sites/1/imports/locations?policy=validate_only&format=csv", "imports.write@organization", Json(Locations)));
+        using var locations = await granted.SendAsync(TestAuth.As(HttpMethod.Post, "/api/v0/sites/1/imports/locations/csv?policy=validate_only", "imports.write@organization", Json(Locations)));
         using var forbidden = await granted.SendAsync(TestAuth.As(HttpMethod.Post, "/api/v0/sites/1/imports/zones", "zones.write@organization", Json(Zones)));
         using var empty = await granted.SendAsync(TestAuth.As(HttpMethod.Post, "/api/v0/sites/1/imports/zones", "imports.write@organization", Json("[]")));
         using var badPolicy = await granted.SendAsync(TestAuth.As(HttpMethod.Post, "/api/v0/sites/1/imports/zones?policy=maybe", "imports.write@organization", Json(Zones)));
-        using var badFormat = await granted.SendAsync(TestAuth.As(HttpMethod.Post, "/api/v0/sites/1/imports/zones?format=xml", "imports.write@organization", Json(Zones)));
 
         Assert.Equal(HttpStatusCode.Unauthorized, notSignedIn.StatusCode);
         Assert.Equal("auth.not_signed_in", await CodeAsync(notSignedIn));
@@ -52,8 +51,6 @@ public sealed class ImportEndpointsTests : IClassFixture<WebApplicationFactory<P
         Assert.Equal("imports.invalid", await CodeAsync(empty));
         Assert.Equal(HttpStatusCode.BadRequest, badPolicy.StatusCode);
         Assert.Contains("all_or_nothing", await DetailAsync(badPolicy), StringComparison.Ordinal);
-        Assert.Equal(HttpStatusCode.BadRequest, badFormat.StatusCode);
-        Assert.Contains("format must be json or csv", await DetailAsync(badFormat), StringComparison.Ordinal);
     }
 
 

@@ -19,7 +19,9 @@ using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Organization;
 using Wolfgang.Wms.Core.Settings;
+using Wolfgang.Wms.Core.Licensing;
 using Wolfgang.Wms.Core.Sites;
+using Wolfgang.Wms.Domain.Licensing;
 using Wolfgang.Wms.Domain.Keys;
 using Wolfgang.Wms.Domain.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
@@ -104,6 +106,55 @@ public sealed class SitesTests
         await AssertCascadeAsync(app.Services, hamburg.Id);
         await AssertDefaultsAsync(client, app.Services);
         await AssertAuditAsync(app.Services);
+        await AssertRacesAsync(client, app.Services);
+        await AssertLicenseAsync(app.Services, provider, runtime, trustServerCertificate, releases);
+    }
+
+
+
+    /// <summary>
+    /// With the license module in the host (as in production): active sites count against the free tier's limit,
+    /// and a creation past what it allows is refused.
+    /// </summary>
+    private static async Task AssertLicenseAsync(IServiceProvider services, string provider, string runtime, bool trustServerCertificate, FakeOpenReleases releases)
+    {
+        using var scope = services.CreateScope();
+        var stored = await scope.ServiceProvider.GetRequiredService<WmsDbContext>().Sites.CountAsync(s => s.IsActive);
+
+        await using var licensed = await StartHostAsync(provider, runtime, trustServerCertificate, releases, licensing: true);
+        using var client = licensed.GetTestClient();
+        client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));
+        using var licensedScope = licensed.Services.CreateScope();
+        var counted = await licensedScope.ServiceProvider.GetRequiredService<ILicenseUsage>().CountAsync(LicenseLimits.Sites, CancellationToken.None);
+        using var refused = await client.PostAsync(new Uri("/api/v0/sites", UriKind.Relative), Body(new SiteDraft("OVER-1", "Over", "UTC")));
+
+        Assert.Equal(stored, counted);
+        Assert.Equal(0, await licensedScope.ServiceProvider.GetRequiredService<ILicenseUsage>().CountAsync(LicenseLimits.Devices, CancellationToken.None));
+        Assert.Equal("license.limit_reached", await CodeAsync(refused));
+    }
+
+
+
+    /// <summary>
+    /// The races the availability check cannot close: the unique index refuses the loser and it reads as the
+    /// documented 409, never a 500; an update whose version moved after the check is refused like a stale tag.
+    /// </summary>
+    private static async Task AssertRacesAsync(HttpClient client, IServiceProvider services)
+    {
+        var creates = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => client.PostAsync(new Uri("/api/v0/sites", UriKind.Relative), Body(new SiteDraft("RACE-1", "Race", "UTC")))));
+        Assert.Equal(1, creates.Count(r => r.StatusCode == HttpStatusCode.Created));
+        Assert.All(creates.Where(r => r.StatusCode != HttpStatusCode.Created), r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
+
+        var left = (await (await client.PostAsync(new Uri("/api/v0/sites", UriKind.Relative), Body(new SiteDraft("RACE-2", "Left", "UTC")))).Content.ReadFromJsonAsync<SiteInfo>(Json))!;
+        var right = (await (await client.PostAsync(new Uri("/api/v0/sites", UriKind.Relative), Body(new SiteDraft("RACE-3", "Right", "UTC")))).Content.ReadFromJsonAsync<SiteInfo>(Json))!;
+        var renames = await Task.WhenAll(client.SendAsync(Put(left.Id, new SiteDraft("RACE-4", "Left", "UTC"), left.Etag)), client.SendAsync(Put(right.Id, new SiteDraft("RACE-4", "Right", "UTC"), right.Etag)));
+        Assert.Equal(1, renames.Count(r => r.StatusCode == HttpStatusCode.OK));
+        Assert.Equal(1, renames.Count(r => r.StatusCode == HttpStatusCode.Conflict));
+
+        using var scope = services.CreateScope();
+        var sites = scope.ServiceProvider.GetRequiredService<ISites>();
+        var current = await sites.FindAsync(left.Id, CancellationToken.None);
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => sites.UpdateAsync(left.Id, current.RowVersion - 1, new SiteDraft("RACE-5", "Left", "UTC"), "admin", CancellationToken.None));
     }
 
 
@@ -228,7 +279,7 @@ public sealed class SitesTests
 
 
 
-    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate, IOpenReleases releases)
+    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate, IOpenReleases releases, bool licensing = false)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -245,6 +296,11 @@ public sealed class SitesTests
         builder.Services.AddWmsAuthModule();
         builder.Services.AddWmsOrganizationModule();
         builder.Services.AddWmsSitesModule();
+        if (licensing)
+        {
+            builder.Services.AddWmsLicenseModule();
+        }
+
         builder.Services.AddWmsModule(ModuleDescriptor.Create("sample").WithSettings(LeaseTimeout));
         builder.Services.AddWmsDataProtection(builder.Configuration);
         builder.Services.AddWmsDatabase(builder.Configuration);

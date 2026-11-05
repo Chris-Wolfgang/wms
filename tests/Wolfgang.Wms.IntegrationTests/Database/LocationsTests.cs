@@ -117,6 +117,35 @@ public sealed class LocationsTests
         await AssertPagingAsync(client, site.Id, zoneB.Id, created);
         await AssertUpdateAsync(client, site.Id, zoneB.Id, created);
         await AssertAuditAsync(app.Services);
+        await AssertRacesAsync(client, app.Services, site.Id, zoneB.Id);
+    }
+
+
+
+    /// <summary>
+    /// The races the availability check cannot close: the unique indexes refuse the loser and it reads as the
+    /// documented 409, never a 500; an update whose version moved after the check is refused like a stale tag.
+    /// </summary>
+    private static async Task AssertRacesAsync(HttpClient client, IServiceProvider services, long siteId, long zoneId)
+    {
+        var codes = await Task.WhenAll(Enumerable.Range(0, 6).Select(i => client.PostAsync(Locations(siteId), Body(new LocationDraft("RACE-1", $"RB{i}", zoneId, "B-R1")))));
+        Assert.Equal(1, codes.Count(r => r.StatusCode == HttpStatusCode.Created));
+        Assert.All(codes.Where(r => r.StatusCode != HttpStatusCode.Created), r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
+
+        var barcodes = await Task.WhenAll(Enumerable.Range(0, 6).Select(i => client.PostAsync(Locations(siteId), Body(new LocationDraft($"RACE-B{i}", "RBC", zoneId, "B-R2")))));
+        Assert.Equal(1, barcodes.Count(r => r.StatusCode == HttpStatusCode.Created));
+        Assert.All(barcodes.Where(r => r.StatusCode != HttpStatusCode.Created), r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
+
+        var left = await CreateLocationAsync(client, siteId, new LocationDraft("RACE-2", "RL", zoneId, "B-R3"));
+        var right = await CreateLocationAsync(client, siteId, new LocationDraft("RACE-3", "RR", zoneId, "B-R4"));
+        var updates = await Task.WhenAll(client.SendAsync(Put(siteId, left.Id, new LocationDraft("RACE-4", "RL", zoneId, "B-R3"), left.Etag)), client.SendAsync(Put(siteId, right.Id, new LocationDraft("RACE-4", "RR", zoneId, "B-R4"), right.Etag)));
+        Assert.Equal(1, updates.Count(r => r.StatusCode == HttpStatusCode.OK));
+        Assert.Equal(1, updates.Count(r => r.StatusCode == HttpStatusCode.Conflict));
+
+        using var scope = services.CreateScope();
+        var locations = scope.ServiceProvider.GetRequiredService<ILocations>();
+        var current = await locations.FindAsync(siteId, left.Id, CancellationToken.None);
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => locations.UpdateAsync(siteId, left.Id, current.RowVersion - 1, new LocationDraft("RACE-5", "RL", zoneId, "B-R3"), "admin", CancellationToken.None));
     }
 
 
@@ -134,6 +163,8 @@ public sealed class LocationsTests
         var byIdDescending = await PageAsync(client, siteId, "size=2&sort=-id");
         var afterId = await PageAsync(client, siteId, $"size=10&sort=-id&after={byIdDescending.NextCursor}");
         var zoneB = await PageAsync(client, siteId, $"zone_id={zoneBId}");
+        var reusedCursor = await PageAsync(client, siteId, $"size=3&zone_id={zoneBId}&after={first.NextCursor}");
+        Assert.Null(reusedCursor.PreviousCursor);   // no bin of this zone lies before the cursor, whatever filter it came from
         var window = await PageAsync(client, siteId, $"id_from={ids[1]}&id_to={ids[3]}");
         using var wrongSort = await client.GetAsync(new Uri($"/api/v0/sites/{siteId}/locations?sort=code&after={first.NextCursor}", UriKind.Relative));
 

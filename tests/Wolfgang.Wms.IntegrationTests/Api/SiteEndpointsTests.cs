@@ -37,6 +37,12 @@ public sealed class SiteEndpointsTests : IClassFixture<WebApplicationFactory<Pro
         using var forbidden = await granted.SendAsync(TestAuth.As(HttpMethod.Post, "/api/v0/sites", "sites.read@organization", Json("""{ "code": "DC1", "name": "Main", "timeZone": "UTC" }""")));
         using var ownSite = await granted.SendAsync(TestAuth.As(HttpMethod.Get, "/api/v0/sites/3", "sites.read@site:3"));
         using var otherSite = await granted.SendAsync(TestAuth.As(HttpMethod.Get, "/api/v0/sites/4", "sites.read@site:3"));
+        using var listRequest = TestAuth.As(HttpMethod.Get, "/api/v0/sites", "sites.read@site:3");
+        listRequest.Headers.Add("X-Wms-Site", "3");   // a grant at one site does not read every site, whatever the header says
+        using var listThroughHeader = await granted.SendAsync(listRequest);
+        using var createRequest = TestAuth.As(HttpMethod.Post, "/api/v0/sites", "sites.write@site:3", Json("""{ "code": "DC1", "name": "Main", "timeZone": "UTC", "isActive": true }"""));
+        createRequest.Headers.Add("X-Wms-Site", "3");
+        using var createThroughHeader = await granted.SendAsync(createRequest);
 
         Assert.Equal(HttpStatusCode.Unauthorized, notSignedIn.StatusCode);
         Assert.Equal("auth.not_signed_in", await CodeAsync(notSignedIn));
@@ -46,6 +52,8 @@ public sealed class SiteEndpointsTests : IClassFixture<WebApplicationFactory<Pro
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, ownSite.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, otherSite.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, listThroughHeader.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, createThroughHeader.StatusCode);
     }
 
 

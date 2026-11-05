@@ -21,6 +21,7 @@ using Wolfgang.Wms.Core.Organization;
 using Wolfgang.Wms.Core.Identity.External;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Wolfgang.Wms.Core.Jobs;
+using Wolfgang.Wms.Core.Licensing;
 using Wolfgang.Wms.Infrastructure.Database.Health;
 using Wolfgang.Wms.Infrastructure.Database.Leader;
 using Wolfgang.Wms.Infrastructure.Identity;
@@ -119,9 +120,7 @@ public static class DatabaseServiceCollectionExtensions
         services.AddScoped<ISettings, EfSettings>();   // E6.3: the stored accessor replaces the defaults-only one
         services.RemoveAll<IOrganization>();
         services.AddScoped<IOrganization, Organization.EfOrganization>();   // E16.0: the stored organization replaces the placeholder
-        services.RemoveAll<ISites>();
-        services.AddScoped<ISites, Sites.EfSites>();   // E16.1: the stored sites replace the placeholder
-        services.TryAddSingleton<IOpenReleases, NoOpenReleases>();   // E16.1: nothing blocks retiring a site until release intake (E22) answers
+        AddSites(services);   // E16.1
         services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead
         AddIdentity(services, configuration);   // E9, E10: accounts, roles, sessions, integrity
         return services;
@@ -141,6 +140,17 @@ public static class DatabaseServiceCollectionExtensions
         }
 
         services.TryAddScoped<ISettingScopeHierarchy, EfSettingScopeHierarchy>();
+    }
+
+
+
+    private static void AddSites(IServiceCollection services)
+    {
+        services.RemoveAll<ILicenseUsage>();
+        services.AddScoped<ILicenseUsage, Sites.EfLicenseUsage>();   // active sites count against the site limit
+        services.RemoveAll<ISites>();
+        services.AddScoped<ISites, Sites.EfSites>();   // the stored sites replace the placeholder
+        services.TryAddSingleton<IOpenReleases, NoOpenReleases>();   // E16.1: nothing blocks retiring a site until release intake (E22) answers
     }
 
 

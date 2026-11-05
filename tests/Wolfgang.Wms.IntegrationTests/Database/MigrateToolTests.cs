@@ -114,7 +114,7 @@ public sealed class MigrateToolTests
         var up = await RunAsync(configuration, extra);
         var status = await RunAsync(configuration, ["--status", .. extra]);
         var again = await RunAsync(configuration, extra);
-        var refused = await RunAsync(configuration, ["--to", "0", .. extra]);   // reverting everything drops wms.row_version_seq: data loss
+        var refused = await RunAsync(configuration, ["--to", "0", .. extra]);   // reverting everything drops wms.row_version_seq and core.setting (E6.2): data loss
         var down = await RunAsync(configuration, ["--to", "0", "--confirm-data-loss", .. extra]);
         var statusAfterDown = await RunAsync(configuration, ["--status", .. extra]);
         var backUp = await RunAsync(configuration, ["--to", "Initial", .. extra]);
@@ -134,6 +134,7 @@ public sealed class MigrateToolTests
         Assert.Contains("Nothing to do.", again.Output, StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitConfirmationRequired, refused.Code);
         Assert.Contains("drop sequence wms.row_version_seq", refused.Error, StringComparison.Ordinal);
+        Assert.Contains("drop table core.setting", refused.Error, StringComparison.Ordinal);
         Assert.Equal(MigrateProgram.ExitOk, down.Code);
         Assert.Contains("Direction: Down", down.Output, StringComparison.Ordinal);
         Assert.Matches(@"Reverted \([1-9]\d*\)", down.Output);

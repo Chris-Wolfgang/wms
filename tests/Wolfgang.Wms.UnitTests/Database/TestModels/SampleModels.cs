@@ -1,5 +1,6 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -45,13 +46,15 @@ internal sealed class SampleModelDbContext : DbContext
 
 
 
-public sealed class Sku : Wolfgang.Wms.Infrastructure.Database.IVersionedEntity
+public sealed class Sku : Wolfgang.Wms.Infrastructure.Database.Sync.ISyncedEntity
 {
     public long Id { get; set; }
 
     public string Code { get; set; } = string.Empty;
 
     public long RowVersion { get; set; }
+
+    public DateTimeOffset? DeletedAt { get; set; }
 }
 
 
@@ -101,6 +104,7 @@ public sealed class Address
 
 public sealed class ContainerLine
 {
+    [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global", Justification = "EF Core reads the owned entity's key; the sample only builds the model.")]
     public long Id { get; set; }
 
     public decimal Qty { get; set; }
@@ -170,6 +174,8 @@ internal sealed class BadModelDbContext : DbContext
 
     public DbSet<BadDefaulted> Defaulted => Set<BadDefaulted>();
 
+    public DbSet<BadSoft> Softs => Set<BadSoft>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         ModelConventions.Configure(configurationBuilder);
@@ -181,6 +187,8 @@ internal sealed class BadModelDbContext : DbContext
     {
         modelBuilder.Entity<BadParent>().ToTable("BadParent", "dbo");
         modelBuilder.Entity<BadChild>().ToTable("BadChild", "picking");
+        modelBuilder.Entity<BadSoft>().ToTable("BadSoft", "picking");
+        modelBuilder.Entity<BadSoft>().Ignore(s => s.DeletedAt);
         modelBuilder.Entity<BadChild>().Property(c => c.Amount).HasPrecision(18, 2);
         modelBuilder.Entity<BadChild>().Property(c => c.When).HasPrecision(7);
         modelBuilder.Entity<BadChild>().HasOne(c => c.Parent).WithMany().HasForeignKey(c => c.Owner).OnDelete(DeleteBehavior.Cascade);
@@ -307,6 +315,7 @@ public sealed class BadNote
 
 public sealed class BadItem
 {
+    [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global", Justification = "EF Core sets the key when it materialises the entity; the sample only builds the model.")]
     public long Id { get; set; }
 }
 
@@ -336,4 +345,13 @@ internal sealed class ClientIdGeneratorFactory : ValueGeneratorFactory
     {
         return new ClientIdGenerator();
     }
+}
+
+
+
+public sealed class BadSoft : Wolfgang.Wms.Infrastructure.Database.Sync.ISoftDeletable
+{
+    public long Id { get; set; }
+
+    public DateTimeOffset? DeletedAt { get; set; }
 }

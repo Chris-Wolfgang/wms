@@ -176,6 +176,14 @@ public sealed partial class EfLocalAccounts : ILocalAccounts
 
 
     /// <inheritdoc/>
+    public Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
+    {
+        return _context.Database.CanConnectAsync(cancellationToken);
+    }
+
+
+
+    /// <inheritdoc/>
     public async Task<bool> EnsureBootstrapAdminAsync(string userName, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userName);

@@ -1,7 +1,11 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using System.Text.Json.Serialization;
+using Wolfgang.Wms.Core.Authorization;
+using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Identity.Providers;
 using Wolfgang.Wms.Core.Schema;
+using Wolfgang.Wms.Core.Settings;
 
 namespace Wolfgang.Wms.Core.Json;
 
@@ -12,6 +16,23 @@ namespace Wolfgang.Wms.Core.Json;
 /// </summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DictionaryKeyPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(SchemaStatus))]
+[JsonSerializable(typeof(List<SettingDescriptor>))]
+[JsonSerializable(typeof(SettingValue))]
+[JsonSerializable(typeof(IReadOnlyList<SettingValue>))]
+[JsonSerializable(typeof(SetSettingRequest))]
+[JsonSerializable(typeof(LocalLoginRequest))]
+[JsonSerializable(typeof(ChangePasswordRequest))]
+[JsonSerializable(typeof(SessionInfo))]
+[JsonSerializable(typeof(IReadOnlyList<AuthProviderInfo>))]
+[JsonSerializable(typeof(AuthProviderHealth))]
+[JsonSerializable(typeof(IReadOnlyList<PermissionDescriptor>))]
+[JsonSerializable(typeof(RoleInfo))]
+[JsonSerializable(typeof(IReadOnlyList<RoleInfo>))]
+[JsonSerializable(typeof(RoleDraft))]
+[JsonSerializable(typeof(CopyRoleRequest))]
+[JsonSerializable(typeof(RoleAssignmentInfo))]
+[JsonSerializable(typeof(IReadOnlyList<RoleAssignmentInfo>))]
+[JsonSerializable(typeof(AssignRoleRequest))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

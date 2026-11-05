@@ -10,6 +10,8 @@
   href: bootstrap.md
 - name: Configuration
   href: configuration.md
+- name: Signing in and identity providers
+  href: sign-in.md
 - name: Database conventions
   href: database-conventions.md
 - name: Device app version
@@ -18,5 +20,7 @@
   href: identifiers.md
 - name: Database migrations
   href: migrate.md
+- name: Integrity signatures
+  href: integrity.md
 - name: Project website
   href: 'https://github.com/Chris-Wolfgang/wms'

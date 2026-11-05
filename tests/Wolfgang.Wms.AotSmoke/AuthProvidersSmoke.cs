@@ -37,15 +37,15 @@ internal static class AuthProvidersSmoke
         var state = services.GetRequiredService<AuthProviderState>();
         var schemes = services.GetRequiredService<IAuthenticationSchemeProvider>();
 
-        settings.Enabled = $"{ProviderName}, {AuthProviderSettings.Local}";
+        settings.Active = ProviderName;
         await state.RefreshAsync(CancellationToken.None).ConfigureAwait(false);
 
-        Smoke.SequenceEqual([ProviderName, AuthProviderSettings.Local], state.Enabled.Select(p => p.Name));
+        Smoke.SequenceEqual([ProviderName], state.Enabled.Select(p => p.Name));
         var scheme = await schemes.GetSchemeAsync(ProviderName).ConfigureAwait(false)
             ?? throw new SmokeFailureException("the enabled challenge provider has no scheme");
         Smoke.SequenceEqual([typeof(SmokeHandler).FullName!], [scheme.HandlerType.FullName!]);
 
-        settings.Enabled = AuthProviderSettings.Local;
+        settings.Active = AuthProviderSettings.Local;
         await state.RefreshAsync(CancellationToken.None).ConfigureAwait(false);
 
         if (await schemes.GetSchemeAsync(ProviderName).ConfigureAwait(false) is not null)
@@ -58,7 +58,7 @@ internal static class AuthProvidersSmoke
 
     public static async Task HandlerIsActivatedFromItsType()
     {
-        var settings = new SmokeSettings { Enabled = ProviderName };
+        var settings = new SmokeSettings { Active = ProviderName };
         await using var services = Host(settings);
         await services.GetRequiredService<AuthProviderState>().RefreshAsync(CancellationToken.None).ConfigureAwait(false);
         var context = new DefaultHttpContext { RequestServices = services };
@@ -143,17 +143,17 @@ internal static class AuthProvidersSmoke
 
 
     /// <summary>
-    /// The auth module's defaults, with the enabled-provider list overridable.
+    /// The auth module's defaults, with the active provider overridable.
     /// </summary>
     private sealed class SmokeSettings : ISettings
     {
         private readonly DefaultSettings _defaults = new(new SettingRegistry(AuthSettings.All));
 
-        public string Enabled { get; set; } = AuthProviderSettings.Local;
+        public string Active { get; set; } = AuthProviderSettings.Local;
 
         public async Task<T> GetAsync<T>(SettingKey<T> key, SettingScopeRef scope, CancellationToken cancellationToken)
         {
-            return string.Equals(key.Name, AuthProviderSettings.Enabled.Name, StringComparison.Ordinal) && key.Codec.TryParse(Enabled, out var value)
+            return string.Equals(key.Name, AuthProviderSettings.Active.Name, StringComparison.Ordinal) && key.Codec.TryParse(Active, out var value)
                 ? value
                 : await _defaults.GetAsync(key, scope, cancellationToken).ConfigureAwait(false);
         }

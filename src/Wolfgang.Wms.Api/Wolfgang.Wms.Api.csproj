@@ -7,7 +7,7 @@
     <ProjectReference Include="..\Wolfgang.Wms.Infrastructure.Migrations.SqlServer\Wolfgang.Wms.Infrastructure.Migrations.SqlServer.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Infrastructure.Migrations.PostgreSql\Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Core\Wolfgang.Wms.Core.csproj" />
-    <!-- E11.1: the OIDC provider, enabled at runtime by auth.providers.enabled. -->
+    <!-- E11.1: the OIDC provider, active when auth.provider names it. -->
     <ProjectReference Include="..\Wolfgang.Wms.Auth.Oidc\Wolfgang.Wms.Auth.Oidc.csproj" />
   </ItemGroup>
 

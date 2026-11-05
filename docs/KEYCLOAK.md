@@ -33,7 +33,7 @@ The export of a realm built this way is in `tests/Wolfgang.Wms.IntegrationTests/
 | `auth.oidc.name_claim` | `preferred_username` (the default) |
 | `auth.oidc.display_name_claim` | `name` (the default) |
 | `auth.oidc.require_https` | `true` outside a lab |
-| `auth.providers.enabled` | `oidc,local` (or `oidc` alone once the break-glass gate is understood, E9.3) |
+| `auth.provider` | `oidc` (the local administrator stays available as break-glass, E9.3) |
 
 Then map groups to roles: `POST /auth/providers/oidc/groups` with `{ "group": "wms-supervisors", "roleId": … }`
 (or the Configure workspace). *Test connection* (`POST /auth/providers/oidc/check`) must report the issuer.

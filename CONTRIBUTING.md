@@ -73,7 +73,9 @@ You can contribute in several ways:
    ```
    `type` is one of `breaking`, `feature`, `fix`, `docs`, `internal`. `CHANGELOG.md` is never edited by
    hand — the fragments are assembled into it at release time (`scripts/changelog.ps1 assemble`). A
-   `src/` change with no user-visible effect can carry the `no-changelog` label instead. Details in
+   `src/` change with no user-visible effect can carry the `no-changelog` label instead. A `feature` or
+   `breaking` fragment must come with a documentation change in the same PR (under `docs/`,
+   `docfx_project/` or a top-level `*.md`), or the `no-docs` label with a reason (E85.10). Details in
    [changelog/unreleased/README.md](changelog/unreleased/README.md).
 
 ---

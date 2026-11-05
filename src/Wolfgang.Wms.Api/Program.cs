@@ -21,6 +21,7 @@ using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Secrets;
+using Wolfgang.Wms.Core.Sites;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,6 +67,7 @@ builder.Services.AddWmsOidcProvider();   // E11.1: the oidc provider, offered wh
 builder.Services.AddWmsRolesModule();   // E10.2/E10.3: roles from the catalog, assignments everywhere or per site
 builder.Services.AddWmsLicenseModule();   // E79: the free tier compiled in, pasted keys verified offline, limits enforced through the gate
 builder.Services.AddWmsOrganizationModule();   // E16.0: the one organization per install, the top of the settings cascade
+builder.Services.AddWmsSitesModule();   // E16.1: the warehouses, the operational level everything below the organization is scoped to
 
 // E6.5: appsettings holds bootstrap keys only; anything else is named in a startup warning and ignored.
 builder.Services.AddWmsBootstrapConfigurationCheck();

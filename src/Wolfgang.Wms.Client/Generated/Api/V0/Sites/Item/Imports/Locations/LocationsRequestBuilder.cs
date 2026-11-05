@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
+using Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Locations.CsvEscaped;
 using Wolfgang.Wms.Client.Generated.Models;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Locations
 {
@@ -17,12 +18,17 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Locations
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class LocationsRequestBuilder : BaseRequestBuilder
     {
+        /// <summary>The csv property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Locations.CsvEscaped.CsvRequestBuilder Csv
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Locations.CsvEscaped.CsvRequestBuilder(PathParameters, RequestAdapter);
+        }
         /// <summary>
         /// Instantiates a new <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Locations.LocationsRequestBuilder"/> and sets the default values.
         /// </summary>
         /// <param name="pathParameters">Path parameters for the request</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public LocationsRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/api/v0/sites/{siteId}/imports/locations{?format*,policy*}", pathParameters)
+        public LocationsRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/api/v0/sites/{siteId}/imports/locations{?policy*}", pathParameters)
         {
         }
         /// <summary>
@@ -30,11 +36,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Locations
         /// </summary>
         /// <param name="rawUrl">The raw URL to use for the request builder.</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public LocationsRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/api/v0/sites/{siteId}/imports/locations{?format*,policy*}", rawUrl)
+        public LocationsRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/api/v0/sites/{siteId}/imports/locations{?policy*}", rawUrl)
         {
         }
         /// <summary>
-        /// Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only; format=csv for the row results as CSV.
+        /// Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only.
         /// </summary>
         /// <returns>A <see cref="global::Wolfgang.Wms.Client.Generated.Models.ImportResult"/></returns>
         /// <param name="body">The request body</param>
@@ -54,7 +60,7 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Locations
             return await RequestAdapter.SendAsync<global::Wolfgang.Wms.Client.Generated.Models.ImportResult>(requestInfo, global::Wolfgang.Wms.Client.Generated.Models.ImportResult.CreateFromDiscriminatorValue, default, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only; format=csv for the row results as CSV.
+        /// Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only.
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="body">The request body</param>
@@ -85,24 +91,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Locations
             return new global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Locations.LocationsRequestBuilder(rawUrl, RequestAdapter);
         }
         /// <summary>
-        /// Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only; format=csv for the row results as CSV.
+        /// Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only.
         /// </summary>
         [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
         public partial class LocationsRequestBuilderPostQueryParameters 
         {
-#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
-#nullable enable
-            #pragma warning disable CS1591
-            [QueryParameter("format")]
-            public string? Format { get; set; }
-            #pragma warning restore CS1591
-#nullable restore
-#else
-            #pragma warning disable CS1591
-            [QueryParameter("format")]
-            public string Format { get; set; }
-            #pragma warning restore CS1591
-#endif
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
             #pragma warning disable CS1591

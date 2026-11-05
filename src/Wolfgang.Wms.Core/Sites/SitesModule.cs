@@ -68,7 +68,7 @@ public static class SitesModule
     private static void MapEndpoints(IEndpointRouteBuilder app)
     {
         app.MapGet(Route, async (ISites sites, CancellationToken cancellationToken) => TypedResults.Ok(await sites.ListAsync(cancellationToken).ConfigureAwait(false)))
-            .RequirePermission(Read)
+            .RequirePermissionAtOrganization(Read)
             .WithName("ListSites")
             .WithSummary("Every site, active and retired, in code order.")
             .Produces<IReadOnlyList<SiteInfo>>();
@@ -80,7 +80,7 @@ public static class SitesModule
             .Produces<SiteInfo>();
         app.MapPost(Route, async (HttpContext http, SiteDraft body, ISites sites, CancellationToken cancellationToken) =>
                 WithEtag(http, await sites.CreateAsync(Required(body), User(http), cancellationToken).ConfigureAwait(false), StatusCodes.Status201Created))
-            .RequirePermission(Write)
+            .RequirePermissionAtOrganization(Write)
             .WithName("CreateSite")
             .WithSummary("Creates a site; 409 sites.code_taken when the code is in use.")
             .Produces<SiteInfo>(StatusCodes.Status201Created);
@@ -88,7 +88,7 @@ public static class SitesModule
             {
                 var current = await sites.FindAsync(siteId, cancellationToken).ConfigureAwait(false);
                 return Preconditions.RequireIfMatch(http.Request, EntityTag.FromRowVersion((ulong)current.RowVersion))
-                    ?? WithEtag(http, await sites.UpdateAsync(siteId, Required(body), User(http), cancellationToken).ConfigureAwait(false));
+                    ?? WithEtag(http, await sites.UpdateAsync(siteId, current.RowVersion, Required(body), User(http), cancellationToken).ConfigureAwait(false));
             })
             .RequirePermission(Write)
             .WithName("UpdateSite")

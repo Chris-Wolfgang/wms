@@ -65,6 +65,10 @@ public sealed partial class AdminChannelServer : BackgroundService
             {
                 break;
             }
+            catch (OperationCanceledException exception)
+            {
+                LogConnectionTimedOut(_logger, _options.ConnectionTimeout, exception);   // the connection's deadline passed; keep listening
+            }
             catch (IOException exception)
             {
                 LogConnectionFailed(_logger, exception);   // the client dropped mid-request; keep listening
@@ -81,16 +85,37 @@ public sealed partial class AdminChannelServer : BackgroundService
 
     private async Task ServeAsync(NamedPipeServerStream pipe, CancellationToken cancellationToken)
     {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(_options.ConnectionTimeout);
         var connectedUser = ConnectedUser(pipe);
         using var reader = new StreamReader(pipe, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
-        var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+        var line = await reader.ReadLineAsync(deadline.Token).ConfigureAwait(false);
         var response = line is null
             ? new AdminChannelResponse(Ok: false, "Empty request.", Status: null)
-            : await _handler.HandleAsync(line, connectedUser, cancellationToken).ConfigureAwait(false);
+            : await HandleAsync(line, connectedUser, deadline.Token).ConfigureAwait(false);
 
         var bytes = Encoding.UTF8.GetBytes(AdminChannelProtocol.Encode(response) + "\n");
-        await pipe.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
-        await pipe.FlushAsync(cancellationToken).ConfigureAwait(false);
+        await pipe.WriteAsync(bytes, deadline.Token).ConfigureAwait(false);
+        await pipe.FlushAsync(deadline.Token).ConfigureAwait(false);
+    }
+
+
+
+    /// <summary>
+    /// The handler's answer, or a refusal when it fails (the database is down, a concurrent write won): an
+    /// operator's command must never take the listener, and with it the API, down.
+    /// </summary>
+    private async Task<AdminChannelResponse> HandleAsync(string line, string? connectedUser, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _handler.HandleAsync(line, connectedUser, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            LogCommandFailed(_logger, exception);
+            return new AdminChannelResponse(Ok: false, "The command failed on the host; see the API log.", Status: null);
+        }
     }
 
 
@@ -131,6 +156,10 @@ public sealed partial class AdminChannelServer : BackgroundService
     private static NamedPipeServerStream CreateOnWindows(string name)
     {
         var security = new PipeSecurity();
+
+        // A pipe also answers remote SMB clients; the allow rules below name accounts, not where they connect from.
+        // Every network logon carries this SID, so denying it keeps the channel on this machine.
+        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.NetworkSid, domainSid: null), PipeAccessRights.FullControl, AccessControlType.Deny));
         if (WindowsIdentity.GetCurrent().User is { } serviceAccount)
         {
             security.AddAccessRule(new PipeAccessRule(serviceAccount, PipeAccessRights.FullControl, AccessControlType.Allow));
@@ -150,6 +179,16 @@ public sealed partial class AdminChannelServer : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Admin channel disabled by Wms:Admin:Enabled; Wms:Auth:ForceLocal is the only way to reopen local sign-in.")]
     private static partial void LogDisabled(ILogger logger);
+
+
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Admin channel connection did not finish within {Timeout}; closed it and listening again.")]
+    private static partial void LogConnectionTimedOut(ILogger logger, TimeSpan timeout, Exception exception);
+
+
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Admin channel command failed on the host.")]
+    private static partial void LogCommandFailed(ILogger logger, Exception exception);
 
 
 

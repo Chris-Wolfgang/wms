@@ -36,7 +36,7 @@ public sealed class NoSites : ISites
 
 
     /// <inheritdoc/>
-    public Task<SiteInfo> UpdateAsync(long siteId, SiteDraft draft, string updatedBy, CancellationToken cancellationToken)
+    public Task<SiteInfo> UpdateAsync(long siteId, long expectedRowVersion, SiteDraft draft, string updatedBy, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);

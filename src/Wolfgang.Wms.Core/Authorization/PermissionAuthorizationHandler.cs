@@ -17,12 +17,19 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(requirement);
 
-        var siteId = context.Resource is HttpContext http ? SiteContext.SiteIdOf(http) : null;
+        var siteId = context.Resource is HttpContext http && !IsOrganizationWide(http, requirement) ? SiteContext.SiteIdOf(http) : null;
         if (PermissionClaims.Allows(context.User, requirement.Permission, siteId))
         {
             context.Succeed(requirement);
         }
 
         return Task.CompletedTask;
+    }
+
+
+
+    private static bool IsOrganizationWide(HttpContext http, PermissionRequirement requirement)
+    {
+        return http.GetEndpoint()?.Metadata.GetOrderedMetadata<OrganizationScopeMetadata>().Any(m => m.Permission.Equals(requirement.Permission)) == true;
     }
 }

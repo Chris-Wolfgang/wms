@@ -95,6 +95,7 @@ public sealed record ImportResult
             return string.Empty;
         }
 
-        return value.AsSpan().IndexOfAny(",\"\r\n") < 0 ? value : "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+        var safe = value[0] is '=' or '+' or '-' or '@' or '\t' or '\r' ? "'" + value : value;   // a spreadsheet runs a cell starting like this as a formula; the JSON result keeps the exact value
+        return safe.AsSpan().IndexOfAny(",\"\r\n") < 0 ? safe : "\"" + safe.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
     }
 }

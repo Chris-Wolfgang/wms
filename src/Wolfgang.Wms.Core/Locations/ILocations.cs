@@ -38,5 +38,5 @@ public interface ILocations
     /// Replaces a location's details.
     /// </summary>
     /// <exception cref="LocationException"><see cref="LocationErrorCodes.SiteNotFound"/>, <see cref="LocationErrorCodes.NotFound"/>, <see cref="LocationErrorCodes.Invalid"/>, <see cref="LocationErrorCodes.ZoneNotFound"/>, <see cref="LocationErrorCodes.CodeTaken"/> or <see cref="LocationErrorCodes.BarcodeTaken"/>.</exception>
-    Task<LocationInfo> UpdateAsync(long siteId, long locationId, LocationDraft draft, string updatedBy, CancellationToken cancellationToken);
+    Task<LocationInfo> UpdateAsync(long siteId, long locationId, long expectedRowVersion, LocationDraft draft, string updatedBy, CancellationToken cancellationToken);
 }

@@ -112,7 +112,7 @@ public static class LocationsModule
             {
                 var current = await locations.FindAsync(siteId, locationId, cancellationToken).ConfigureAwait(false);
                 return Preconditions.RequireIfMatch(http.Request, EntityTag.FromRowVersion((ulong)current.RowVersion))
-                    ?? WithEtag(http, await locations.UpdateAsync(siteId, locationId, Required(body), User(http), cancellationToken).ConfigureAwait(false));
+                    ?? WithEtag(http, await locations.UpdateAsync(siteId, locationId, current.RowVersion, Required(body), User(http), cancellationToken).ConfigureAwait(false));
             })
             .RequirePermission(Write)
             .WithName("UpdateLocation")

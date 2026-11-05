@@ -36,7 +36,7 @@ public sealed class NoZones : IZones
 
 
     /// <inheritdoc/>
-    public Task<ZoneInfo> UpdateAsync(long siteId, long zoneId, ZoneDraft draft, string updatedBy, CancellationToken cancellationToken)
+    public Task<ZoneInfo> UpdateAsync(long siteId, long zoneId, long expectedRowVersion, ZoneDraft draft, string updatedBy, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentException.ThrowIfNullOrWhiteSpace(updatedBy);

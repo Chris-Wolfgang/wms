@@ -11,7 +11,7 @@ site (E7), what tote entry scans resolve to (E26), and what locations (E17.1) be
 | `code` | yes | 1–32 letters, digits, `-` and `_`; unique within the site without regard to case; kept as entered |
 | `name` | yes | 1–128 characters |
 | `type` | yes | `Pick`, `Bulk` or `Resolution` |
-| `walkOrderPrefix` | no | up to 16 characters; the sortable prefix the zone's locations' walk sequences start with (E17.1) |
+| `walkOrderPrefix` | no | up to 16 visible ASCII characters except `\|`; the sortable prefix the zone's locations' walk sequences start with (E17.1) |
 | `isRejectLane` | no (default `false`) | pick zones only: the zone is also the conveyor's error/overflow lane; drives the reject diagnostics (E26.3) |
 | `resolution` | for resolution zones | the properties below; absent for pick and bulk zones |
 | `isActive` | no (default `true`) | `false` retires the zone; refused while zone groups are open in it |

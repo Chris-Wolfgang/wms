@@ -4,7 +4,7 @@ This document provides comprehensive documentation of all placeholders used in t
 
 ## Overview
 
-The automated setup script (`pwsh ./scripts/setup.ps1`) handles all placeholder replacements automatically. This document is for reference or manual setup if needed.
+The template's setup script (`pwsh ./scripts/setup.ps1`) handled the placeholder replacements when this repository was created and deleted itself afterwards; it is not in `scripts/` any more. This document is kept for reference: the line numbers below refer to the template's copy of the script.
 
 ---
 
@@ -256,6 +256,12 @@ $corePlaceholders = @(
 | 22 | `{{PACKAGE_NAME}}` | Installation command |
 | 35-37 | `{{GITHUB_REPO_URL}}` | Additional resources links (3 occurrences) |
 
+### 8a. docfx_project/docs/index.md
+
+| Line(s) | Placeholder | Context |
+|---------|-------------|---------|
+| 1 | `{{PROJECT_NAME}}` | Documentation section heading (the page is the first entry of `docs/toc.yml`) |
+
 ### 9. docfx_project/api/index.md
 
 | Line(s) | Placeholder | Context |
@@ -335,6 +341,7 @@ If you must replace manually:
      - `docfx_project/api/index.md`
      - `docfx_project/api/README.md`
      - `docfx_project/docs/toc.yml`
+     - `docfx_project/docs/index.md`
      - `docfx_project/docs/introduction.md`
      - `docfx_project/docs/getting-started.md`
 
@@ -416,7 +423,7 @@ After replacement, verify:
 - **Setup Script:** `pwsh ./scripts/setup.ps1`
 - **Repository Instructions:** [REPO-INSTRUCTIONS.md](REPO-INSTRUCTIONS.md)
 - **Template README:** [README.md](README.md) (describes template)
-- **Project README Template:** [README-TEMPLATE.md](README-TEMPLATE.md)
+- **Project README Template:** `README-TEMPLATE.md` in the template (it became this repository's [README.md](README.md) at setup)
 
 ---
 

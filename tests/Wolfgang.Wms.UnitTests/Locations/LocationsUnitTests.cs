@@ -86,18 +86,33 @@ public sealed class LocationsUnitTests
         var list = await Assert.ThrowsAsync<LocationException>(() => store.ListAsync(1, query, CancellationToken.None));
         var find = await Assert.ThrowsAsync<LocationException>(() => store.FindAsync(1, 1, CancellationToken.None));
         var create = await Assert.ThrowsAsync<LocationException>(() => store.CreateAsync(1, Valid, "admin", CancellationToken.None));
-        var update = await Assert.ThrowsAsync<LocationException>(() => store.UpdateAsync(1, 1, Valid, "admin", CancellationToken.None));
+        var update = await Assert.ThrowsAsync<LocationException>(() => store.UpdateAsync(1, 1, 0, Valid, "admin", CancellationToken.None));
 
         Assert.All([list, find, create, update], e => Assert.Equal(LocationErrorCodes.Unavailable, e.Code));
         await Assert.ThrowsAsync<ArgumentNullException>(() => store.ListAsync(1, null!, CancellationToken.None));
         await Assert.ThrowsAsync<ArgumentNullException>(() => store.CreateAsync(1, null!, "admin", CancellationToken.None));
-        await Assert.ThrowsAsync<ArgumentException>(() => store.UpdateAsync(1, 1, Valid, " ", CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.UpdateAsync(1, 1, 0, Valid, " ", CancellationToken.None));
         Assert.Throws<ArgumentNullException>(() => new LocationQuery(null, null, null, null!));
         Assert.Equal(LocationErrorCodes.Unavailable, new LocationException().Code);
         Assert.Equal("boom", new LocationException("boom").Message);
         Assert.Equal("cause", new LocationException("boom", new InvalidOperationException("cause")).InnerException!.Message);
         Assert.Equal(LocationErrorCodes.Invalid, new LocationException(LocationErrorCodes.Invalid, "x", new InvalidOperationException()).Code);
         Assert.Throws<ArgumentNullException>(() => new LocationException(null!, "x"));
+    }
+
+
+
+    [Theory]
+    [InlineData("A-1", true)]
+    [InlineData(null, true)]
+    [InlineData("A B", false)]
+    [InlineData("A|B", false)]
+    [InlineData("\u00e9", false)]
+    public void A_zone_prefix_takes_the_characters_a_walk_sequence_allows(string? prefix, bool valid)
+    {
+        var draft = new ZoneDraft("A01", "Aisle 1", ZoneType.Pick, prefix, IsRejectLane: false, Resolution: null);
+
+        Assert.Equal(valid, ZoneRules.Validate(draft) is null);
     }
 
 

@@ -235,7 +235,7 @@ Another zone of the same site already has that code. Codes are compared without 
 <a id="zones-invalid"></a>
 ### `zones.invalid`
 A field is missing, too long, or not what it must be: the message names the field. `code` is 1-32 letters,
-digits, `-` and `_`; `name` at most 128 characters; `walkOrderPrefix` at most 16; `type` is `Pick`, `Bulk` or
+digits, `-` and `_`; `name` at most 128 characters; `walkOrderPrefix` at most 16 visible ASCII characters except `|`; `type` is `Pick`, `Bulk` or
 `Resolution`; `isRejectLane` is for pick zones only; `resolution` is required for a resolution zone and absent
 otherwise, and its `resolverUserIds` must be existing users, each named once.
 

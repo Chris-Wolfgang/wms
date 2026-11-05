@@ -317,7 +317,7 @@
         "tags": [
           "wms"
         ],
-        "summary": "Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled.",
+        "summary": "Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled or gate closed.",
         "operationId": "LocalLogin",
         "requestBody": {
           "content": {
@@ -332,6 +332,27 @@
         "responses": {
           "200": {
             "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/local/status": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Whether local sign-in is open: before single sign-on is verified, inside a host-opened window, or under the ForceLocal override (E9.3).",
+        "operationId": "GetLocalLoginStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalLoginStatus"
+                }
+              }
+            }
           }
         }
       }
@@ -1690,6 +1711,38 @@
           }
         },
         "description": "Body of \u0060POST /auth/local/login\u0060 (E9.2)."
+      },
+      "LocalLoginStatus": {
+        "required": [
+          "localLoginOpen",
+          "ssoVerified",
+          "unlockedUntil",
+          "forcedLocal"
+        ],
+        "type": "object",
+        "properties": {
+          "localLoginOpen": {
+            "type": "boolean",
+            "description": "True when a local sign-in may proceed right now."
+          },
+          "ssoVerified": {
+            "type": "boolean",
+            "description": "True once an external sign-in has succeeded on this install."
+          },
+          "unlockedUntil": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "End of the open unlock window; null when no window is open.",
+            "format": "date-time"
+          },
+          "forcedLocal": {
+            "type": "boolean",
+            "description": "True when \u0060Wms:Auth:ForceLocal\u0060 keeps local sign-in open regardless."
+          }
+        },
+        "description": "Whether local sign-in is open (\u0060GET /auth/local/status\u0060, E9.3): read anonymously by the login page (to hide or show the password form) and by the console (to show the unlock banner). Carries no user names."
       },
       "LoggingStatus": {
         "required": [

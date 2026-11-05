@@ -13,6 +13,7 @@ Every error the API answers with (E82.3): `application/problem+json` whose `code
 | `auth.integrity_failure` | 403 | error | The account cannot be verified; contact an administrator. | [auth-integrity-failure](../troubleshooting.md#auth-integrity-failure) |
 | `auth.invalid_credentials` | 401 | warning | The user name or password is wrong. | [auth-invalid-credentials](../troubleshooting.md#auth-invalid-credentials) |
 | `auth.invalid_role` | 400 | error | {0} | [auth-invalid-role](../troubleshooting.md#auth-invalid-role) |
+| `auth.local_login_closed` | 403 | warning | Local sign-in is closed while single sign-on is in use; an administrator can open it from the host for a timed window. | [auth-local-login-closed](../troubleshooting.md#auth-local-login-closed) |
 | `auth.locked_out` | 423 | warning | The account is locked until {0}. | [auth-locked-out](../troubleshooting.md#auth-locked-out) |
 | `auth.mapping_not_found` | 404 | error | Mapping {0} does not exist. | [auth-mapping-not-found](../troubleshooting.md#auth-mapping-not-found) |
 | `auth.mapping_rejected` | 409 | error | {0} | [auth-mapping-rejected](../troubleshooting.md#auth-mapping-rejected) |

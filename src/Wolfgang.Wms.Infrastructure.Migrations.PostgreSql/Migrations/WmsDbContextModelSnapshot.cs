@@ -17,7 +17,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -343,6 +343,84 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                     b.ToTable("group_role_mapping", "core", t =>
                         {
                             t.HasTrigger("trg_group_role_mapping_row_version");
+                        });
+                });
+
+            modelBuilder.Entity("Wolfgang.Wms.Infrastructure.Identity.LocalLoginGate", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset?>("LockedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("locked_at");
+
+                    b.Property<string>("LockedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("locked_by");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version")
+                        .HasDefaultValueSql("nextval('wms.row_version_seq')");
+
+                    b.Property<string>("Signature")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("signature");
+
+                    b.Property<int>("Singleton")
+                        .HasColumnType("integer")
+                        .HasColumnName("singleton");
+
+                    b.Property<DateTimeOffset?>("SsoVerifiedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("sso_verified_at");
+
+                    b.Property<string>("SsoVerifiedProvider")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("sso_verified_provider");
+
+                    b.Property<DateTimeOffset?>("UnlockedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("unlocked_at");
+
+                    b.Property<string>("UnlockedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("unlocked_by");
+
+                    b.Property<DateTimeOffset?>("UnlockedUntil")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone")
+                        .HasColumnName("unlocked_until");
+
+                    b.HasKey("Id")
+                        .HasName("pk_local_login_gate");
+
+                    b.HasIndex("RowVersion")
+                        .HasDatabaseName("ix_local_login_gate_row_version");
+
+                    b.HasIndex("Singleton")
+                        .IsUnique()
+                        .HasDatabaseName("ux_local_login_gate_singleton");
+
+                    b.ToTable("local_login_gate", "core", t =>
+                        {
+                            t.HasTrigger("trg_local_login_gate_row_version");
+
+                            t.HasCheckConstraint("ck_local_login_gate_singleton", "singleton = 1");
                         });
                 });
 

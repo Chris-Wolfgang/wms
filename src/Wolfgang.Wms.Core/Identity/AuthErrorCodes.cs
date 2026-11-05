@@ -96,6 +96,14 @@ public static class AuthErrorCodes
 
 
     /// <summary>
+    /// Local sign-in is closed (E9.3): single sign-on has been verified on this install and no unlock window
+    /// is open. An administrator opens one from the host (<c>wms-admin unlock</c>).
+    /// </summary>
+    public static ErrorCode LocalLoginClosed { get; } = new("auth.local_login_closed", StatusCodes.Status403Forbidden, "Local sign-in is closed while single sign-on is in use; an administrator can open it from the host for a timed window.", "auth-local-login-closed", ErrorSeverity.Warning);
+
+
+
+    /// <summary>
     /// Sign-in is unavailable until the database is configured.
     /// </summary>
     public static ErrorCode Unavailable { get; } = new("auth.unavailable", StatusCodes.Status503ServiceUnavailable, "Sign-in is unavailable until the database is configured.", "auth-unavailable", ErrorSeverity.Error);

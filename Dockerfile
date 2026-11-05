@@ -11,7 +11,8 @@ COPY src/ src/
 RUN dotnet publish src/Wolfgang.Wms.Api/Wolfgang.Wms.Api.csproj -c Release -o /out/api --no-self-contained -p:UseAppHost=false \
  && dotnet publish src/Wolfgang.Wms.Web/Wolfgang.Wms.Web.csproj -c Release -o /out/web --no-self-contained -p:UseAppHost=false \
  && dotnet publish src/Wolfgang.Wms.Worker/Wolfgang.Wms.Worker.csproj -c Release -o /out/worker --no-self-contained -p:UseAppHost=false \
- && dotnet publish src/Wolfgang.Wms.Migrate/Wolfgang.Wms.Migrate.csproj -c Release -o /out/migrate --no-self-contained -p:UseAppHost=false
+ && dotnet publish src/Wolfgang.Wms.Migrate/Wolfgang.Wms.Migrate.csproj -c Release -o /out/migrate --no-self-contained -p:UseAppHost=false \
+ && dotnet publish src/Wolfgang.Wms.Admin/Wolfgang.Wms.Admin.csproj -c Release -o /out/admin --no-self-contained -p:UseAppHost=false
 
 # The runtime base: the `app` user (non-root), curl for the compose health checks, a writable key-ring directory.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
@@ -25,6 +26,9 @@ USER app
 
 FROM runtime AS api
 COPY --from=build --chown=app:app /out/api/ /app/
+# E9.3: the host-only recovery tool, `docker exec -it wms-api wms-admin unlock --minutes 30`.
+COPY --from=build --chown=app:app /out/admin/ /opt/wms-admin/
+COPY --chmod=755 docker/wms-admin.sh /usr/local/bin/wms-admin
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "Wolfgang.Wms.Api.dll"]
 

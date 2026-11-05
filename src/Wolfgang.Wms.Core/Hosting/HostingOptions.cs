@@ -28,4 +28,12 @@ public sealed class HostingOptions
     /// <c>X-Forwarded-For</c>. The proxy must be the only way in and must strip those headers from clients.
     /// </summary>
     public bool BehindProxy { get; set; }
+
+
+
+    /// <summary>
+    /// E12.5: allow plain HTTP from any address (a lab); by default only the loopback address and the health
+    /// probes may use it.
+    /// </summary>
+    public bool AllowHttp { get; set; }
 }

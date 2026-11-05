@@ -7,6 +7,7 @@ using Wolfgang.Wms.Infrastructure.Database.Auditing;
 using Wolfgang.Wms.Infrastructure.Database.Conventions;
 using Wolfgang.Wms.Infrastructure.Database.Settings;
 using Wolfgang.Wms.Infrastructure.Identity;
+using Wolfgang.Wms.Infrastructure.Database.Leader;
 using Wolfgang.Wms.Infrastructure.Integrity;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
@@ -108,6 +109,10 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
         modelBuilder.Entity<DataProtectionKey>().Property(k => k.FriendlyName).HasMaxLength(256);
         modelBuilder.Entity<IntegrityKey>().ToTable("integrity_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E10.4: the HMAC key, protected by the ring
         modelBuilder.Entity<IntegrityKey>().Property(k => k.ProtectedKey).HasMaxLength(512).IsRequired();
+        modelBuilder.Entity<LeaderLock>().ToTable("leader_lock", DatabaseServiceCollectionExtensions.HistorySchema);   // E12.6: one row per singleton job
+        modelBuilder.Entity<LeaderLock>().Property(l => l.Name).HasMaxLength(LeaderLock.NameLength).IsRequired();
+        modelBuilder.Entity<LeaderLock>().Property(l => l.Holder).HasMaxLength(LeaderLock.HolderLength).IsRequired();
+        modelBuilder.Entity<LeaderLock>().HasIndex(l => l.Name).IsUnique();   // Serves: take-or-renew by name; the first taker's insert wins
         ModelConventions.Apply(modelBuilder, Database.ProviderName);
     }
 }

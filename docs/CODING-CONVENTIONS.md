@@ -89,7 +89,41 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
   hidden endpoints return 404; a ship-dark flag names the release that removes it.
 - Error codes carry HTTP status, message template, docs anchor and severity; `const` strings only where an
   attribute or `switch` requires one.
+- A message template uses positional placeholders only (`{0}`, `{1}`, with an optional `,alignment` or
+  `:format`, exactly as `string.Format` reads them) and `{{` / `}}` for literal braces; a named `{tote}` or a
+  stray brace is refused when the `ErrorCode` is constructed, so a bad template fails at startup instead of
+  turning the error response into a 500 the first time an argument is passed.
 - Modules contribute their keys through `ModuleDescriptor.With…()` so the host can enumerate them.
+
+## Settings (E6)
+
+Every configurable value is a `SettingKey<T>` declared once in its module and contributed through
+`ModuleDescriptor.WithSettings(...)`; the host's `SettingRegistry` is the only list of settings the console,
+the documentation and the accessor use (docs/SETTINGS.md). A key states its kind (through its codec), the
+scopes it may be configured at, its default, description and validator, and whether a change needs a
+restart or a device resync. Values are stored as invariant-culture text; a type without a built-in codec
+passes `SettingCodecs.Json(...)` built on the module's source-generated JSON context. Code reads and writes
+settings only through `ISettings` with the key (`Get(PickingSettings.LeaseTimeout, scope)`); the API's
+by-name endpoints are the one place a name string appears. Nothing writes `core.setting` directly.
+`appsettings` carries bootstrap keys only (`BootstrapConfiguration.RecognizedKeys`, docs/CONFIGURATION.md);
+a new bootstrap key is added to that list with its story, never read ad hoc from `IConfiguration`.
+
+## Identity (E9, ADR 0005)
+
+Local accounts live in `core.user` and are reached only through `ILocalAccounts`; the password hash is
+`[NotAudited]` and never leaves Infrastructure. The API signs users in with a cookie protected by the shared
+Data Protection ring and answers 401/403 problems, never redirects. Endpoints that need a signed-in user say
+so with `RequirePermission(ModulePermissions.X)` (E10.1); an endpoint open to everyone says
+`AllowAnonymous()` with a comment naming why; the architecture test refuses an endpoint that says neither.
+Modules declare their permissions with `WithPermissions(...)`; the catalog is the only list. A signed-in user
+who must change the password reaches only `/auth/local/password`, `/auth/logout` and `/auth/me`.
+
+## Secrets (E8)
+
+A secret is encrypted and decrypted only through `ISecretProtector` (`Wolfgang.Wms.Core.Secrets`); the stored
+form is `enc:v1:…` (`ProtectedText`), a value without the prefix is plain and accepted. The default
+implementation is Data Protection over the ring `Wms:DataProtection` names; nothing else calls
+`IDataProtector` directly. Plain text never reaches a log or an exception message (`ProtectedText.Mask`).
 
 ## Data access (E1.11, ADR 0002)
 
@@ -165,7 +199,8 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
 
 - Errors are `ApiProblems.Problem(code, …)` from a typed `ErrorCode`; never `Results.BadRequest("text")`.
 - Status codes: 200 read/update/replay, 201 + `Location` + body create (never 3xx), 202 outbox work, 204
-  delete/body-less; 409 for an `If-Match` miss, 422 for an `Idempotency-Key` reused with a different body.
+  delete/body-less; 412 for an `If-Match` miss, 428 for a change without one (`Preconditions.RequireIfMatch`), 422 for an
+  `Idempotency-Key` reused with a different body.
 - `POST`/`PATCH` handlers honour `Idempotency-Key` (`IdempotencyKey`, `IIdempotencyStore`, `IdempotencyRules.Decide`)
   inside their transaction; the console generates the key when a form opens.
 - Lists take `[AsParameters] PageRequest`, resolve it against the endpoint's `PageSorting` (the fields it sorts
@@ -183,7 +218,10 @@ are each a small key type in `Wolfgang.Wms.Domain.Keys` (`FeatureFlag`, `Setting
   the API client (`Wolfgang.Wms.Client`, E82.8) is the only other project it may reference, added when the
   workspace first calls the API (`ConsoleUsesApiOnlyTests` holds the console to an explicit project list).
 - Every workspace is a license feature (`workspace.<name>`) and a permission (`workspace.<name>.enter`)
-  defined once in `Workspaces`; the entry gate is `IWorkspaceAccess` consulted by `WorkspaceLayout`; the
+  defined once in `Workspaces`; the entry gate is `IWorkspaceAccess` consulted by `WorkspaceLayout`, which
+  every page under a workspace's `Pages/` inherits from that folder's `_Imports.razor` (prefer that over a
+  per-page `@layout`; either way the layout must derive from `WorkspaceLayout`, which is what
+  `WorkspacePageGateTests` holds every routable workspace component to); the
   free tier is Configure, Supervise, Resolve and Report; Insights is paid. A single-role user lands in their
   workspace; others pick on `/`.
 - Components are render-mode-agnostic: API client only, no server services, no `DbContext`
@@ -234,7 +272,8 @@ so a SqlServer install never runs the PostgreSql migrations and vice versa.
 [docs/DATABASE-CONVENTIONS.md](DATABASE-CONVENTIONS.md) is the contract: module schemas (never `dbo`/`public`),
 snake_case names (`container.zone_group_id`, `pk_`/`fk_`/`ix_`/`ux_` prefixes), server-assigned `long` `id`
 keys, no GUIDs, `Restrict` foreign keys with explicit indexes, `decimal(9,3)` quantities, UTC
-`DateTimeOffset` timestamps at millisecond precision. `ModelConventions.Apply` enforces the names and types;
+`DateTimeOffset` timestamps at millisecond precision (truncated, not rounded, on the way in on both
+providers, so a value read back equals the value written and signed). `ModelConventions.Apply` enforces the names and types;
 `ModelConventions.Verify` is asserted empty by `ModelConventionsTests` for both providers, so a violation
 fails the build.
 
@@ -253,7 +292,8 @@ go through `Gs1.TryParse`. Domain may reference `System.Text.RegularExpressions`
 (`Wolfgang.Wms.Infrastructure.Database`) is the one place migrations are applied, reverted or scripted; the
 API never migrates (its service account has no schema rights) and refuses to start on a
 schema that is behind, ahead or unreachable (`SchemaStartupCheck`). Every migration has a working `Down`; a
-downgrade that drops tables, columns, schemas or rows needs `--confirm-data-loss`. The migrations history
+downgrade that drops tables, columns, schemas or sequences, restarts a sequence, deletes or updates rows,
+narrows a column or runs raw SQL needs `--confirm-data-loss`. The migrations history
 table lives in schema `wms`, never `dbo`/`public`.
 
 ## Records and classes (E1.7)
@@ -272,10 +312,12 @@ default shape for anything that crosses the API or the journal.
   cannot be fixed on our side). It is rooted, not trimmed, at publish, and nothing that references it publishes
   NativeAOT, so the AOT smoke job does not cover it.
 - Minimal APIs only (no MVC); endpoints compile to typed request delegates (`EnableRequestDelegateGenerator`);
-  JSON uses source-generated `JsonSerializerContext`s; EF Core uses compiled models.
+  JSON uses source-generated `JsonSerializerContext`s. EF Core will use compiled models once the model
+  settles (an E2/E3 follow-up); nothing on `main` uses one yet.
 - Publish shape: API and worker publish JIT + ReadyToRun until EF Core supports NativeAOT, then flip the flag
-  with no code change; the simulator and the CLI publish NativeAOT from day one (`PublishAot`); the CLI's
-  `migrate` subcommand, which needs EF, ships as a separate JIT executable; MAUI uses its platform defaults;
+  with no code change; the simulator publishes NativeAOT from day one (`PublishAot`), as will the `wms` CLI
+  when it arrives (E82.6); `wms-migrate`, which needs EF, is its own JIT executable and not a CLI subcommand
+  ([MIGRATE.md](MIGRATE.md)); MAUI uses its platform defaults;
   the Blazor Server console is excluded. `Wolfgang.Wms.Infrastructure` (EF Core: reflection-based, not
   trim/AOT-clean) has the analyzers off and is rooted (not trimmed) at publish.
 - One assembly per project, single-file publish for distribution; self-contained runtime for the Windows

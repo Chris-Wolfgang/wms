@@ -26,8 +26,10 @@ Declarative: you name a target, never a direction; the tool states the direction
 | `wms-migrate --status` | applied and pending migrations, the version this build expects, whether the database is reachable (with the reason when not) and whether it is ahead of the build |
 | `wms-migrate --script [--from <m>] [--to <m>] [--output <file>]` | idempotent, provider-specific SQL for a DBA to review and run; needs **no** database connection and no connection string (only `--provider`); `--from` emits a delta; a downgrade script starts with a `-- Downgrade` header listing every data-losing step |
 | `--output <file>` | `--script` only; rejected without it |
-| `--confirm-data-loss` | required for a downgrade, applied or scripted, whose reverted migrations drop tables, columns, schemas or rows, or run raw SQL (`MigrationBuilder.Sql`, which the tool does not inspect and so treats as data-losing) |
+| `--confirm-data-loss` | required for a downgrade, applied or scripted, whose reverted migrations drop tables, columns, schemas or sequences, restart a sequence, delete or update rows, narrow a column (smaller length, precision or scale, fewer integral digits because the scale grows by more than the precision does (precision minus scale shrinks), a bounded precision where the old one was unbounded, unicode text made non-unicode, a length or precision left off the type so the provider's default applies, or another type), or run raw SQL (`MigrationBuilder.Sql`, which the tool does not inspect and so treats as data-losing) |
 | `--provider`, `--connection-string`, `--trust-server-certificate` | override the configured `Wms:Database` values |
+| `--key-ring <path>` | overrides `Wms:DataProtection:KeyRingPath`; needed to decrypt an `enc:v1:` connection string (E8.2) |
+| `wms-migrate --protect [--connection-string <plain>] [--key-ring <path>]` | prints the connection string encrypted with the key ring as `enc:v1:…` for `appsettings.json` or an environment variable; the string must not already be encrypted |
 
 Exit codes: `0` ok, `1` a migration failed (the output names it), `2` usage or configuration error (including a
 malformed connection string), `3` the downgrade (applied or scripted) needs `--confirm-data-loss`, `4` nothing
@@ -35,6 +37,12 @@ was applied because the database cannot be reached or its schema is newer than t
 
 ## Rules
 
+- **The database itself must exist** (E4.5): the DBA creates it. `wms-migrate` refuses to start against a
+  database that is not on the server (`--status` reports it unreachable; apply exits `4`) and repeats that check
+  before every migration it applies, so a mistyped name or a not-yet-created database cannot end in a stray
+  database created and migrated under the DBA's login. This is a guard against a wrong name, not against a
+  database dropped while a migration is running: EF would recreate one dropped in the instant between the
+  check and the migration.
 - **Empty database, `CREATE SCHEMA` rights** (E4.5): EF creates schema `wms` together with the history table
   `wms.migrations_history`, before the first migration runs (`IF SCHEMA_ID(N'wms') IS NULL ... CREATE SCHEMA`
   on SQL Server, a `pg_namespace`-guarded `CREATE SCHEMA wms` on PostgreSQL; see any `--script` output). No

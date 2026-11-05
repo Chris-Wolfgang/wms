@@ -22,8 +22,9 @@ message; they pick a code, and the catalog of codes is generated from the defini
 | `204` | delete and body-less actions |
 | `400` | malformed request (bad cursor, both `after` and `before`, invalid key) |
 | `404` | not in the caller's site scope (hidden endpoints and flags too) |
-| `409` | concurrency: `If-Match` did not match `row_version` |
+| `412` | concurrency: `If-Match` did not match `row_version` (stale or weak tag), or the row changed between that check and the save (the stale-save race, reported the same way); reload and retry |
 | `422` | `Idempotency-Key` reused with a different body |
+| `428` | concurrency: a change or delete without `If-Match`, or with the `*` wildcard (it would match any current row and prove nothing about what the client read, which is the whole point of the check; RFC 9110 allows a server to require a specific tag) |
 
 ## Idempotency
 
@@ -63,7 +64,8 @@ console drops the cursor and loads the first page of the new sort instead of rea
 Responses are compressed with Brotli (gzip fallback) for JSON, XML, problem details and text
 (`WmsCompression`), over TLS as well; the reverse proxy applies the ~1 KB threshold in production. Requests may
 be gzip- or Brotli-compressed (`Content-Encoding`), so devices and imports can shrink uploads. Authentication
-endpoints are marked `.DisableResponseCompression()` and are never compressed over TLS (BREACH). The file
+endpoints are marked `.DisableResponseCompression()` and are never compressed, on HTTP or HTTPS (BREACH: TLS
+ends at the reverse proxy in the documented deployments, so the scheme Kestrel sees proves nothing). The file
 connector can write `.gz` output, off by default.
 
 ## Content negotiation
@@ -83,6 +85,16 @@ site's minimum gets `426 Upgrade Required` (`device.version_too_old`) with the m
 organisation → site (`IDeviceVersionPolicy`, E12), so rollouts can be phased one warehouse at a time while the
 server runs one version for all; until then no minimum is configured. The customer-facing description is
 `docfx_project/docs/device-app-version.md`; keep the two in step.
+
+## Deltas and manifests (device sync)
+
+Every synced master table exposes `GET /{table}?since={rowVersion}&size={n}` returning `{ items, nextSince,
+hasMore }` (rows in `row_version` order, soft-deleted rows included with `deletedAt` set) and
+`GET /{table}/manifest` returning `[{ id, rowVersion }]` of live rows. A device stores `nextSince` after each
+call and keeps calling while `hasMore`; it applies items as idempotent upserts, so the few rows the final
+watermark re-reads (safety margin, DATABASE-CONVENTIONS.md) are harmless. `since` defaults to 0 (everything),
+`size` to 500 and is clamped to 1..5000. Both endpoints come from one helper (`MapSyncedTable`) so no table
+hand-writes them.
 
 ## Natural keys and time
 

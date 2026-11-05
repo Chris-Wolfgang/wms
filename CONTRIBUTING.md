@@ -51,14 +51,14 @@ You can contribute in several ways:
      (see [docs/WORKFLOW_SECURITY.md](docs/WORKFLOW_SECURITY.md)).
    - **Changelog Fragment Check** — a PR that touches `src/` must add a fragment (see below).
    - **ReSharper InspectCode** — error-severity findings fail; warnings go to the Security tab.
-   - **Stage 1 (Linux), Stage 2 (Windows), Stage 3 (macOS)** — build and test every target framework
+   - **Stage 1 (Linux), Stage 2 (Windows)** — build and test every target framework
      of every test project, with coverage gates of **90 % line coverage for `src/`** and
      **100 % for `tests/`**. A framework on which zero tests ran fails the stage.
    - **Security Scan (DevSkim)** and **Security Scan (CodeQL)** (`codeql.yaml`).
    - **actionlint** and **zizmor** (`actions-audit.yaml`) on the workflow files themselves.
    - License audit and SBOM generation for the dependency closure (`license-audit.yaml`, `sbom.yaml`).
 
-   The branch ruleset **requires** Detect .NET Projects, the three test stages, DevSkim, CodeQL,
+   The branch ruleset **requires** Detect .NET Projects, the two test stages, DevSkim, CodeQL,
    gitleaks and the Changelog Fragment Check to pass before merging. InspectCode, actionlint/zizmor,
    the license audit and the SBOM are advisory — they annotate the PR and the Security tab but do
    not block the merge on their own. If a check fails, read its log, fix, and push.
@@ -187,15 +187,15 @@ var now = DateTimeOffset.UtcNow;
 
 **Why?** This ensures all code is **truly asynchronous** and **non-blocking**, providing optimal performance in async contexts.
 
-The complete list (65 symbols, each with the reason and the replacement) is [`BannedSymbols.txt`](BannedSymbols.txt).
+The complete list, each entry with the reason and the replacement, is [`BannedSymbols.txt`](BannedSymbols.txt).
 
 ---
 
 ## Build and Test Instructions
 
 ### Prerequisites
-- Latest .NET SDK recommended (the CI matrix tests .NET Core 3.1, .NET 5.0-10.0 and .NET Framework 4.6.2-4.8.1; the SDK you actually need depends on your project's target frameworks. The template itself contains no csproj.)
-- PowerShell 7 (`pwsh`) — every script under `scripts/` is PowerShell (`build-pr.ps1`, `changelog.ps1`, `format.ps1`, `setup.ps1`, ...)
+- The .NET 10 SDK: every project targets `net10.0`, except the Android app, which targets `net10.0-android` only (install the `maui-android` workload to build it).
+- PowerShell 7 (`pwsh`) — every script under `scripts/` is PowerShell (`build-pr.ps1`, `changelog.ps1`, `format.ps1`, `Check-Migrations.ps1`, ...)
 - [gitleaks](https://github.com/gitleaks/gitleaks#installing) for the pre-commit hook (optional locally; CI runs it regardless)
 
 ### Build the Project
@@ -208,7 +208,7 @@ dotnet restore
 dotnet build --configuration Release
 ```
 
-**Note:** Release builds treat all analyzer warnings as errors (`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`). Debug builds allow warnings to facilitate development.
+**Note:** Warnings are errors in every configuration (E1.2, `Directory.Build.props`): a warning fails a Debug build as it fails a Release build. The two configurations can still compile different code where a project is configuration-specific (`MauiProgram.cs` under `#if DEBUG`), so a Release build before a PR remains the check that matters.
 
 ### Run Tests
 
@@ -224,7 +224,7 @@ dotnet test --collect:"XPlat Code Coverage"
 
 ```powershell
 # Mirrors pr.yaml's Windows stage on this machine: build, every-TFM tests, coverage gates
-# (90 % src / 100 % tests), DevSkim, gitleaks. The Linux and macOS stages only run in CI.
+# (90 % src / 100 % tests), DevSkim, gitleaks. The Linux stage only runs in CI.
 pwsh ./scripts/build-pr.ps1
 
 # Skip the security scans or the coverage gate while iterating

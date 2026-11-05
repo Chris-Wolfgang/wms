@@ -3,6 +3,7 @@
 using Microsoft.EntityFrameworkCore;
 using Wolfgang.Wms.Core.Http.Paging;
 using Wolfgang.Wms.Core.Locations;
+using Wolfgang.Wms.Core.Zones;
 using Wolfgang.Wms.Domain.Keys;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Locations;

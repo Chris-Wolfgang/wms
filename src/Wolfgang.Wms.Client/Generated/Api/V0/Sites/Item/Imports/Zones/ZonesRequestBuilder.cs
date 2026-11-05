@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
+using Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Zones.CsvEscaped;
 using Wolfgang.Wms.Client.Generated.Models;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Zones
 {
@@ -17,12 +18,17 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Zones
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class ZonesRequestBuilder : BaseRequestBuilder
     {
+        /// <summary>The csv property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Zones.CsvEscaped.CsvRequestBuilder Csv
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Zones.CsvEscaped.CsvRequestBuilder(PathParameters, RequestAdapter);
+        }
         /// <summary>
         /// Instantiates a new <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Zones.ZonesRequestBuilder"/> and sets the default values.
         /// </summary>
         /// <param name="pathParameters">Path parameters for the request</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public ZonesRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/api/v0/sites/{siteId}/imports/zones{?format*,policy*}", pathParameters)
+        public ZonesRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/api/v0/sites/{siteId}/imports/zones{?policy*}", pathParameters)
         {
         }
         /// <summary>
@@ -30,11 +36,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Zones
         /// </summary>
         /// <param name="rawUrl">The raw URL to use for the request builder.</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public ZonesRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/api/v0/sites/{siteId}/imports/zones{?format*,policy*}", rawUrl)
+        public ZonesRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/api/v0/sites/{siteId}/imports/zones{?policy*}", rawUrl)
         {
         }
         /// <summary>
-        /// Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only; format=csv for the row results as CSV.
+        /// Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only.
         /// </summary>
         /// <returns>A <see cref="global::Wolfgang.Wms.Client.Generated.Models.ImportResult"/></returns>
         /// <param name="body">The request body</param>
@@ -54,7 +60,7 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Zones
             return await RequestAdapter.SendAsync<global::Wolfgang.Wms.Client.Generated.Models.ImportResult>(requestInfo, global::Wolfgang.Wms.Client.Generated.Models.ImportResult.CreateFromDiscriminatorValue, default, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only; format=csv for the row results as CSV.
+        /// Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only.
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="body">The request body</param>
@@ -85,24 +91,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Zones
             return new global::Wolfgang.Wms.Client.Generated.Api.V0.Sites.Item.Imports.Zones.ZonesRequestBuilder(rawUrl, RequestAdapter);
         }
         /// <summary>
-        /// Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only; format=csv for the row results as CSV.
+        /// Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only.
         /// </summary>
         [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
         public partial class ZonesRequestBuilderPostQueryParameters 
         {
-#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
-#nullable enable
-            #pragma warning disable CS1591
-            [QueryParameter("format")]
-            public string? Format { get; set; }
-            #pragma warning restore CS1591
-#nullable restore
-#else
-            #pragma warning disable CS1591
-            [QueryParameter("format")]
-            public string Format { get; set; }
-            #pragma warning restore CS1591
-#endif
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
             #pragma warning disable CS1591

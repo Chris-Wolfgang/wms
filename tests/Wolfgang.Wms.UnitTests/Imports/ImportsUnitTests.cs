@@ -127,6 +127,21 @@ public sealed class ImportsUnitTests
 
 
 
+    [Theory]
+    [InlineData("=1+1")]
+    [InlineData("+1")]
+    [InlineData("-1")]
+    [InlineData("@SUM(A1)")]
+    [InlineData("\tx")]
+    public void The_csv_neutralizes_what_a_spreadsheet_would_run_as_a_formula(string key)
+    {
+        var result = ImportResult.From("zones", ImportPolicy.ValidateOnly, written: false, [new ImportRowResult(1, key, ImportRowOutcome.Failed, "imports.invalid", key)]);
+
+        Assert.Contains("1,'" + key + ",Failed,imports.invalid,'" + key, result.ToCsv(), System.StringComparison.Ordinal);
+    }
+
+
+
     [Fact]
     public void Every_format_documents_exactly_the_fields_of_its_row_type_and_renders()
     {

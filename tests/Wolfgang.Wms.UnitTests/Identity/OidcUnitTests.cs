@@ -209,7 +209,7 @@ public sealed class OidcUnitTests
 
         Assert.Equal(StatusCodes.Status502BadGateway, failed.HttpContext.Response.StatusCode);
         Assert.Equal(StatusCodes.Status502BadGateway, unknown.HttpContext.Response.StatusCode);
-        Assert.True(failed.Result!.Handled);
+        Assert.True(failed.Result.Handled);
         await Assert.ThrowsAsync<ArgumentNullException>(() => OidcEvents.OnRemoteFailureAsync(null!));
     }
 

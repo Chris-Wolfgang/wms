@@ -104,7 +104,7 @@ public sealed class OidcSignInTests
         Assert.False(unconfigured.Healthy);
         Assert.True(healthy.Healthy);
         Assert.Contains("issuer " + authority, healthy.Detail, StringComparison.Ordinal);
-        Assert.Equal([("oidc", "Corporate login", "/auth/oidc/challenge"), ("local", "Local account", null)], offered!.Select(p => (p.Name, p.DisplayName, p.ChallengeUrl)));
+        Assert.Equal([("oidc", "Corporate login", "/auth/oidc/challenge")], offered!.Select(p => (p.Name, p.DisplayName, p.ChallengeUrl)));
         Assert.Equal(HttpStatusCode.Created, mapped.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
         Assert.Equal([("wms-supervisors", "Supervisor", (long?)null)], mappings.Select(m => (m.Group, m.RoleName, m.SiteId)));
@@ -164,7 +164,7 @@ public sealed class OidcSignInTests
         await settings.SetAsync(OidcSettings.ClientSecret, organization, new SecretText("not-checked-by-the-mock"), "test", CancellationToken.None);
         await settings.SetAsync(OidcSettings.DisplayName, organization, "Corporate login", "test", CancellationToken.None);
         await settings.SetAsync(OidcSettings.RequireHttps, organization, false, "test", CancellationToken.None);
-        await settings.SetAsync(AuthProviderSettings.Enabled, organization, "oidc,local", "test", CancellationToken.None);
+        await settings.SetAsync(AuthProviderSettings.Active, organization, "oidc", "test", CancellationToken.None);
         await services.GetRequiredService<AuthProviderState>().RefreshAsync(CancellationToken.None);   // the sync does this every 5 s
     }
 

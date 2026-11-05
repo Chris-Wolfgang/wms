@@ -40,6 +40,14 @@ public sealed class NoLocalAccounts : ILocalAccounts
 
 
 
+    /// <inheritdoc/>
+    public Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
+    {
+        return Task.FromResult(false);   // no store at all
+    }
+
+
+
     private static AuthException Unavailable()
     {
         return new AuthException(AuthErrorCodes.Unavailable, "Sign-in is unavailable until Wms:Database is configured and the schema installed.");

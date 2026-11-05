@@ -12,6 +12,7 @@ app, starting with the picking module. These pages are for the people who instal
 
 - [Before the API can serve](bootstrap.md) - the order of first-run steps and the schema endpoint
 - [Configuration](configuration.md) - every `Wms:*` setting, where it is read from and what it does
+- [Signing in and identity providers](sign-in.md) - which sign-in methods the console offers, the lock-out override, and the provider endpoints
 - [Database migrations](migrate.md) - `wms-migrate`: apply, status, script, targeted up and down
 - [Integrity signatures](integrity.md) - how security rows are signed, what is guarded against, repair and alerting
 - [Database conventions](database-conventions.md) - how tables, columns, keys and indexes are named on both engines

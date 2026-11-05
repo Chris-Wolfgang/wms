@@ -3,7 +3,10 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Wolfgang.Wms.Core.Modules;
+using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Secrets;
 
 namespace Wolfgang.Wms.IntegrationTests.Database;
 
@@ -31,6 +34,11 @@ internal static class DatabaseHost
             ["Wms:Database:ConnectionString"] = connectionString,
             ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
         });
+        // Composed like the API host: the stored settings accessor AddWmsDatabase registers (E6.3) reads the
+        // registry the settings module provides.
+        builder.Services.AddWmsModules();
+        builder.Services.AddWmsSettingsModule();
+        builder.Services.AddWmsDataProtection(builder.Configuration);   // E8.5: EfSettings protects secret settings
         builder.Services.AddWmsDatabase(builder.Configuration);
         var app = builder.Build();
         try

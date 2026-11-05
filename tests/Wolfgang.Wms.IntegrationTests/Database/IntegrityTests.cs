@@ -1,0 +1,290 @@
+// Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
+
+using System.Net;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Testcontainers.PostgreSql;
+using Wolfgang.Wms.Core.Api;
+using Wolfgang.Wms.Core.Authorization;
+using Wolfgang.Wms.Core.Http;
+using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Modules;
+using Wolfgang.Wms.Core.Settings;
+using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Identity;
+using Wolfgang.Wms.Infrastructure.Integrity;
+using Wolfgang.Wms.Infrastructure.Secrets;
+using Wolfgang.Wms.IntegrationTests.Api;
+
+namespace Wolfgang.Wms.IntegrationTests.Database;
+
+/// <summary>
+/// E10.4 on each provider: every user, role and assignment is signed on save with a key stored protected
+/// in <c>wms.integrity_key</c>; an assignment, a role or a user changed through the database grants
+/// nothing (403 on sign-in for the user); the verification job counts the failures; a database without
+/// the key (the first start after the upgrade) gets its key and its rows signed once.
+/// </summary>
+public sealed class IntegrityTests
+{
+    private const string Password = "a-long-enough-password";
+    private static readonly JsonSerializerOptions Json = JsonSerializerOptions.Web;
+
+
+
+    [SqlServerFact]
+    public async Task SqlServer_rows_are_signed_verified_on_read_and_counted_by_the_job()
+    {
+        await using var database = await SqlServerTestDatabase.StartAsync();
+
+        await AssertIntegrityAsync("SqlServer", database.ConnectionString, trustServerCertificate: true);
+    }
+
+
+
+    [DockerFact]
+    public async Task PostgreSql_rows_are_signed_verified_on_read_and_counted_by_the_job()
+    {
+        await using var container = new PostgreSqlBuilder("postgres:16").Build();
+        await container.StartAsync();
+
+        await AssertIntegrityAsync("PostgreSql", container.GetConnectionString(), trustServerCertificate: false);
+    }
+
+
+
+    private static async Task AssertIntegrityAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        await TestMigrations.ApplyAsync(provider, connectionString);
+        var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
+
+        await using (var first = await StartHostAsync(provider, runtime, trustServerCertificate))
+        {
+            using var client = first.GetTestClient();
+            var admin = await TestSessions.SignInAsAdministratorAsync(client);
+            client.DefaultRequestHeaders.Add("Cookie", admin);
+            await AssertEverythingSignedAsync(first.Services);
+            var bob = await CreateUserAsync(first.Services, "bob");
+            var roles = (await client.GetFromJsonAsync<List<RoleInfo>>("/api/v0/auth/roles", Json))!;
+            await AssignAsync(client, admin, bob, roles.Single(r => string.Equals(r.Name, "Administrator", StringComparison.Ordinal)).Id);
+            var held = await SignInAsync(client, "bob");   // a session issued while the assignment was still good
+            Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(first, held));
+
+            await TamperAsync(first.Services, "UPDATE core.user_role SET site_id = 7 WHERE user_id = " + bob);
+            Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, held));   // a session's grants are recomputed on every request: the open one loses the grant at once
+            Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, await SignInAsync(client, "bob")));   // the assignment grants nothing
+            Assert.Equal(1, (await first.Services.GetRequiredService<IntegrityVerificationJob>().RunOnceAsync(CancellationToken.None)).Failed);
+
+            var custom = await CreateRoleAsync(client, admin);
+            await AssignAsync(client, admin, bob, custom);
+            Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(first, await SignInAsync(client, "bob")));
+
+            // The administrator key moved onto the custom role bob holds: start-up seeding must not give it '*' and sign it.
+            var administratorRole = roles.Single(r => string.Equals(r.Name, "Administrator", StringComparison.Ordinal)).Id;
+            await TamperAsync(first.Services, "UPDATE core.role SET built_in_key = NULL WHERE id = " + administratorRole);
+            await TamperAsync(first.Services, "UPDATE core.role SET built_in_key = 'administrator' WHERE id = " + custom);
+            using (var seeding = first.Services.CreateScope())
+            {
+                await seeding.ServiceProvider.GetRequiredService<IRoles>().EnsureBuiltInAsync(seeding.ServiceProvider.GetRequiredService<PermissionCatalog>(), CancellationToken.None);
+                Assert.DoesNotContain("*", await seeding.ServiceProvider.GetRequiredService<WmsDbContext>().Set<RolePermission>().Where(p => p.RoleId == custom).Select(p => p.PermissionName).ToListAsync());
+            }
+
+            await TamperAsync(first.Services, "UPDATE core.role SET built_in_key = NULL WHERE id = " + custom);   // restored as they were, so both rows verify again
+            await TamperAsync(first.Services, "UPDATE core.role SET built_in_key = 'administrator' WHERE id = " + administratorRole);
+            Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(first, await SignInAsync(client, "bob")));
+
+            // The assignment moved to another user while bob's session is open: bob loses the grant on his next request.
+            var open = await SignInAsync(client, "bob");
+            await TamperAsync(first.Services, "UPDATE core.user_role SET user_id = (SELECT MIN(id) FROM core.\"user\" WHERE id <> " + bob + ") WHERE role_id = " + custom);
+            Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, open));
+            await TamperAsync(first.Services, "UPDATE core.user_role SET user_id = " + bob + " WHERE role_id = " + custom);   // restored: it verifies again
+            Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(first, open));
+            await TamperAsync(first.Services, "INSERT INTO core.role_permission (role_id, permission_name) VALUES (" + custom + ", 'auth.roles.write')");
+            Assert.Equal(HttpStatusCode.Forbidden, await RolesStatusAsync(first, await SignInAsync(client, "bob")));   // the role grants nothing
+
+            var beforeUserTamper = await SignInAsync(client, "bob");
+            await TamperAsync(first.Services, "UPDATE core.\"user\" SET is_local_admin = 'true' WHERE id = " + bob);
+            Assert.Equal(HttpStatusCode.Unauthorized, await RolesStatusAsync(first, beforeUserTamper));   // the user row is verified on every request, not only at sign-in
+            await AssignAsync(client, admin, bob, roles.First(r => !string.Equals(r.Name, "Administrator", StringComparison.Ordinal)).Id);   // ends sessions, but must not re-sign the failed row (checked below)
+            using (var seeding = first.Services.CreateScope())
+            {
+                await seeding.ServiceProvider.GetRequiredService<IRoles>().EnsureBuiltInAsync(seeding.ServiceProvider.GetRequiredService<PermissionCatalog>(), CancellationToken.None);
+                var administrator = roles.Single(r => string.Equals(r.Name, "Administrator", StringComparison.Ordinal)).Id;
+                Assert.False(await seeding.ServiceProvider.GetRequiredService<WmsDbContext>().UserRoles.AnyAsync(a => a.UserId == bob && a.RoleId == administrator && a.SiteId == null));   // the tampered flag earns no Administrator grant
+            }
+
+            using (var accounts = first.Services.CreateScope())
+            {
+                await accounts.ServiceProvider.GetRequiredService<ISessionRevocations>().RevokeSessionsAsync(bob, CancellationToken.None);   // must not re-sign the failed row (checked below)
+                var store = accounts.ServiceProvider.GetRequiredService<ILocalAccounts>();
+                Assert.Null(await store.FindAsync(bob, CancellationToken.None));   // the tampered admin flag is never returned
+                Assert.Equal(PasswordChangeOutcome.IntegrityFailure, await store.ChangePasswordAsync(bob, Password, Password + "-x", CancellationToken.None));   // and never re-signed
+            }
+
+            using var login = await client.PostAsync(new Uri("/api/v0/auth/local/login", UriKind.Relative), Body(new LocalLoginRequest("bob", Password)));
+            Assert.Equal(HttpStatusCode.Forbidden, login.StatusCode);
+            Assert.Equal("auth.integrity_failure", (await JsonDocument.ParseAsync(await login.Content.ReadAsStreamAsync())).RootElement.GetProperty("code").GetString());
+            await TamperAsync(first.Services, "UPDATE core.\"user\" SET display_name = password_hash, password_hash = NULL WHERE id = " + bob);   // a nulled hash is an integrity failure too, not a wrong password
+            using var nulled = await client.PostAsync(new Uri("/api/v0/auth/local/login", UriKind.Relative), Body(new LocalLoginRequest("bob", Password)));
+            Assert.Equal("auth.integrity_failure", (await JsonDocument.ParseAsync(await nulled.Content.ReadAsStreamAsync())).RootElement.GetProperty("code").GetString());
+            await TamperAsync(first.Services, "UPDATE core.\"user\" SET password_hash = display_name WHERE id = " + bob);
+            var result = await first.Services.GetRequiredService<IntegrityVerificationJob>().RunOnceAsync(CancellationToken.None);
+            Assert.Equal(3, result.Failed);
+            Assert.Same(result, first.Services.GetRequiredService<IntegrityVerificationJob>().LastResult);
+
+            await TamperAsync(first.Services, "UPDATE core.\"user\" SET is_local_admin = 'false' WHERE id = " + bob);
+            await TamperAsync(first.Services, "DELETE FROM wms.integrity_key");
+
+            // Two instances creating the key at once end up with one key: the lowest id wins and the other adopts it.
+            var scopes = first.Services.GetRequiredService<IServiceScopeFactory>();
+            using var one = new IntegritySigner(scopes, NullLogger<IntegritySigner>.Instance);
+            using var two = new IntegritySigner(scopes, NullLogger<IntegritySigner>.Instance);
+            await Task.WhenAll(one.EnsureKeyAsync(CancellationToken.None), two.EnsureKeyAsync(CancellationToken.None));
+            Assert.Equal(await one.SignAsync("x", CancellationToken.None), await two.SignAsync("x", CancellationToken.None));
+            using (var keys = first.Services.CreateScope())
+            {
+                Assert.Equal(1, await keys.ServiceProvider.GetRequiredService<WmsDbContext>().Set<IntegrityKey>().CountAsync());
+            }
+
+            await TamperAsync(first.Services, "DELETE FROM wms.integrity_key");   // the upgrade start below creates its own
+        }
+
+        await using var second = await StartHostAsync(provider, runtime, trustServerCertificate);   // the upgrade start: a new key, every row signed once
+        using var later = second.GetTestClient();
+        await AssertEverythingSignedAsync(second.Services);
+        Assert.Equal(0, (await second.Services.GetRequiredService<IntegrityVerificationJob>().RunOnceAsync(CancellationToken.None)).Failed);
+        Assert.Equal(HttpStatusCode.OK, await RolesStatusAsync(second, await SignInAsync(later, "bob")));   // the documented limitation: rows are signed as they stand, so the permission added through the database now grants
+    }
+
+
+
+    private static async Task AssertEverythingSignedAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
+        var keys = await context.Set<IntegrityKey>().ToListAsync();
+        var signer = scope.ServiceProvider.GetRequiredService<IIntegritySigner>();
+
+        Assert.Single(keys);
+        Assert.StartsWith("enc:v1:", keys[0].ProtectedKey, StringComparison.Ordinal);
+        Assert.DoesNotContain(await context.Users.ToListAsync(), u => u.Signature is null);
+        Assert.DoesNotContain(await context.Roles.ToListAsync(), r => r.Signature is null);
+        Assert.DoesNotContain(await context.UserRoles.ToListAsync(), a => a.Signature is null);
+        Assert.True(await signer.IsValidAsync(await context.Roles.Include(r => r.Permissions).FirstAsync(r => r.BuiltInKey != null), "core.role", CancellationToken.None));
+
+        context.Users.Add(new User { UserName = "sync", UserNameNormalized = "SYNC", DisplayName = "sync" });
+        var refused = Record.Exception(() => context.SaveChanges());
+        Assert.Contains("SaveChangesAsync", refused?.ToString(), StringComparison.Ordinal);   // the synchronous save never writes a signed row
+    }
+
+
+
+    private static async Task<long> CreateUserAsync(IServiceProvider services, string userName)
+    {
+        using var scope = services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
+        var user = new User { UserName = userName, UserNameNormalized = EfLocalAccounts.Normalize(userName), DisplayName = userName, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        user.PasswordHash = hasher.HashPassword(user, Password);
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        Assert.NotNull(user.Signature);   // signed by the interceptor
+        return user.Id;
+    }
+
+
+
+    private static async Task<long> CreateRoleAsync(HttpClient client, string admin)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/api/v0/auth/roles", UriKind.Relative)) { Content = Body(new RoleDraft("Readers", "reads roles", ["auth.roles.read"])) };
+        request.Headers.Add("Cookie", admin);
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<RoleInfo>(Json))!.Id;
+    }
+
+
+
+    private static async Task AssignAsync(HttpClient client, string admin, long userId, long roleId)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/api/v0/auth/users/{userId}/roles", UriKind.Relative)) { Content = Body(new AssignRoleRequest(roleId)) };
+        request.Headers.Add("Cookie", admin);
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+
+
+    private static async Task<string> SignInAsync(HttpClient client, string userName)
+    {
+        using var login = await client.PostAsync(new Uri("/api/v0/auth/local/login", UriKind.Relative), Body(new LocalLoginRequest(userName, Password)));
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        return login.Headers.GetValues("Set-Cookie").Single().Split(';')[0];
+    }
+
+
+
+    private static async Task<HttpStatusCode> RolesStatusAsync(WebApplication app, string cookie)
+    {
+        using var client = app.GetTestClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/api/v0/auth/roles", UriKind.Relative));
+        request.Headers.Add("Cookie", cookie);
+        using var response = await client.SendAsync(request);
+        return response.StatusCode;
+    }
+
+
+
+    private static async Task TamperAsync(IServiceProvider services, string sql)
+    {
+        using var scope = services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<WmsDbContext>();
+#pragma warning disable EF1002 // the statements are test constants with numeric ids
+        await context.Database.ExecuteSqlRawAsync(sql);
+#pragma warning restore EF1002
+    }
+
+
+
+    private static async Task<WebApplication> StartHostAsync(string provider, string connectionString, bool trustServerCertificate)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Wms:Database:Provider"] = provider,
+            ["Wms:Database:ConnectionString"] = connectionString,
+            ["Wms:Database:TrustServerCertificate"] = trustServerCertificate ? "true" : "false",
+        });
+        builder.Services.AddWmsApiVersioning();
+        builder.Services.AddWmsProblemDetails();
+        builder.Services.AddWmsModules();
+        builder.Services.AddWmsSettingsModule();
+        builder.Services.AddWmsAuthModule();
+        builder.Services.AddWmsRolesModule();
+        builder.Services.AddWmsDataProtection(builder.Configuration);
+        builder.Services.AddWmsDatabase(builder.Configuration);
+        builder.Services.AddWmsIntegrityVerification();
+        var app = builder.Build();
+        app.UseWmsProblemDetails();
+        app.UseWmsAuth();
+        app.MapWmsApi().MapWmsModules();
+        await app.StartAsync();
+        return app;
+    }
+
+
+
+    private static StringContent Body<T>(T value)
+    {
+        return new StringContent(JsonSerializer.Serialize(value, Json), Encoding.UTF8, "application/json");
+    }
+}

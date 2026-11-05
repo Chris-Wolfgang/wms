@@ -9,6 +9,7 @@ using Wolfgang.Wms.Core.Hosting;
 using Wolfgang.Wms.Core.Devices;
 using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Identity.BreakGlass.AdminChannel;
 using Wolfgang.Wms.Core.Json;
 using Wolfgang.Wms.Core.Licensing;
 using Wolfgang.Wms.Core.Localization;
@@ -73,6 +74,9 @@ builder.Services.AddWmsDataProtection(builder.Configuration);
 
 // E2.1: Wms:Database:{Provider,ConnectionString,TrustServerCertificate}; an unknown provider fails startup.
 builder.Services.AddWmsDatabase(builder.Configuration);
+
+// E9.3: the host-only pipe wms-admin uses to open or close the break-glass gate; after the ring and the database.
+builder.Services.AddWmsAdminChannel(builder.Configuration);
 
 // E82.7: device groups call .RequireDeviceVersion(). After the modules, so the no-minimum fallback only fills
 // the gap: the settings module (E12) registers the organisation -> site policy, with Add or TryAdd.

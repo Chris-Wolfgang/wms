@@ -33,6 +33,13 @@ A `Wms:` key from any other provider is reported the same way, named by the prov
 (`Wms:Picking:MaxTotes (EnvironmentVariables)` for a `WMS__Picking__MaxTotes` variable); the platform's own
 environment variables are left alone.
 
+## Admin channel (E9.3)
+
+| Key | Values | Notes |
+|-----|--------|-------|
+| `Wms:Admin:ChannelName` | pipe name (default `Wolfgang.Wms.Admin`) | The host-only pipe `wms-admin` talks to ([ADMIN.md](ADMIN.md)). Two API hosts on one machine need different names; the tool takes `--channel`. |
+| `Wms:Admin:Enabled` | `true` (default) / `false` | `false` turns the channel off; `Wms:Auth:ForceLocal` is then the only way to reopen local sign-in. |
+
 ## Database (E2)
 
 | Key | Values | Notes |

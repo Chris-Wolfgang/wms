@@ -2,7 +2,9 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Wolfgang.Wms.Core.Secrets;
 using Wolfgang.Wms.Infrastructure.Database;
+using Wolfgang.Wms.Infrastructure.Secrets;
 
 namespace Wolfgang.Wms.Migrate;
 
@@ -14,6 +16,9 @@ public static class MigrateProgram
 {
     /// <summary>Everything ran.</summary>
     public const int ExitOk = 0;
+
+    /// <summary>The <c>--connection-string</c> value that reads the string from standard input.</summary>
+    public const string StandardInput = "-";
 
     /// <summary>A migration failed; its name is in the output.</summary>
     public const int ExitMigrationFailed = 1;
@@ -39,13 +44,30 @@ public static class MigrateProgram
     /// <param name="cancellationToken">Cancels a running migration.</param>
     /// <returns>The process exit code.</returns>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public static async Task<int> RunAsync(IReadOnlyList<string> args, TextWriter output, TextWriter error, IConfiguration? configuration, CancellationToken cancellationToken)
+    public static Task<int> RunAsync(IReadOnlyList<string> args, TextWriter output, TextWriter error, IConfiguration? configuration, CancellationToken cancellationToken)
+    {
+        return RunAsync(args, TextReader.Null, output, error, configuration, cancellationToken);
+    }
+
+
+
+    /// <summary>
+    /// Runs the tool with <paramref name="input"/> as standard input, which <c>--connection-string -</c> reads.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">An argument other than <paramref name="configuration"/> is null.</exception>
+    public static async Task<int> RunAsync(IReadOnlyList<string> args, TextReader input, TextWriter output, TextWriter error, IConfiguration? configuration, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(args);
+        ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(error);
 
-        var command = MigrateCommandLine.Parse(args);
+        var command = await WithStandardInputAsync(MigrateCommandLine.Parse(args), input, error, cancellationToken).ConfigureAwait(false);
+        if (command is null)
+        {
+            return ExitUsage;
+        }
+
         if (command.Help)
         {
             await output.WriteLineAsync(MigrateCommandLine.Usage).ConfigureAwait(false);
@@ -59,10 +81,16 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        var options = await LoadOptionsAsync(command, configuration, error).ConfigureAwait(false);
-        if (options is null)
+        var loaded = await LoadOptionsAsync(command, configuration, error).ConfigureAwait(false);
+        if (loaded is null)
         {
             return ExitUsage;
+        }
+
+        var (resolved, options) = loaded.Value;
+        if (command.Protect)
+        {
+            return await ProtectAsync(command, resolved, options, output, error).ConfigureAwait(false);
         }
 
         var problems = options.Validate(connectionStringRequired: !command.Script);
@@ -81,10 +109,49 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        WmsDbContext context;
+        return await ExecuteAsync(command, resolved, options, output, error, cancellationToken).ConfigureAwait(false);
+    }
+
+
+
+    /// <summary>
+    /// <c>--connection-string -</c>: the command with the connection string read from <paramref name="input"/>;
+    /// null (after a message on <paramref name="error"/>) when nothing was read. Any other command unchanged.
+    /// </summary>
+    private static async Task<MigrateCommandLine?> WithStandardInputAsync(MigrateCommandLine command, TextReader input, TextWriter error, CancellationToken cancellationToken)
+    {
+        if (!string.Equals(command.ConnectionString, StandardInput, StringComparison.Ordinal))
+        {
+            return command;
+        }
+
+        var line = await input.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            await error.WriteLineAsync("--connection-string - read no connection string from standard input.").ConfigureAwait(false);
+            return null;
+        }
+
+        return command with { ConnectionString = line.Trim() };
+    }
+
+
+
+    /// <summary>
+    /// Opens the context (decrypting an <c>enc:v1:</c> connection string with the key ring, E8.2) and runs
+    /// the chosen mode.
+    /// </summary>
+    private static async Task<int> ExecuteAsync(MigrateCommandLine command, IConfiguration configuration, DatabaseOptions options, TextWriter output, TextWriter error, CancellationToken cancellationToken)
+    {
+        var builder = new DbContextOptionsBuilder<WmsDbContext>();
         try
         {
-            context = CreateContext(options);
+            DatabaseServiceCollectionExtensions.Configure(builder, options, options.ConnectionStringIsProtected ? Protector(command, configuration) : null);
+        }
+        catch (InvalidOperationException exception)
+        {
+            await error.WriteLineAsync(exception.Message).ConfigureAwait(false);
+            return ExitUsage;
         }
         catch (ArgumentException exception)
         {
@@ -92,10 +159,8 @@ public static class MigrateProgram
             return ExitUsage;
         }
 
-        using (context)
-        {
-            return await RunModeAsync(new MigrationRunner(context), command, output, error, cancellationToken).ConfigureAwait(false);
-        }
+        using var context = new WmsDbContext(builder.Options);
+        return await RunModeAsync(new MigrationRunner(context), command, output, error, cancellationToken).ConfigureAwait(false);
     }
 
 
@@ -155,20 +220,50 @@ public static class MigrateProgram
 
 
 
-    private static WmsDbContext CreateContext(DatabaseOptions options)
+    /// <summary>
+    /// <c>--protect</c> (E8.2): prints the connection string encrypted with the key ring, for the installer to
+    /// put in appsettings or an environment variable.
+    /// </summary>
+    private static async Task<int> ProtectAsync(MigrateCommandLine command, IConfiguration configuration, DatabaseOptions options, TextWriter output, TextWriter error)
     {
-        var builder = new DbContextOptionsBuilder<WmsDbContext>();
-        DatabaseServiceCollectionExtensions.Configure(builder, options);
-        return new WmsDbContext(builder.Options);
+        if (string.IsNullOrWhiteSpace(options.ConnectionString))
+        {
+            await error.WriteLineAsync("--protect needs a connection string (--connection-string or Wms:Database:ConnectionString).").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        if (options.ConnectionStringIsProtected)
+        {
+            await error.WriteLineAsync("The connection string is already encrypted (enc:v1:).").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        var protector = Protector(command, configuration);
+        if (protector is null)
+        {
+            await error.WriteLineAsync($"--protect needs the key ring: --key-ring <path> or {KeyRingOptions.PathKey}.").ConfigureAwait(false);
+            return ExitUsage;
+        }
+
+        await output.WriteLineAsync(protector.Protect(options.ConnectionString)).ConfigureAwait(false);
+        return ExitOk;
     }
 
 
 
-    private static async Task<DatabaseOptions?> LoadOptionsAsync(MigrateCommandLine command, IConfiguration? configuration, TextWriter error)
+    private static ISecretProtector? Protector(MigrateCommandLine command, IConfiguration configuration)
+    {
+        return command.KeyRing is not null ? KeyRing.CreateProtector(command.KeyRing) : KeyRing.TryCreateProtector(configuration);
+    }
+
+
+
+    private static async Task<(IConfiguration Configuration, DatabaseOptions Options)?> LoadOptionsAsync(MigrateCommandLine command, IConfiguration? configuration, TextWriter error)
     {
         try
         {
-            return Options(command, configuration ?? DefaultConfiguration());
+            var resolved = configuration ?? DefaultConfiguration();
+            return (resolved, Options(command, resolved));
         }
         catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException)
         {

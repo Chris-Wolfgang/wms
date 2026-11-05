@@ -19,24 +19,26 @@ using Wolfgang.Wms.Domain.Settings;
 namespace Wolfgang.Wms.UnitTests.Identity;
 
 /// <summary>
-/// E11.0 without a host: the setting parses and validates names; the catalog refuses duplicates and bad
+/// E11.0 without a host: the setting takes one well-formed name; the catalog refuses duplicates and bad
 /// names; the state adds a challenge provider's scheme when the setting names it, tells it to re-read its
-/// settings when they change, removes the scheme when it is dropped, skips unknown names, and honours the
+/// settings when they change, removes the scheme when it is dropped, offers nothing for an unknown name, and honours the
 /// emergency override; the local provider reports the database; the sync's guards hold.
 /// </summary>
 public sealed class AuthProvidersUnitTests
 {
     [Theory]
-    [InlineData(null, "", null)]
-    [InlineData("local", "local", null)]
-    [InlineData(" local , oidc ,local", "local,oidc", null)]
-    [InlineData("local,Oidc", "local,Oidc", "'Oidc' is not a provider name (lower-case letters, digits and dashes)")]
-    [InlineData("local,my provider", "local,my provider", "'my provider' is not a provider name (lower-case letters, digits and dashes)")]
-    public void The_enabled_setting_parses_and_validates_names(string? value, string expectedNames, string? expectedError)
+    [InlineData("local", true)]
+    [InlineData("oidc", true)]
+    [InlineData("oidc,local", false)]   // an install runs one provider; break-glass local is not named here
+    [InlineData("Oidc", false)]
+    [InlineData("my provider", false)]
+    [InlineData("", false)]
+    public void The_provider_setting_takes_one_well_formed_name(string value, bool valid)
     {
-        Assert.Equal(expectedNames, string.Join(',', AuthProviderSettings.Parse(value)));
-        Assert.Equal(expectedError, AuthProviderSettings.Validate(value));
-        Assert.Equal(expectedError, AuthProviderSettings.Enabled.Validate(value ?? string.Empty));
+        var expected = valid ? null : $"'{value}' is not one provider name (lower-case letters, digits and dashes)";
+
+        Assert.Equal(expected, AuthProviderSettings.Validate(value));
+        Assert.Equal(expected, AuthProviderSettings.Active.Validate(value));
     }
 
 
@@ -73,9 +75,9 @@ public sealed class AuthProvidersUnitTests
         Assert.Null(state.FindEnabledChallenge("fake"));
         Assert.Null(state.FindEnabledChallenge("local"));
 
-        settings.Values["auth.providers.enabled"] = "fake, local, ghost";
+        settings.Values["auth.provider"] = "fake";
         await state.RefreshAsync(CancellationToken.None);
-        Assert.Equal([("fake", AuthProviderKind.Challenge, "/auth/fake/challenge"), ("local", AuthProviderKind.Credentials, null)], state.Enabled.Select(p => (p.Name, p.Kind, p.ChallengeUrl)));
+        Assert.Equal([("fake", AuthProviderKind.Challenge, "/auth/fake/challenge")], state.Enabled.Select(p => (p.Name, p.Kind, p.ChallengeUrl)));
         Assert.Equal(typeof(FakeHandler), (await schemes.GetSchemeAsync("fake"))!.HandlerType);
         Assert.Same(fake, state.FindEnabledChallenge("fake"));
         Assert.Equal(1, fake.Applied);
@@ -87,12 +89,16 @@ public sealed class AuthProvidersUnitTests
         await state.RefreshAsync(CancellationToken.None);
         Assert.Equal(2, fake.Applied);   // its setting changed: re-applied, scheme kept
 
-        settings.Values["auth.providers.enabled"] = "local";
+        settings.Values["auth.provider"] = "local";
         await state.RefreshAsync(CancellationToken.None);
-        Assert.Equal(["local"], state.Enabled.Select(p => p.Name));
+        Assert.Equal([("local", AuthProviderKind.Credentials, null)], state.Enabled.Select(p => (p.Name, p.Kind, p.ChallengeUrl)));
         Assert.Null(await schemes.GetSchemeAsync("fake"));
 
-        settings.Values["auth.providers.enabled"] = "fake";
+        settings.Values["auth.provider"] = "ghost";
+        await state.RefreshAsync(CancellationToken.None);
+        Assert.Empty(state.Enabled);   // not registered: logged, nothing offered
+
+        settings.Values["auth.provider"] = "fake";
         await state.RefreshAsync(CancellationToken.None);
         Assert.Equal(3, fake.Applied);   // re-enabled: applied again
         Assert.NotNull(await schemes.GetSchemeAsync("fake"));
@@ -111,7 +117,7 @@ public sealed class AuthProvidersUnitTests
     public async Task The_fake_settings_support_reads_only()
     {
         var settings = new FakeSettings();
-        var key = AuthProviderSettings.Enabled;
+        var key = AuthProviderSettings.Active;
         var scope = SettingScopeRef.Organization;
 
         await Assert.ThrowsAsync<NotSupportedException>(() => settings.SetAsync(key, scope, "x", "me", CancellationToken.None));
@@ -129,7 +135,7 @@ public sealed class AuthProvidersUnitTests
     {
         var fake = new FakeChallengeProvider("fake");
         var settings = new FakeSettings();
-        settings.Values["auth.providers.enabled"] = "fake";
+        settings.Values["auth.provider"] = "fake";
         using var provider = Host(settings, fake, forceLocal: true);
         var state = provider.GetRequiredService<AuthProviderState>();
 
@@ -183,7 +189,7 @@ public sealed class AuthProvidersUnitTests
     {
         var fake = new FakeChallengeProvider("fake");
         var settings = new FakeSettings();
-        settings.Values["auth.providers.enabled"] = "fake";
+        settings.Values["auth.provider"] = "fake";
         using var provider = Host(settings, fake, forceLocal: false);
         var state = provider.GetRequiredService<AuthProviderState>();
         using var lifetime = new StartedLifetime();

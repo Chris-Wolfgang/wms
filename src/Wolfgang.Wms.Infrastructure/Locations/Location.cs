@@ -61,6 +61,24 @@ public sealed class Location : IVersionedEntity
 
 
     /// <summary>
+    /// True when applying <paramref name="draft"/> would change nothing (E16.6: an unchanged import row).
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="draft"/> is null.</exception>
+    public bool Matches(LocationDraft draft)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+
+        return string.Equals(Code, draft.Code.Trim(), StringComparison.Ordinal)
+            && string.Equals(Barcode, draft.Barcode.Trim(), StringComparison.Ordinal)
+            && ZoneId == draft.ZoneId
+            && string.Equals(WalkSequence, draft.WalkSequence.Trim(), StringComparison.Ordinal)
+            && IsPickable == draft.IsPickable
+            && IsActive == draft.IsActive;
+    }
+
+
+
+    /// <summary>
     /// Copies a valid draft into the row.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="draft"/> is null.</exception>

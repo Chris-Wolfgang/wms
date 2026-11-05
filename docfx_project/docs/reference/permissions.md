@@ -9,6 +9,7 @@ Every permission an endpoint checks (E10.1), by module, with the built-in roles 
 | `auth.providers.manage` | auth | — | Configure identity providers and test their connections |
 | `auth.roles.read` | roles | Support | View roles and who holds them |
 | `auth.roles.write` | roles | — | Manage roles and assignments |
+| `imports.write` | imports | — | Load master data files (zones, locations) into a site |
 | `license.manage` | license | — | Install and remove license keys |
 | `license.read` | license | Supervisor, Support, Viewer | View the license, usage against limits and the tier comparison |
 | `locations.read` | locations | Supervisor, Support, Viewer | View the locations |

@@ -9,6 +9,7 @@ using Wolfgang.Wms.Core.Licensing;
 using Wolfgang.Wms.Core.Logging;
 using Wolfgang.Wms.Core.Organization;
 using Wolfgang.Wms.Core.Locations;
+using Wolfgang.Wms.Core.Imports;
 using Wolfgang.Wms.Core.Http.Paging;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
@@ -59,6 +60,10 @@ namespace Wolfgang.Wms.Core.Json;
 [JsonSerializable(typeof(LocationInfo))]
 [JsonSerializable(typeof(Page<LocationInfo>))]
 [JsonSerializable(typeof(LocationDraft))]
+[JsonSerializable(typeof(ImportResult))]
+[JsonSerializable(typeof(ImportRowResult))]
+[JsonSerializable(typeof(List<ZoneImportRow>))]
+[JsonSerializable(typeof(List<LocationImportRow>))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

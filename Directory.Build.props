@@ -42,6 +42,12 @@
     <_RelativeProjectDir>$([MSBuild]::EnsureTrailingSlash($([MSBuild]::MakeRelative($(MSBuildThisFileDirectory), $(MSBuildProjectDirectory)))).Replace('\', '/'))</_RelativeProjectDir>
     <GenerateDocumentationFile Condition="'$(GenerateDocumentationFile)' == '' and $(_RelativeProjectDir.StartsWith('src/'))">true</GenerateDocumentationFile>
 
+    <!-- Nothing is a NuGet package unless it says so. src/ is mostly applications (the API, the console,
+         the worker, the simulator, the handheld, wms-migrate) and release.yaml packs every project that
+         opts in, so the default is off and a library sets <IsPackable>true</IsPackable> in its own csproj.
+         Today that is Wolfgang.Wms.Client only. -->
+    <IsPackable Condition="'$(IsPackable)' == ''">false</IsPackable>
+
     <!-- E1.9: AOT and trim analyzers on every non-UI product project so reflection use fails the build.
          Excluded: the Blazor Server console (.Web), the MAUI handheld (.Android), tests and benchmarks.
          Infrastructure (EF Core) opts out in its csproj: EF's migrations APIs carry RequiresDynamicCode

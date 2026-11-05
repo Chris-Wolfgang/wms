@@ -101,4 +101,16 @@ public sealed class SettingRegistryTests
         Assert.Throws<ArgumentNullException>(() => new SettingRegistry([MaxTotes]).Contains(null!));
         Assert.Throws<ArgumentNullException>(() => SettingsModule.AddWmsSettingsModule(null!));
     }
+
+
+    [Fact]
+    public void Check_accepts_a_protected_secret_as_validated_in_the_clear()
+    {
+        var limited = new SettingKey<SecretText>("smtp.token", new SecretText("t"), "SMTP token.") { Scopes = SettingScopes.Organization, Validator = v => v.Value.Length <= 8 ? null : "at most 8 characters" };
+        var registry = new SettingRegistry([limited]);
+
+        Assert.Equal(SettingErrorCodes.InvalidValue, registry.Check("smtp.token", SettingScope.Organization, "longer than eight")?.Code);
+        Assert.Null(registry.Check("smtp.token", SettingScope.Organization, "enc:v1:" + new string('x', 40)));
+        Assert.Equal(SettingErrorCodes.ScopeNotAllowed, registry.Check("smtp.token", SettingScope.Site, "enc:v1:" + new string('x', 40))?.Code);
+    }
 }

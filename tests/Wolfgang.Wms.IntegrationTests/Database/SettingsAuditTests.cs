@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Testcontainers.PostgreSql;
 using Wolfgang.AuditTrail;
 using Wolfgang.AuditTrail.Entities;
+using Wolfgang.Wms.Core.Caching;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Domain.Keys;
@@ -61,8 +62,7 @@ public sealed class SettingsAuditTests
         services.AddWmsAuditing();
         services.AddWmsDataProtection(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
         services.AddSingleton(TimeProvider.System);
-        services.AddSingleton<Wolfgang.Wms.Core.Caching.IRowVersionSource, MaxRowVersionSource>();
-        services.AddSingleton<Wolfgang.Wms.Infrastructure.Database.Settings.SettingsCache>();
+        services.AddSingleton<IRowVersionSource, MaxRowVersionSource>();
         services.AddScoped<ISettings, Wolfgang.Wms.Infrastructure.Database.Settings.EfSettings>();
         await using var provider = services.BuildServiceProvider();
 

@@ -2,6 +2,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Wolfgang.Wms.Core.Modules;
+using Wolfgang.Wms.Core.Secrets;
 using Wolfgang.Wms.Domain.Keys;
 using Wolfgang.Wms.Domain.Settings;
 
@@ -112,7 +113,8 @@ public sealed class SettingRegistry
             return (SettingErrorCodes.ScopeNotAllowed, $"{key.Name} cannot be configured at the {scope.StoredName()} scope.", [key.Name, scope.StoredName()]);
         }
 
-        var reason = key.Validate(text);
+        // A secret that arrives protected (enc:v1:) was validated in the clear by ProtectedSettings (E8.3).
+        var reason = key.Kind == SettingKind.Secret && ProtectedText.IsProtected(text) ? null : key.Validate(text);
         return reason is null ? null : (SettingErrorCodes.InvalidValue, reason, [reason]);
     }
 

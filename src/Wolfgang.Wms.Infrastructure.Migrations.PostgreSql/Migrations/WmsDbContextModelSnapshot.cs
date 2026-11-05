@@ -17,7 +17,7 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -367,6 +367,15 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                         .HasColumnName("row_version")
                         .HasDefaultValueSql("nextval('wms.row_version_seq')");
 
+                    b.Property<string>("Signature")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("signature");
+
+                    b.Property<int>("Singleton")
+                        .HasColumnType("integer")
+                        .HasColumnName("singleton");
+
                     b.Property<DateTimeOffset?>("SsoVerifiedAt")
                         .HasPrecision(3)
                         .HasColumnType("timestamp(3) with time zone")
@@ -398,9 +407,15 @@ namespace Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.Migrations
                     b.HasIndex("RowVersion")
                         .HasDatabaseName("ix_local_login_gate_row_version");
 
+                    b.HasIndex("Singleton")
+                        .IsUnique()
+                        .HasDatabaseName("ux_local_login_gate_singleton");
+
                     b.ToTable("local_login_gate", "core", t =>
                         {
                             t.HasTrigger("trg_local_login_gate_row_version");
+
+                            t.HasCheckConstraint("ck_local_login_gate_singleton", "singleton = 1");
                         });
                 });
 

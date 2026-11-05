@@ -2,6 +2,7 @@
 
 using Microsoft.Data.SqlClient;
 using Npgsql;
+using Wolfgang.Wms.Core.Secrets;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
 
@@ -71,7 +72,19 @@ public sealed class DatabaseOptions
     /// </summary>
     public string EffectiveConnectionString()
     {
-        var connectionString = ConnectionString ?? string.Empty;
+        return EffectiveConnectionString(protector: null);
+    }
+
+
+
+    /// <summary>
+    /// The connection string the provider receives: decrypted by <paramref name="protector"/> when it is
+    /// stored in the <c>enc:v1:</c> form (E8.2), then with the SQL Server certificate flag applied.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The value is encrypted and <paramref name="protector"/> is null or cannot decrypt it.</exception>
+    public string EffectiveConnectionString(ISecretProtector? protector)
+    {
+        var connectionString = ProtectedText.Reveal(ConnectionString, protector) ?? string.Empty;
         if (ParsedProvider == DatabaseProvider.SqlServer && TrustServerCertificate)
         {
             var builder = new SqlConnectionStringBuilder(connectionString) { TrustServerCertificate = true };
@@ -84,6 +97,13 @@ public sealed class DatabaseOptions
 
         return connectionString;
     }
+
+
+
+    /// <summary>
+    /// True when the connection string is stored encrypted (E8.2).
+    /// </summary>
+    public bool ConnectionStringIsProtected => ProtectedText.IsProtected(ConnectionString);
 
 
 
@@ -120,7 +140,7 @@ public sealed class DatabaseOptions
             errors.Add($"{SectionName}:ConnectionString is required when {SectionName}:Provider is {provider}.");
         }
 
-        if (!string.IsNullOrWhiteSpace(ConnectionString) && ParseProblem(provider.Value, ConnectionString) is { } problem)
+        if (!string.IsNullOrWhiteSpace(ConnectionString) && !ConnectionStringIsProtected && ParseProblem(provider.Value, ConnectionString) is { } problem)   // an enc:v1: string only parses once decrypted
         {
             errors.Add($"{SectionName}:ConnectionString is not valid: {problem}");
         }

@@ -39,10 +39,16 @@ Playwright + axe) run on `main` merges and nightly, never per PR. A `paths:` fil
 a **required** status check (a PR the filter skips would wait forever for it); path-based skipping is done
 inside the job with `dorny/paths-filter`-style detection, or the job is not required.
 
-Provider tests run against real engines in containers (`ProviderStartupTests`: SQL Server 2022, SQL Server 2025
-Express, PostgreSQL 16; they need Docker, which CI has, and skip on a developer machine without it); the
-migration-drift check is the Stage 1 step over `scripts/Check-Migrations.ps1`; the OpenAPI diff is the
-`openapi-diff` job. Not yet wired: Playwright + axe (E82 UI stories).
+Provider tests run against real engines: containers on the Linux job (SQL Server 2022 and 2025 Express,
+PostgreSQL 16, the mock OIDC provider), and on the Windows job the SQL Server tests run against SQL Server
+Express LocalDB (`WMS_TEST_SQLSERVER` names the instance; `SqlServerTestDatabase` creates a database per
+test) while the Docker-only tests are skipped naming Chris-Wolfgang/wms#220 — every skip must name an open
+issue, which `scripts/Check-Skips.ps1` verifies from the TRX files (E13.1). Test assemblies are measured at
+100% line coverage. The migration-drift check is the Stage 1 step over `scripts/Check-Migrations.ps1`; the
+logging rules (docs/LOGGING.md) are the Stage 1 step over `scripts/Check-LogLevels.ps1`; the OpenAPI diff is
+the `openapi-diff` job. The compose smoke (`compose-smoke.yaml`: images built from the tree, the stack
+provisioned and migrated, `/health/ready` through Caddy, torn down) runs on `main` merges, weekly and on
+demand, opening an issue on failure (E13.3). Not yet wired: Playwright + axe (E82 UI stories).
 
 ## Main gate (E85.2)
 
@@ -88,8 +94,9 @@ Tag `vX.Y.Z` (a GitHub release, immutable). The same `release.yaml` in **release
 identity, images, installers and docs published under `versions/vX.Y.Z/` (and `versions/latest/`), GitHub
 release with the assembled changelog,
 SBOM attached (E85.8). The `release` skill assembles the changelog (`changelog.ps1 assemble`), writes migration
-notes, runs the upgrade test from the previous version, regenerates notices, closes the milestone and creates
-the next one.
+notes, runs the upgrade test from the previous version, regenerates notices, refreshes the licensing baseline
+(`docs/licensing/tier-table.txt` from `TierTables.Current.ToLines()`, docfx_project/docs/licensing.md), closes the milestone
+and creates the next one.
 
 ## Hotfix gate (E85.5)
 

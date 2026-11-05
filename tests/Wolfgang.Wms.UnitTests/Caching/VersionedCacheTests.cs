@@ -125,7 +125,7 @@ public sealed class VersionedCacheTests
         using var cache = CreateCache();
         await cache.GetAsync(Load, CancellationToken.None);
         _clock.Advance(Interval);
-        _source.OnProbe = () => cache.Invalidate();   // a writer commits and invalidates while the probe is out; the stamp it answers predates the commit
+        _source.OnProbe = cache.Invalidate;   // a writer commits and invalidates while the probe is out; the stamp it answers predates the commit
 
         var value = await cache.GetAsync(Load, CancellationToken.None);
         var stampAfter = cache.CachedStamp;

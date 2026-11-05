@@ -430,10 +430,10 @@ public sealed class MigrationRunner
         // the types as written.
         var familyChanged = (oldType.Family is null) != (newType.Family is null)
             || (oldType.Family is not null && !string.Equals(oldType.Family, newType.Family, StringComparison.Ordinal));
-        var clrTypeChanged = old.ClrType is not null && alter.ClrType is not null && old.ClrType != alter.ClrType;
+        var clrTypeChanged = old.ClrType != alter.ClrType;
         if (familyChanged || clrTypeChanged)
         {
-            reasons.Add("type " + (oldType.Text ?? "inferred for " + old.ClrType?.Name) + " -> " + (newType.Text ?? "inferred for " + alter.ClrType?.Name));
+            reasons.Add("type " + (oldType.Text ?? "inferred for " + old.ClrType.Name) + " -> " + (newType.Text ?? "inferred for " + alter.ClrType.Name));
         }
 
         return string.Join(", ", reasons);
@@ -453,8 +453,8 @@ public sealed class MigrationRunner
         var newPrecision = alter.Precision ?? newType.Precision;
         // A decimal with a precision but no scale is decimal(p,0) on both providers, so an omitted scale beside a
         // known precision is 0 here, as the parser already reads "decimal(18)"; other families have no scale.
-        var oldScale = old.Scale ?? oldType.Scale ?? (oldPrecision is not null && IsDecimalColumn(oldType, old.ClrType) ? 0 : (int?)null);
-        var newScale = alter.Scale ?? newType.Scale ?? (newPrecision is not null && IsDecimalColumn(newType, alter.ClrType) ? 0 : (int?)null);
+        var oldScale = old.Scale ?? oldType.Scale ?? (oldPrecision is not null && IsDecimalColumn(oldType, old.ClrType) ? 0 : null);
+        var newScale = alter.Scale ?? newType.Scale ?? (newPrecision is not null && IsDecimalColumn(newType, alter.ClrType) ? 0 : null);
         var inferredDecimal = alter.ColumnType is null && alter.ClrType == typeof(decimal);   // no store type written: the provider's default decimal, decimal(18,2) on SQL Server
         var facetlessDecimal = newType.Facetless && StoreType.IsDecimal(newType.Family!);
         if (newPrecision is null && (facetlessDecimal || inferredDecimal) && oldPrecision is { } droppedPrecision)

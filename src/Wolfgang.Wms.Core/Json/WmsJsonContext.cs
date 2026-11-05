@@ -1,7 +1,21 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
 using System.Text.Json.Serialization;
+using Wolfgang.Wms.Core.Authorization;
+using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Identity.BreakGlass;
+using Wolfgang.Wms.Core.Identity.Providers;
+using Wolfgang.Wms.Core.Licensing;
+using Wolfgang.Wms.Core.Logging;
+using Wolfgang.Wms.Core.Organization;
+using Wolfgang.Wms.Core.Locations;
+using Wolfgang.Wms.Core.Imports;
+using Wolfgang.Wms.Core.Copies;
+using Wolfgang.Wms.Core.Http.Paging;
 using Wolfgang.Wms.Core.Schema;
+using Wolfgang.Wms.Core.Settings;
+using Wolfgang.Wms.Core.Sites;
+using Wolfgang.Wms.Core.Zones;
 
 namespace Wolfgang.Wms.Core.Json;
 
@@ -12,6 +26,49 @@ namespace Wolfgang.Wms.Core.Json;
 /// </summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DictionaryKeyPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(SchemaStatus))]
+[JsonSerializable(typeof(List<SettingDescriptor>))]
+[JsonSerializable(typeof(SettingValue))]
+[JsonSerializable(typeof(IReadOnlyList<SettingValue>))]
+[JsonSerializable(typeof(SetSettingRequest))]
+[JsonSerializable(typeof(LocalLoginRequest))]
+[JsonSerializable(typeof(ChangePasswordRequest))]
+[JsonSerializable(typeof(SessionInfo))]
+[JsonSerializable(typeof(ElevateLogLevelRequest))]
+[JsonSerializable(typeof(LoggingStatus))]
+[JsonSerializable(typeof(IReadOnlyList<AuthProviderInfo>))]
+[JsonSerializable(typeof(AuthProviderHealth))]
+[JsonSerializable(typeof(LocalLoginStatus))]
+[JsonSerializable(typeof(IReadOnlyList<PermissionDescriptor>))]
+[JsonSerializable(typeof(RoleInfo))]
+[JsonSerializable(typeof(IReadOnlyList<RoleInfo>))]
+[JsonSerializable(typeof(RoleDraft))]
+[JsonSerializable(typeof(CopyRoleRequest))]
+[JsonSerializable(typeof(RoleAssignmentInfo))]
+[JsonSerializable(typeof(IReadOnlyList<RoleAssignmentInfo>))]
+[JsonSerializable(typeof(AssignRoleRequest))]
+[JsonSerializable(typeof(LicenseStatus))]
+[JsonSerializable(typeof(InstallLicenseKeyRequest))]
+[JsonSerializable(typeof(FeatureComparison))]
+[JsonSerializable(typeof(OrganizationInfo))]
+[JsonSerializable(typeof(OrganizationDraft))]
+[JsonSerializable(typeof(OrganizationPublicInfo))]
+[JsonSerializable(typeof(SiteInfo))]
+[JsonSerializable(typeof(IReadOnlyList<SiteInfo>))]
+[JsonSerializable(typeof(SiteDraft))]
+[JsonSerializable(typeof(ZoneInfo))]
+[JsonSerializable(typeof(IReadOnlyList<ZoneInfo>))]
+[JsonSerializable(typeof(ZoneDraft))]
+[JsonSerializable(typeof(LocationInfo))]
+[JsonSerializable(typeof(Page<LocationInfo>))]
+[JsonSerializable(typeof(LocationDraft))]
+[JsonSerializable(typeof(ImportResult))]
+[JsonSerializable(typeof(ImportRowResult))]
+[JsonSerializable(typeof(List<ZoneImportRow>))]
+[JsonSerializable(typeof(List<LocationImportRow>))]
+[JsonSerializable(typeof(SiteCopyRequest))]
+[JsonSerializable(typeof(ZoneCopyRequest))]
+[JsonSerializable(typeof(LocationCopyRequest))]
+[JsonSerializable(typeof(LocationRangeCopyRequest))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

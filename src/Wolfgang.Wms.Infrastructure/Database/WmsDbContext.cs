@@ -7,7 +7,6 @@ using Wolfgang.Wms.Infrastructure.Database.Auditing;
 using Wolfgang.Wms.Infrastructure.Database.Conventions;
 using Wolfgang.Wms.Infrastructure.Database.Settings;
 using Wolfgang.Wms.Infrastructure.Identity;
-using Wolfgang.Wms.Infrastructure.Database.Leader;
 using Wolfgang.Wms.Infrastructure.Integrity;
 
 namespace Wolfgang.Wms.Infrastructure.Database;
@@ -77,13 +76,6 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
 
 
 
-    /// <summary>
-    /// <c>core.group_role_mapping</c> (E11.2): a provider's groups mapped to roles.
-    /// </summary>
-    public DbSet<GroupRoleMapping> GroupRoleMappings => Set<GroupRoleMapping>();
-
-
-
     /// <inheritdoc/>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -104,15 +96,10 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration<Role>(roles);
         modelBuilder.ApplyConfiguration<RolePermission>(roles);
         modelBuilder.ApplyConfiguration<UserRole>(roles);
-        modelBuilder.ApplyConfiguration(new GroupRoleMappingConfiguration());   // E11.2
         modelBuilder.Entity<DataProtectionKey>().ToTable("data_protection_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E8.6: library-owned, in wms like the migrations history
         modelBuilder.Entity<DataProtectionKey>().Property(k => k.FriendlyName).HasMaxLength(256);
         modelBuilder.Entity<IntegrityKey>().ToTable("integrity_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E10.4: the HMAC key, protected by the ring
         modelBuilder.Entity<IntegrityKey>().Property(k => k.ProtectedKey).HasMaxLength(512).IsRequired();
-        modelBuilder.Entity<LeaderLock>().ToTable("leader_lock", DatabaseServiceCollectionExtensions.HistorySchema);   // E12.6: one row per singleton job
-        modelBuilder.Entity<LeaderLock>().Property(l => l.Name).HasMaxLength(LeaderLock.NameLength).IsRequired();
-        modelBuilder.Entity<LeaderLock>().Property(l => l.Holder).HasMaxLength(LeaderLock.HolderLength).IsRequired();
-        modelBuilder.Entity<LeaderLock>().HasIndex(l => l.Name).IsUnique();   // Serves: take-or-renew by name; the first taker's insert wins
         ModelConventions.Apply(modelBuilder, Database.ProviderName);
     }
 }

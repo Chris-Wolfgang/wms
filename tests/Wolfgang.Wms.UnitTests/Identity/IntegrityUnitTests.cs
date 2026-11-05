@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
-using Wolfgang.Wms.Core.Jobs;
 using Wolfgang.Wms.Core.Modules;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Identity;
@@ -61,11 +60,10 @@ public sealed class IntegrityUnitTests
         role.Permissions.AddRange([new RolePermission { PermissionName = "b" }, new RolePermission { PermissionName = "a" }]);
         var assignment = new UserRole { Id = 9, UserId = 7, RoleId = 3, SiteId = 5, ExpiresAt = null, UpdatedBy = "changes freely" };
 
-        Assert.Equal("user\nALICE\nhash\n1\n0\n1\n2026-09-20T06:00:00.123Z\n3\n2026-09-20T06:15:00.000Z\n\n", user.CanonicalContent());   // UTC, millisecond precision: the same before the write and after the read
+        Assert.Equal("user\nALICE\nhash\n1\n0\n1\n2026-09-20T06:00:00.123Z\n3\n2026-09-20T06:15:00.000Z", user.CanonicalContent());   // UTC, millisecond precision: the same before the write and after the read
         Assert.Equal("role\nPICKER\n\na,b", role.CanonicalContent());
         Assert.Equal("user_role\n7\n3\n5\n", assignment.CanonicalContent());
-        Assert.Equal("user\n\n\n0\n0\n0\n\n0\n\n\n", new User().CanonicalContent());
-        Assert.Equal("user\nBOB\n\n0\n0\n0\n\n0\n\noidc\nsub-1", new User { UserNameNormalized = "BOB", Provider = "oidc", ProviderSubject = "sub-1" }.CanonicalContent());   // E11.1: the identity binding is signed
+        Assert.Equal("user\n\n\n0\n0\n0\n\n0\n", new User().CanonicalContent());
         Assert.Equal("user_role\n0\n0\n\n2026-09-20T06:00:00.123Z", new UserRole { ExpiresAt = user.SessionsValidAfter }.CanonicalContent());
     }
 
@@ -154,9 +152,8 @@ public sealed class IntegrityUnitTests
         Assert.Throws<ArgumentNullException>(() => IntegrityServiceCollectionExtensions.AddWmsIntegrityVerification(null!));
         Assert.Throws<ArgumentNullException>(() => new IntegritySigner(null!, NullLogger<IntegritySigner>.Instance));
         Assert.Throws<ArgumentNullException>(() => new IntegritySigner(provider.GetRequiredService<IServiceScopeFactory>(), null!));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(null!, new NoLeaderLock(), NullLogger<IntegrityVerificationJob>.Instance));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), null!, NullLogger<IntegrityVerificationJob>.Instance));
-        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), new NoLeaderLock(), null!));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(null!, NullLogger<IntegrityVerificationJob>.Instance));
+        Assert.Throws<ArgumentNullException>(() => new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), null!));
         Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(null!, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance));
         Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(signer, null!, NullLogger<IntegrityBackfillCheck>.Instance));
         Assert.Throws<ArgumentNullException>(() => new IntegrityBackfillCheck(signer, Options.Create(new KeyRingOptions()), null!));
@@ -197,7 +194,7 @@ public sealed class IntegrityUnitTests
         using var provider = services.BuildServiceProvider();
         using var signer = new IntegritySigner(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<IntegritySigner>.Instance);
         var check = new IntegrityBackfillCheck(signer, Options.Create(new KeyRingOptions()), NullLogger<IntegrityBackfillCheck>.Instance);
-        var job = new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), new NoLeaderLock(), NullLogger<IntegrityVerificationJob>.Instance);
+        var job = new IntegrityVerificationJob(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<IntegrityVerificationJob>.Instance);
 
         await check.StopAsync(CancellationToken.None);
         await job.StopAsync(CancellationToken.None);

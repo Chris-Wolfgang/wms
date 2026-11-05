@@ -51,6 +51,7 @@ jobs:
   secrets-scan:
     name: "Secrets Scan (gitleaks)"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -93,7 +94,7 @@ jobs:
         # update scripts/build-pr.ps1 to the same version.
         run: |
           GITLEAKS_VERSION="8.30.1"
-          GITLEAKS_SHA256="551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+          GITLEAKS_SHA256="551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"  # DevSkim: ignore DS173237 - the published checksum of the gitleaks release archive, not a secret
           mkdir -p "$HOME/.local/bin"
           TARBALL="$(mktemp)"
           curl -sSfL -o "$TARBALL" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
@@ -113,6 +114,7 @@ jobs:
   detect-projects:
     name: "Detect .NET Projects"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # The full checks (every job that needs this one: Stage 1, Stage 2, InspectCode, AOT smoke, OpenAPI diff)
     # run only for a pull request that targets main. A stacked PR (base = another PR's branch) gets them when it
     # reaches main; until then the per-push workflows (actionlint, zizmor, Semgrep, SBOM, SourceLink, licence
@@ -382,6 +384,7 @@ jobs:
   changelog-check:
     name: "Changelog Fragment Check"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event.pull_request.user.login != 'dependabot[bot]'
     steps:
       - name: Checkout code
@@ -442,6 +445,7 @@ jobs:
   openapi-diff:
     name: "OpenAPI Diff"
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: detect-projects
     if: github.repository != 'Chris-Wolfgang/repo-template' && needs.detect-projects.outputs.has-projects == 'true'
     permissions:
@@ -453,6 +457,14 @@ jobs:
         document: [v0]
     env:
       DOCUMENT: ${{ matrix.document }}
+      # The oasdiff CLI, from the project's GitHub release: the oasdiff-action steps are Docker container
+      # actions whose image comes from Docker Hub and is built before any step runs, so neither a login nor a
+      # pre-pull can authenticate that pull (#842). The CLI is downloaded over HTTPS from GitHub and its SHA-256
+      # checked against the pinned value below, which is the linux_amd64 line of the release's checksums.txt
+      # (fetching that file over the same channel would add nothing). Bump both together; v1.33.0 is the version
+      # the action pins.
+      OASDIFF_VERSION: 1.33.0
+      OASDIFF_SHA256: 43a4e328e2d13ba1552d760aa68d2485c75c5621f309f6ff64ae895188345247
     steps:
       - name: Checkout PR head (docs/api only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -489,42 +501,93 @@ jobs:
           echo "frozen=$frozen" >> "$GITHUB_OUTPUT"
           echo "$DOCUMENT: $state (frozen: $frozen)"
 
+      - name: Install oasdiff
+        # After the classification, and only for a changed document, so a download or checksum failure
+        # can never leave the comment step below reporting a comparison that did not happen.
+        id: install
+        if: steps.classify.outputs.state == 'changed'
+        shell: bash
+        run: |
+          archive="oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL --retry 3 -o "$RUNNER_TEMP/$archive" "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/$archive"
+          echo "$OASDIFF_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/oasdiff"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/oasdiff" oasdiff
+          # Called by its path below rather than added to GITHUB_PATH (zizmor github-env: a PATH edit in a
+          # pull_request_target job is a code-execution vector, however trusted this one is).
+          "$RUNNER_TEMP/oasdiff/oasdiff" --version
+
       - name: Breaking changes (fails only for a frozen version)
         id: breaking
         if: steps.classify.outputs.state == 'changed'
-        uses: oasdiff/oasdiff-action/breaking@b9325c9e0a27ab65b0da3b766522cedec6be81dc  # v0.1.18
-        with:
-          base: base/docs/api/openapi-${{ matrix.document }}.json
-          revision: pr/docs/api/openapi-${{ matrix.document }}.json
-          fail-on: ${{ steps.classify.outputs.frozen == 'true' && 'ERR' || '' }}
-          review: false
+        shell: bash
+        env:
+          FROZEN: ${{ steps.classify.outputs.frozen }}
+        run: |
+          base="base/docs/api/openapi-$DOCUMENT.json"
+          revision="pr/docs/api/openapi-$DOCUMENT.json"
+          # Same two calls as the oasdiff-action entrypoint: annotations for every breaking change (never
+          # fails), then the gate, which fails a frozen document on an ERR-level change. The CLI follows
+          # external $refs by default; the action switched that off, and so does every call here, because the
+          # revision is the PR's document (an external $ref would make the runner fetch a URL or file of the
+          # PR author's choosing). oasdiff needs the "=false" form for a false boolean.
+          # Exit 1 means breaking changes were found (annotated above, gated below for a frozen document); anything
+          # higher is a load, parse or internal error, and the comparison did not happen: fail here, so the
+          # comment step reports an incomplete comparison instead of a clean one.
+          # "completed" tells the comment step apart: a failed gate (exit 1 below) is a result, an oasdiff
+          # error is not, and both end this step with the failure outcome.
+          echo "completed=false" >> "$GITHUB_OUTPUT"
+          rc=0
+          "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --format githubactions --allow-external-refs=false || rc=$?
+          if [ "$rc" -ge 2 ]; then
+            echo "::error::oasdiff breaking failed with exit code $rc"
+            exit "$rc"
+          fi
+          echo "completed=true" >> "$GITHUB_OUTPUT"
+          if [ "$FROZEN" = true ]; then
+            "$RUNNER_TEMP/oasdiff/oasdiff" breaking "$base" "$revision" --fail-on ERR --allow-external-refs=false
+          fi
 
       - name: Changelog
-        if: steps.classify.outputs.state == 'changed'
-        uses: oasdiff/oasdiff-action/changelog@b9325c9e0a27ab65b0da3b766522cedec6be81dc  # v0.1.18
-        with:
-          base: base/docs/api/openapi-${{ matrix.document }}.json
-          revision: pr/docs/api/openapi-${{ matrix.document }}.json
-          output-to-file: changelog.md
+        # Runs after a failed breaking-changes gate too (the comment should still show what changed), but not
+        # without the binary; the comment step reads this step's outcome. Unlike the replaced action's changelog
+        # step (review: true by default), this uploads nothing to oasdiff.com and posts no review link: the
+        # changelog below is the whole result, and no spec leaves CI.
+        id: changelog
+        if: "!cancelled() && steps.classify.outputs.state == 'changed' && steps.install.outcome == 'success'"
+        shell: bash
+        run: |
+          "$RUNNER_TEMP/oasdiff/oasdiff" changelog "base/docs/api/openapi-$DOCUMENT.json" "pr/docs/api/openapi-$DOCUMENT.json" --allow-external-refs=false > changelog.md
 
       - name: Post or update the PR comment
-        if: always() && steps.classify.outputs.state != 'unchanged' && steps.classify.outputs.state != 'absent'
+        if: always() && (steps.classify.outputs.state == 'changed' || steps.classify.outputs.state == 'new')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           STATE: ${{ steps.classify.outputs.state }}
           FROZEN: ${{ steps.classify.outputs.frozen }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
           BREAKING_OUTCOME: ${{ steps.breaking.outcome }}
+          BREAKING_COMPLETED: ${{ steps.breaking.outputs.completed }}
+          CHANGELOG_OUTCOME: ${{ steps.changelog.outcome }}
         run: |
           marker="<!-- openapi-diff: $DOCUMENT -->"
           {
             echo "$marker"
             echo "### OpenAPI \`$DOCUMENT\` — $STATE$( [ "$FROZEN" = true ] && echo ' (frozen: breaking changes fail this PR)' || echo ' (unstable: breaking changes allowed with a breaking-type changelog fragment)' )"
             echo
+            # A comparison that did not complete is said so, never shown as a clean result: a failed download
+            # or changelog leaves changelog.md absent, which must not read as "no changes".
             if [ "$STATE" = new ]; then
               echo "New document; nothing to compare against on the base branch."
+            elif [ "$INSTALL_OUTCOME" != success ] || [ "$BREAKING_COMPLETED" != true ] || [ "$CHANGELOG_OUTCOME" != success ]; then
+              echo "**The comparison did not complete** (install oasdiff: $INSTALL_OUTCOME, breaking-changes analysis completed: ${BREAKING_COMPLETED:-false}, gate: $BREAKING_OUTCOME, changelog: $CHANGELOG_OUTCOME); see the job log. An earlier result in this comment no longer applies."
             elif [ -s changelog.md ]; then
+              if [ "$BREAKING_OUTCOME" = failure ]; then
+                echo "**Breaking changes in a frozen document; this PR fails.**"
+                echo
+              fi
               cat changelog.md
             else
               echo "No API-level changes (formatting or description only)."
@@ -718,7 +781,10 @@ jobs:
           dotnet build "$SLN" -c Release --no-restore
 
       - name: Install JetBrains.ReSharper.GlobalTools
-        run: dotnet tool install -g JetBrains.ReSharper.GlobalTools
+        # Pinned: a new ReSharper major changes the rule set and the noise floor overnight, failing
+        # unrelated PRs; the error-severity gate is only as stable as this version. Bump deliberately
+        # (Dependabot cannot bump a run: step) and re-baseline the findings in the same PR.
+        run: dotnet tool install -g JetBrains.ReSharper.GlobalTools --version 2026.2.3.1
 
       - name: Run InspectCode
         env:
@@ -793,16 +859,38 @@ jobs:
 
       - name: Upload SARIF to Code Scanning
         if: steps.sarif.outcome == 'success' && hashFiles('inspect.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d  # v4.38.3
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370  # v4.39.1
         with:
           sarif_file: inspect.sarif
+          # Under pull_request_target the action's defaults are github.ref / github.sha, which are main and
+          # main's commit, so every PR's findings landed on the default branch's alert list (and fed the nightly
+          # alert-to-issue triage) while the PR itself was never annotated. The analysis ran on the PR head,
+          # so that is what it is recorded against.
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          sha: ${{ github.event.pull_request.head.sha }}
 
   # ============================================================================
   # STAGE 1: Linux - .NET Core/5+ Tests with Coverage Gate
   # ============================================================================
   test-linux-core: 
     name: "Stage 1: Linux Tests (.NET 5.0-10.0) + Coverage Gate"
-    runs-on:  ubuntu-latest
+    # Pinned to 24.04: on ubuntu-latest (26.04) the netcoreapp3.1 test host finds no ICU it can
+    # load and aborts. Keep the pin until the netcoreapp3.1 slot is handled another way.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      # True only when both secrets are set: a username without its token would start a login that fails, and
+      # the pulls would not be authenticated. The token itself never enters the environment.
+      DOCKERHUB_AUTH: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+      # The Docker Hub images the tests pull, pre-pulled while the login is active (see the step). Add one when a
+      # test starts using another Docker Hub image; MCR (SQL Server) and quay.io (Keycloak) images are not
+      # subject to Docker Hub's limit and are not listed.
+      DOCKERHUB_IMAGES: postgres:16
+      # Testcontainers starts a Ryuk reaper container (testcontainers/ryuk, from Docker Hub) beside every test
+      # engine to clean up after a crashed test host. An ephemeral runner is thrown away anyway, so the pull is
+      # one more Docker Hub request per job for nothing; it took the SQL Server tool test down with it (#842).
+      TESTCONTAINERS_RYUK_DISABLED: 'true'
     needs: detect-projects
     if: github.repository != 'Chris-Wolfgang/repo-template' && needs.detect-projects.outputs.has-projects == 'true'
     
@@ -901,6 +989,35 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Log in to Docker Hub (authenticated pulls)
+        # Docker Hub's unauthenticated pull limit is shared by the runner's egress address and fails the
+        # PostgreSQL container tests at random (#842). With a read-only access token the pulls count against
+        # the account instead. Skipped when the secret is absent (the template). Under pull_request_target the
+        # secret is present for a fork's PR as well, and that is fine: the credential only pulls the images this
+        # workflow names (a fork cannot edit this file, the base branch's copy runs) and is logged out in the
+        # next step, before any pull-request code runs.
+        if: env.DOCKERHUB_AUTH == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull the Docker Hub images the tests use, then log out
+        # The login must not outlive this step: everything after it (restore, build, tests) runs code from the
+        # pull request, which could read a stored credential. The images go into the runner's cache here, so
+        # Testcontainers finds them without touching Docker Hub later.
+        if: env.DOCKERHUB_AUTH == 'true'
+        shell: bash
+        run: |
+          # The logout is an EXIT trap so a failed pull cannot leave the credential behind, and the pull output
+          # goes under TestResults so the rate-limit diagnostic at the end of the job sees a "toomanyrequests"
+          # that happens here, where it is now most likely.
+          trap 'docker logout' EXIT
+          mkdir -p TestResults
+          for image in $DOCKERHUB_IMAGES; do
+            docker pull "$image" 2>&1 | tee -a TestResults/docker-pull.log
+          done
+
       - name: Restore .NET workloads
         # Some projects (MAUI / MauiHybrid / Android / iOS / WPF) declare workloads via
         # their TFMs (e.g. net10.0-android). For workload-bearing repos this installs them
@@ -908,11 +1025,23 @@ jobs:
         # avoid ~5-15s of network-dependent setup and an extra failure mode.
         shell: bash
         run: |
-          if find . -name '*.csproj' -type f -exec grep -lE 'net[0-9]+\.[0-9]+-(android|ios|maccatalyst|maui|tvos|tizen|browser)' {} \; | grep -q .; then
-            echo "Workload-bearing TFMs detected — running dotnet workload restore"
+          # Only a project this job will build needs its workload: one that lists a platform TFM
+          # (net10.0-android) next to a Linux-buildable one. A platform-only project (the handheld)
+          # is excluded by the build filter below, so installing the Android workload for it costs
+          # minutes on every run and produces nothing.
+          needs_workload=false
+          while IFS= read -r -d '' proj; do
+            flat=$(tr -d '\n\r' < "$proj")
+            if printf '%s' "$flat" | grep -qE 'net[0-9]+\.[0-9]+-(android|ios|maccatalyst|maui|tvos|tizen|browser)' \
+               && printf '%s' "$flat" | grep -qE '<TargetFramework[s]?>[^<]*(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)([;<]|$)|netcoreapp|netstandard)'; then
+              needs_workload=true
+            fi
+          done < <(find . -name '*.csproj' -type f -print0)
+          if [ "$needs_workload" = true ]; then
+            echo "A project this job builds carries a workload-bearing TFM — running dotnet workload restore"
             dotnet workload restore
           else
-            echo "No workload-bearing TFMs in any csproj — skipping dotnet workload restore"
+            echo "No project this job builds carries a workload-bearing TFM — skipping dotnet workload restore"
           fi
 
       - name: Restore and build (exclude .NET Framework-only projects)
@@ -929,11 +1058,14 @@ jobs:
             # Check if project has any .NET 5+ target framework
             # Look for: net5.0, net6.0, net7.0, net8.0, net9.0, net10.0, or netcoreapp, netstandard
             # Normalize line endings to handle multi-line <TargetFramework> / <TargetFrameworks> elements
-            if tr -d '\n\r' < "$proj" | grep -qE '<TargetFramework[s]?>.*(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)|netcoreapp|netstandard)'; then
+            # Exact TFM only ([;<] or end after the moniker): a platform TFM such as net10.0-android is
+            # not buildable here, and the per-framework filter below would skip it anyway, so restoring
+            # it (and its workload) was wasted work.
+            if tr -d '\n\r' < "$proj" | grep -qE '<TargetFramework[s]?>[^<]*(net(5\.0|6\.0|7\.0|8\.0|9\.0|10\.0)([;<]|$)|netcoreapp|netstandard)'; then
               projects+=("$proj")
               echo "✓ Including: $proj (has .NET 5+ or .NET Core target)"
             else
-              echo "⊘ Excluding: $proj (Framework-only, incompatible with Linux)"
+              echo "⊘ Excluding: $proj (no Linux-buildable target: Framework-only or platform TFM)"
             fi
           done < <(find . -type f \( -name "*.csproj" -o -name "*.vbproj" -o -name "*.fsproj" \) -print0)
           
@@ -1018,6 +1150,9 @@ jobs:
         # main's. It runs against the PR's projects (-Root), as the build and tests already do.
         # It also runs for Dependabot (an EF Core bump can change the model), which skips the
         # trusted-config step, so the main-branch ref is fetched here when it is missing.
+        # Git only in this step: the job token is in its environment. The check itself runs in the next
+        # step, without the token, because dotnet-ef loads and executes the PR's DbContext (#917).
+        id: migrations-check-source
         shell: bash
         env:
           TRUSTED_MAIN_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}
@@ -1028,9 +1163,17 @@ jobs:
           fi
           if ! git cat-file -e "main-branch:$checker" 2>/dev/null; then
             echo "$checker is not on main yet; the migrations check starts once it lands there."
+            echo "present=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git show "main-branch:$checker" > "$RUNNER_TEMP/Check-Migrations.ps1"
+          echo "present=true" >> "$GITHUB_OUTPUT"
+
+      - name: Migrations cover the model on both providers (E2.4) - run the check
+        # No token in this step's environment: dotnet-ef builds and executes the PR's model.
+        if: steps.migrations-check-source.outputs.present == 'true'
+        shell: bash
+        run: |
           # The EF CLI matches the EF Core packages the project pins (PR-supplied data: x.y.z only).
           ef_version=$(grep -ohE 'Include="Microsoft\.EntityFrameworkCore\.SqlServer" Version="[0-9]+\.[0-9]+\.[0-9]+"' src/Wolfgang.Wms.Infrastructure/*.csproj | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)
           if [ -z "$ef_version" ]; then
@@ -1042,13 +1185,6 @@ jobs:
           # Global dotnet tools install under ~/.dotnet/tools; make sure `dotnet-ef` resolves.
           export PATH="$HOME/.dotnet/tools:$PATH"
           pwsh -NoProfile -File "$RUNNER_TEMP/Check-Migrations.ps1" -Root "$GITHUB_WORKSPACE"
-
-      - name: Logging rules (E12.2)
-        # No Console.Write in a host or library, no interpolated log calls, every [LoggerMessage] declares a Level.
-        # Skipped until the script exists on the PR head (it arrives with the E12.2 code change).
-        if: hashFiles('scripts/Check-LogLevels.ps1') != ''
-        shell: pwsh
-        run: pwsh ./scripts/Check-LogLevels.ps1
 
       - name: Run tests with coverage (.NET Core 5.0 - 10.0)
         # Explicit bash: GitHub's implicit default is `bash -e` WITHOUT
@@ -1147,7 +1283,11 @@ jobs:
               # ..."), which is how ETL-FixedWidth ran zero tests on two TFMs for
               # weeks with a green CI. Fail the TFM unless the summary reports a
               # non-zero total (vstest prints "Total: N" at minimal and "Total tests: N" at normal verbosity, MTP prints "total: N").
-              test_log=$(mktemp)
+              # Written under TestResults, kept when the run fails (removed below when it passes), so the
+              # rate-limit diagnostic at the end of the job can read what dotnet test printed; the console
+              # logger is the only one, so nothing else records the failure.
+              mkdir -p TestResults
+              test_log="TestResults/console-$(basename "$test_proj" .csproj)-$fw.log"
               dotnet test "$test_proj" \
                 --configuration Release \
                 --framework "$fw" \
@@ -1155,7 +1295,6 @@ jobs:
                 --collect:"XPlat Code Coverage" \
                 --settings coverlet.runsettings \
                 --results-directory "./TestResults" \
-                --logger "trx" \
                 --logger "console;verbosity=minimal" 2>&1 | tee "$test_log" || exit 1
               if grep -q "No test is available" "$test_log" || ! grep -qiE "total( tests)?:[[:space:]]*[1-9][0-9]*" "$test_log"; then
                 echo "::error file=$test_proj::Zero tests ran for $fw — the test adapter found nothing to execute (missing/incompatible xunit.runner.visualstudio for this TFM?). dotnet test exits 0 in this case, so this guard fails the job instead."
@@ -1166,13 +1305,42 @@ jobs:
             echo ""
           done
 
-      - name: Skipped tests name an open issue (E13.1)
-        # A skip whose reason names no open issue is a test silently switched off.
-        if: hashFiles('scripts/Check-Skips.ps1') != ''
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: pwsh ./scripts/Check-Skips.ps1 -ResultsDirectory ./TestResults
+      - name: Docker Hub rate-limit diagnostic (#842)
+        # A pull that Docker Hub refused with "toomanyrequests" fails a container test like a product failure
+        # would. When that is what happened, say so in the summary, so nobody debugs the product for it.
+        if: failure()
+        shell: bash
+        run: |
+          # grep exits 1 when nothing matches, which under the shell's pipefail would end the step before the
+          # else branch; the no-match status is the expected case here.
+          # Only Docker Hub's own wording ("toomanyrequests: You have reached your ... pull rate limit"): a bare
+          # 429 would also match a product test that received one from the API under test.
+          # Where the message sits says which pull was refused: docker-pull.log is the authenticated pre-pull
+          # (when the secrets exist); anything else is a pull Testcontainers made during the tests, which is
+          # always anonymous, because the credential is logged out before any pull-request code runs.
+          prepull=$( (grep -lE "toomanyrequests|pull rate limit" TestResults/docker-pull.log 2>/dev/null || true) | wc -l)
+          tests=$( (grep -rlE --exclude=docker-pull.log "toomanyrequests|pull rate limit" TestResults 2>/dev/null || true) | wc -l)
+          hits=$((prepull + tests))
+          if [ "$hits" -gt 0 ]; then
+            remedy=""
+            if [ "$prepull" -gt 0 ]; then
+              remedy="The authenticated pre-pull (as $DOCKERHUB_USERNAME) was refused, so that account's pull quota is exhausted: re-run the job later, or raise the quota."
+            fi
+            if [ "$tests" -gt 0 ] && [ "$DOCKERHUB_AUTH" = true ]; then
+              remedy="$remedy A pull made during the tests was refused; those pulls are anonymous, so the image is one the pre-pull did not cache: add it to DOCKERHUB_IMAGES in pr.yaml."
+            elif [ "$tests" -gt 0 ]; then
+              remedy="$remedy A pull made during the tests was refused under the limit Docker Hub shares across the runner's egress address: re-run the job, or add the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets so the pre-pull caches the images first."
+            fi
+            remedy="${remedy# }"
+            echo "::warning::Docker Hub pull rate limit hit in $hits file(s) under TestResults: an infrastructure failure, not a product one (#842). $remedy"
+            {
+              echo "### Docker Hub pull rate limit (#842)"
+              echo ""
+              echo "$hits file(s) under \`TestResults\` carry \`toomanyrequests\`: the failure is Docker Hub's pull limit, not the product. $remedy"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No Docker Hub rate-limit message in TestResults."
+          fi
 
       - name: Check for coverage files
         id: check-coverage
@@ -1181,13 +1349,16 @@ jobs:
             echo "has-coverage=true" >> "$GITHUB_OUTPUT"
             echo "✅ Coverage files found"
           else
+            # Tests ran (the step above refuses to run with no test projects), so no cobertura file means the
+            # collector did not run or produced nothing: a gate that cannot measure must fail, not skip (#915).
             echo "has-coverage=false" >> "$GITHUB_OUTPUT"
-            echo "ℹ️  No coverage files found - skipping coverage report generation"
+            echo "::error::No coverage files found under TestResults although tests ran (looked for TestResults/**/coverage.cobertura.xml), so the coverage gate cannot be enforced. Check that every test project references coverlet.collector, that --settings coverlet.runsettings points at the file at the repository root, and that no test host crashed before the collector wrote its report."
+            exit 1
           fi
 
       - name: Install ReportGenerator
         if: steps.check-coverage.outputs.has-coverage == 'true'
-        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.11   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; keep scripts/build-pr.ps1 in step
 
       - name: Generate coverage report
         if: steps.check-coverage.outputs.has-coverage == 'true'
@@ -1197,7 +1368,7 @@ jobs:
             -targetdir:"CoverageReport" \
             -reporttypes:"Html;TextSummary;MarkdownSummaryGithub;CsvSummary"
 
-      - name: Enforce 90% coverage threshold
+      - name: Enforce coverage thresholds
         if: steps.check-coverage.outputs.has-coverage == 'true'
         run: |
           if [ ! -f CoverageReport/Summary.txt ]; then
@@ -1334,14 +1505,6 @@ jobs:
           path: |
             TestResults/
             CoverageReport/
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
-        with:
-          name: build-output
-          path: |
-            src/**/bin/Release
-            tests/**/bin/Release
 
   # ============================================================================
   # AOT SMOKE: every NativeAOT project published and run on Linux
@@ -1501,6 +1664,7 @@ jobs:
   test-windows:
     name: "Stage 2: Windows Tests (.NET 5.0-10.0, Framework 4.6.2-4.8.1)"
     runs-on: windows-latest
+    timeout-minutes: 60
     needs: [detect-projects, test-linux-core]
     if: github.repository != 'Chris-Wolfgang/repo-template' && needs.detect-projects.outputs.has-projects == 'true'
     
@@ -1528,6 +1692,9 @@ jobs:
           
           # Fetch the main branch
           git fetch "$env:TRUSTED_MAIN_URL" main:main-branch
+          # Without main there is nothing trusted to copy: stop here rather than continue with the PR's own copies
+          # (the bash stages run under -e and stop the same way).
+          if ($LASTEXITCODE -ne 0) { Write-Host "::error::Failed to fetch main - aborting before the trusted-config copy to prevent a silent fall-back to PR-supplied protected config."; exit 1 }
           
           # List of configuration files that should come from trusted main branch
           $configFiles = @(
@@ -1561,7 +1728,9 @@ jobs:
           # .editorconfig overrides analyzer severities for everything beneath it).
           $globPatterns = @("*.editorconfig", "*.globalconfig", "*.ruleset", "*.DotSettings", ".github/workflows/*.yml", ".github/workflows/*.yaml")
           foreach ($pattern in $globPatterns) {
-            $files = git ls-tree -r --name-only main-branch | Select-String -Pattern $pattern.Replace("*", ".*")
+            $listed = git ls-tree -r --name-only main-branch
+            if ($LASTEXITCODE -ne 0) { Write-Host "::error::Failed to list main-branch - aborting the trusted-config copy."; exit 1 }
+            $files = $listed | Select-String -Pattern $pattern.Replace("*", ".*")
             foreach ($file in $files) {
               if ($file) {
                 Write-Host "  ✓ Copying $file from main branch"
@@ -1602,6 +1771,9 @@ jobs:
         # stage because Windows has every SDK the matrix needs. The script is
         # taken from main so a PR cannot edit the check it is subject to;
         # when main does not carry it yet (first adoption) the step skips.
+        # Git only in this step: the job token is in its environment. The script runs in the next step,
+        # without the token, because it executes code from the PR's checkout (#917).
+        id: tfm-parity-source
         shell: pwsh
         env:
           # The checkout uses persist-credentials:false (nothing in .git/config for
@@ -1615,11 +1787,18 @@ jobs:
           git cat-file -e origin/main:scripts/tfm-parity.ps1 2>$null
           if ($LASTEXITCODE -ne 0) {
             Write-Host "::notice::scripts/tfm-parity.ps1 is not on main yet - skipping the TFM parity check."
+            echo "present=false" >> $env:GITHUB_OUTPUT
             exit 0
           }
           git checkout origin/main -- scripts/tfm-parity.ps1
           if ($LASTEXITCODE -ne 0) { Write-Host "::error::Failed to checkout origin/main:scripts/tfm-parity.ps1"; exit 1 }
-          pwsh ./scripts/tfm-parity.ps1
+          echo "present=true" >> $env:GITHUB_OUTPUT
+
+      - name: TFM parity between src/ and test projects (guard 3) - run the check
+        # No token in this step's environment.
+        if: steps.tfm-parity-source.outputs.present == 'true'
+        shell: pwsh
+        run: pwsh ./scripts/tfm-parity.ps1
 
       - name: Restore .NET workloads
         # Some projects (MAUI / MauiHybrid / Android / iOS / WPF) declare workloads via
@@ -1774,15 +1953,12 @@ jobs:
                   --collect:"XPlat Code Coverage" `
                   --settings coverlet.runsettings `
                   --results-directory "./TestResults" `
-                  --logger "trx" `
                   --logger "console;verbosity=normal" 2>&1 | Tee-Object -FilePath $testLog
               } else {
                 dotnet test $testProj.FullName `
                   --configuration Release `
                   --framework $fw `
                   --no-build --no-restore `
-                  --results-directory "./TestResults" `
-                  --logger "trx" `
                   --logger "console;verbosity=normal" 2>&1 | Tee-Object -FilePath $testLog
               }
 
@@ -1800,29 +1976,24 @@ jobs:
             Write-Host ""
           }
 
-      - name: Skipped tests name an open issue (E13.1)
-        # The Windows job skips the Docker-only tests (PostgreSQL, container images); each names #220.
-        if: hashFiles('scripts/Check-Skips.ps1') != ''
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: pwsh ./scripts/Check-Skips.ps1 -ResultsDirectory ./TestResults
-
       - name: Check for coverage files
         id: check-coverage
         run: |
           if (Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml -ErrorAction SilentlyContinue) {
-            echo "has-coverage=true" >> $env:GITHUB_OUTPUT
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "has-coverage=true"
             Write-Host "✅ Coverage files found"
           } else {
-            echo "has-coverage=false" >> $env:GITHUB_OUTPUT
-            Write-Host "ℹ️  No coverage files found - skipping coverage report generation"
+            # Tests ran, so no cobertura file means the collector did not run or produced nothing: a gate that
+            # cannot measure must fail, not skip (#915).
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "has-coverage=false"
+            Write-Host "::error::No coverage files found under TestResults although tests ran (looked for TestResults/**/coverage.cobertura.xml), so the coverage gate cannot be enforced. Check that every test project references coverlet.collector, that --settings coverlet.runsettings points at the file at the repository root, and that no test host crashed before the collector wrote its report."
+            exit 1
           }
         shell: pwsh
 
       - name: Install ReportGenerator
         if: steps.check-coverage.outputs.has-coverage == 'true'
-        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.11   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; keep scripts/build-pr.ps1 in step
 
       - name: Generate coverage report
         if: steps.check-coverage.outputs.has-coverage == 'true'
@@ -1833,7 +2004,7 @@ jobs:
             -targetdir:"CoverageReport" `
             -reporttypes:"Html;TextSummary;MarkdownSummaryGithub;CsvSummary"
 
-      - name: Enforce 90% coverage threshold
+      - name: Enforce coverage thresholds
         if: steps.check-coverage.outputs.has-coverage == 'true'
         shell: pwsh
         run: |
@@ -1974,6 +2145,7 @@ jobs:
   security-scan:
     name: "Security Scan (DevSkim)"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
       - name: Checkout code
@@ -2066,7 +2238,7 @@ jobs:
           echo "✅ Configuration files secured - using versions from main branch"
 
       - name: Install DevSkim CLI
-        run: dotnet tool install --global Microsoft.CST.DevSkim.CLI
+        run: dotnet tool install --global Microsoft.CST.DevSkim.CLI --version 1.0.100   # pinned by hand (Dependabot cannot bump a run: step); keep scripts/build-pr.ps1 in step
 
       - name: Run DevSkim security scan
         run: |
@@ -2074,8 +2246,26 @@ jobs:
             --source-code . \
             --file-format text \
             --output-file devskim-results.txt \
-            --ignore-rule-ids DS176209 \
-            --ignore-globs "**/api/**,**/CoverageReport/**,**/TestResults/**"
+            --ignore-rule-ids DS176209,DS162092 \
+            --ignore-globs "**/.git/**,**/bin/**,**/obj/**,**/api/**,**/CoverageReport/**,**/TestResults/**,**/.github/license-audit/**" \
+            --skip-git-ignored-files
+
+          # --ignore-globs replaces DevSkim's default list (**/.git/**, **/bin/**), so those are named
+          # again, with **/obj/**; --skip-git-ignored-files keeps a local run (scripts/build-pr.ps1,
+          # where build output exists) scanning the same files as this checkout.
+          #
+          # DS162092 (ManualReview: "localhost / 127.0.0.1 may be debug code") is excluded by rule id:
+          # every occurrence in this repository is a test connection string, a launch profile, a
+          # design-time factory that is never opened, or a link-checker exclusion, and every new
+          # integration test adds another. The rule cannot be actionable here.
+          #
+          # .github/license-audit/** is excluded by glob: url-license-mappings.json maps the license
+          # URL a package actually publishes (an http:// form, DS137138) to an SPDX id. The URL is a
+          # lookup key; rewriting it breaks the mapping.
+          #
+          # Everything else is live, DS137138 and DS173237 included; the three remaining false
+          # positives (two SHA-256 test vectors, one XML namespace) are suppressed inline on their
+          # line with a reason. scripts/build-pr.ps1 carries the identical flags.
 
       - name: Display security scan results
         if: always()
@@ -2087,14 +2277,29 @@ jobs:
             cat devskim-results.txt
             echo ""
             
-            if grep -qi "error\|critical\|high" devskim-results.txt; then
-              echo "❌ Security issues detected - review required"
+            # Every finding fails the gate - Critical, Important, Moderate, BestPractice and
+            # ManualReview alike - the same policy TreatWarningsAsErrors applies to the
+            # compiler. A finding line is "<file>:<line>:<col>:<line>:<col> [Severity] DSnnnnnn ..."
+            # in the text format; matching that shape instead of a severity word keeps the
+            # gate independent of DevSkim's vocabulary (the old error|critical|high grep
+            # matched none of them, so 22 findings on main passed). A false positive is excluded
+            # as narrowly as it can be - by rule id when the rule is structurally inapplicable to
+            # this repo, by glob when one data file trips one rule, or inline on the single line
+            # when neither fits - always with a reason, and never by lowering the bar.
+            findings=$(grep -cE '^.+:[0-9]+:[0-9]+:[0-9]+:[0-9]+ \[[A-Za-z]+\] DS[0-9]+' devskim-results.txt || true)
+            if [ "$findings" -gt 0 ]; then
+              echo "By severity:"
+              grep -oE '\[[A-Za-z]+\]' devskim-results.txt | sort | uniq -c
+              echo "❌ $findings DevSkim finding(s) - every finding fails this gate; fix it or exclude the rule id with a reason"
               exit 1
             else
-              echo "✅ No critical security issues found"
+              echo "✅ No DevSkim findings"
             fi
           else
-            echo "✅ No security issues found"
+            # The analyze step always writes the file, even with no findings; its absence means
+            # the scan did not run, and a gate that cannot run must fail.
+            echo "❌ devskim-results.txt was not written - the scan did not run"
+            exit 1
           fi
 
       - name: Upload security scan results

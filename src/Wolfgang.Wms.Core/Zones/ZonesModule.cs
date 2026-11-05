@@ -89,7 +89,7 @@ public static class ZonesModule
             {
                 var current = await zones.FindAsync(siteId, zoneId, cancellationToken).ConfigureAwait(false);
                 return Preconditions.RequireIfMatch(http.Request, EntityTag.FromRowVersion((ulong)current.RowVersion))
-                    ?? WithEtag(http, await zones.UpdateAsync(siteId, zoneId, Required(body), User(http), cancellationToken).ConfigureAwait(false));
+                    ?? WithEtag(http, await zones.UpdateAsync(siteId, zoneId, current.RowVersion, Required(body), User(http), cancellationToken).ConfigureAwait(false));
             })
             .RequirePermission(Write)
             .WithName("UpdateZone")

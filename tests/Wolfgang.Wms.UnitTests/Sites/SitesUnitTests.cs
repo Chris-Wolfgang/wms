@@ -83,18 +83,34 @@ public sealed class SitesUnitTests
         var list = await Assert.ThrowsAsync<SiteException>(() => store.ListAsync(SiteScope.Everywhere, CancellationToken.None));
         var find = await Assert.ThrowsAsync<SiteException>(() => store.FindAsync(1, CancellationToken.None));
         var create = await Assert.ThrowsAsync<SiteException>(() => store.CreateAsync(Valid, "admin", CancellationToken.None));
-        var update = await Assert.ThrowsAsync<SiteException>(() => store.UpdateAsync(1, Valid, "admin", CancellationToken.None));
+        var update = await Assert.ThrowsAsync<SiteException>(() => store.UpdateAsync(1, 0, Valid, "admin", CancellationToken.None));
 
         Assert.All([list, find, create, update], e => Assert.Equal(SiteErrorCodes.Unavailable, e.Code));
         Assert.Equal(0, await releases.CountOpenAsync(1, CancellationToken.None));
         await Assert.ThrowsAsync<ArgumentNullException>(() => store.ListAsync(null!, CancellationToken.None));
         await Assert.ThrowsAsync<ArgumentNullException>(() => store.CreateAsync(null!, "admin", CancellationToken.None));
-        await Assert.ThrowsAsync<ArgumentException>(() => store.UpdateAsync(1, Valid, " ", CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.UpdateAsync(1, 0, Valid, " ", CancellationToken.None));
         Assert.Equal(SiteErrorCodes.Unavailable, new SiteException().Code);
         Assert.Equal("boom", new SiteException("boom").Message);
         Assert.Equal("cause", new SiteException("boom", new InvalidOperationException("cause")).InnerException!.Message);
         Assert.Equal(SiteErrorCodes.Invalid, new SiteException(SiteErrorCodes.Invalid, "x", new InvalidOperationException()).Code);
         Assert.Throws<ArgumentNullException>(() => new SiteException(null!, "x"));
+    }
+
+
+
+    [Fact]
+    public void A_refused_save_is_recognised_by_the_index_named_in_the_provider_error()
+    {
+        var refused = new DbUpdateException("save failed", new InvalidOperationException("duplicate key on index 'ux_site_code_normalized'"));
+        var plain = new DbUpdateException("save failed");
+
+        Assert.True(UniqueIndexViolation.Is(refused, "ux_site_code_normalized"));
+        Assert.False(UniqueIndexViolation.Is(refused, "ux_zone_site_id_code_normalized"));
+        Assert.False(UniqueIndexViolation.Is(plain, "ux_site_code_normalized"));
+        Assert.Throws<ArgumentNullException>(() => UniqueIndexViolation.Is(null!, "x"));
+        Assert.Throws<ArgumentNullException>(() => UniqueIndexViolation.Is(plain, null!));
+        Assert.Throws<ArgumentNullException>(() => new EfLicenseUsage(null!));
     }
 
 

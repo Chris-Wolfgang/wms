@@ -32,35 +32,58 @@ internal sealed class ZoneImporter
 
 
 
-    public async Task<ImportResult> RunAsync(long siteId, IReadOnlyList<ZoneImportRow> rows, ImportPolicy policy, string updatedBy, CancellationToken cancellationToken)
+    public Task<ImportResult> RunAsync(long siteId, IReadOnlyList<ZoneImportRow> rows, ImportPolicy policy, string updatedBy, CancellationToken cancellationToken)
     {
-        var existing = await _context.Zones.Include(z => z.Resolvers).Where(z => z.SiteId == siteId).ToListAsync(cancellationToken).ConfigureAwait(false);
-        var byCode = existing.ToDictionary(z => z.CodeNormalized, StringComparer.Ordinal);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var plan = new List<Planned>(rows.Count);
-        for (var i = 0; i < rows.Count; i++)
-        {
-            plan.Add(await DecideAsync(i + 1, rows[i], byCode, seen, cancellationToken).ConfigureAwait(false));
-        }
+        return _context.Database.CreateExecutionStrategy().ExecuteAsync(() => AttemptAsync(siteId, rows, policy, updatedBy, cancellationToken));
+    }
 
-        var results = plan.Select(p => p.Result).ToList();
-        var written = ImportRules.ShouldWrite(policy, results);
-        if (written)
-        {
-            await ApplyAsync(siteId, plan, updatedBy, cancellationToken).ConfigureAwait(false);
-        }
 
-        return ImportResult.From(Entity, policy, written, results);
+
+    /// <summary>
+    /// One attempt of the whole import, inside the execution strategy so a transient failure replays it. Everything
+    /// is rebuilt on each attempt: <c>SaveChanges</c> accepts tracked changes before the commit, so a retry over the
+    /// same entities would find nothing left to write and report success.
+    /// </summary>
+    private async Task<ImportResult> AttemptAsync(long siteId, IReadOnlyList<ZoneImportRow> rows, ImportPolicy policy, string updatedBy, CancellationToken cancellationToken)
+    {
+        _context.ChangeTracker.Clear();
+        var transaction = await _context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await using (transaction.ConfigureAwait(false))
+        {
+            var existing = await _context.Zones.Include(z => z.Resolvers).Where(z => z.SiteId == siteId).ToListAsync(cancellationToken).ConfigureAwait(false);
+            var byCode = existing.ToDictionary(z => z.CodeNormalized, StringComparer.Ordinal);
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var plan = new List<Planned>(rows.Count);
+            for (var i = 0; i < rows.Count; i++)
+            {
+                plan.Add(await DecideAsync(i + 1, rows[i], byCode, seen, cancellationToken).ConfigureAwait(false));
+            }
+
+            var results = plan.Select(p => p.Result).ToList();
+            var written = ImportRules.ShouldWrite(policy, results);
+            if (written)
+            {
+                await ApplyAsync(siteId, plan, updatedBy, cancellationToken).ConfigureAwait(false);
+            }
+
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return ImportResult.From(Entity, policy, written, results);
+        }
     }
 
 
 
     private async Task<Planned> DecideAsync(int number, ZoneImportRow row, Dictionary<string, Zone> byCode, HashSet<string> seen, CancellationToken cancellationToken)
     {
-        var key = (row.Code ?? string.Empty).Trim();
+        var key = (row?.Code ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(key))
         {
             return Planned.Failed(number, key, ImportErrorCodes.Invalid, "code is required.");
+        }
+
+        if (!Enum.IsDefined(row!.Action))
+        {
+            return Planned.Failed(number, key, ImportErrorCodes.Invalid, "action must be upsert or delete.");
         }
 
         var normalized = ZoneRules.Normalize(key);
@@ -142,7 +165,7 @@ internal sealed class ZoneImporter
 
 
 
-    private Task ApplyAsync(long siteId, List<Planned> plan, string updatedBy, CancellationToken cancellationToken)
+    private async Task ApplyAsync(long siteId, List<Planned> plan, string updatedBy, CancellationToken cancellationToken)
     {
         var now = _timeProvider.GetUtcNow();
         var inserted = new List<Zone>();
@@ -168,18 +191,8 @@ internal sealed class ZoneImporter
             }
         }
 
-        // The providers retry transient failures, so a user transaction must run inside the execution strategy;
-        // the tracked changes above are the same on every attempt.
-        return _context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
-        {
-            var transaction = await _context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-            await using (transaction.ConfigureAwait(false))
-            {
-                await _context.Zones.AddRangeAsync(inserted, cancellationToken).ConfigureAwait(false);
-                await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            }
-        });
+        await _context.Zones.AddRangeAsync(inserted, cancellationToken).ConfigureAwait(false);
+        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
 

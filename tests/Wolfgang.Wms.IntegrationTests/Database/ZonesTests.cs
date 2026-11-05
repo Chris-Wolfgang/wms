@@ -121,6 +121,32 @@ public sealed class ZonesTests
         await AssertUpdateAsync(client, site.Id, pick, res, groups);
         await AssertCascadeAsync(client, app.Services, site.Id, pick.Id);
         await AssertAuditAsync(app.Services);
+        await AssertRacesAsync(client, app.Services, site.Id);
+    }
+
+
+
+    /// <summary>
+    /// The races the availability check cannot close: the unique index refuses the loser and it reads as the
+    /// documented 409, never a 500; an update whose version moved after the check is refused like a stale tag.
+    /// </summary>
+    private static async Task AssertRacesAsync(HttpClient client, IServiceProvider services, long siteId)
+    {
+        var uri = new Uri($"/api/v0/sites/{siteId}/zones", UriKind.Relative);
+        var creates = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => client.PostAsync(uri, Body(Pick with { Code = "RACE-1" }))));
+        Assert.Equal(1, creates.Count(r => r.StatusCode == HttpStatusCode.Created));
+        Assert.All(creates.Where(r => r.StatusCode != HttpStatusCode.Created), r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
+
+        var left = (await (await client.PostAsync(uri, Body(Pick with { Code = "RACE-2" }))).Content.ReadFromJsonAsync<ZoneInfo>(Json))!;
+        var right = (await (await client.PostAsync(uri, Body(Pick with { Code = "RACE-3" }))).Content.ReadFromJsonAsync<ZoneInfo>(Json))!;
+        var renames = await Task.WhenAll(client.SendAsync(Put(siteId, left.Id, Pick with { Code = "RACE-4" }, left.Etag)), client.SendAsync(Put(siteId, right.Id, Pick with { Code = "RACE-4" }, right.Etag)));
+        Assert.Equal(1, renames.Count(r => r.StatusCode == HttpStatusCode.OK));
+        Assert.Equal(1, renames.Count(r => r.StatusCode == HttpStatusCode.Conflict));
+
+        using var scope = services.CreateScope();
+        var zones = scope.ServiceProvider.GetRequiredService<IZones>();
+        var current = await zones.FindAsync(siteId, left.Id, CancellationToken.None);
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => zones.UpdateAsync(siteId, left.Id, current.RowVersion - 1, Pick with { Code = "RACE-5" }, "admin", CancellationToken.None));
     }
 
 

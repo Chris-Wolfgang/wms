@@ -102,12 +102,12 @@ public sealed class ZonesUnitTests
         var list = await Assert.ThrowsAsync<ZoneException>(() => store.ListAsync(1, CancellationToken.None));
         var find = await Assert.ThrowsAsync<ZoneException>(() => store.FindAsync(1, 1, CancellationToken.None));
         var create = await Assert.ThrowsAsync<ZoneException>(() => store.CreateAsync(1, Pick, "admin", CancellationToken.None));
-        var update = await Assert.ThrowsAsync<ZoneException>(() => store.UpdateAsync(1, 1, Pick, "admin", CancellationToken.None));
+        var update = await Assert.ThrowsAsync<ZoneException>(() => store.UpdateAsync(1, 1, 0, Pick, "admin", CancellationToken.None));
 
         Assert.All([list, find, create, update], e => Assert.Equal(ZoneErrorCodes.Unavailable, e.Code));
         Assert.Equal(0, await groups.CountOpenAsync(1, CancellationToken.None));
         await Assert.ThrowsAsync<ArgumentNullException>(() => store.CreateAsync(1, null!, "admin", CancellationToken.None));
-        await Assert.ThrowsAsync<ArgumentException>(() => store.UpdateAsync(1, 1, Pick, " ", CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.UpdateAsync(1, 1, 0, Pick, " ", CancellationToken.None));
         Assert.Equal(ZoneErrorCodes.Unavailable, new ZoneException().Code);
         Assert.Equal("boom", new ZoneException("boom").Message);
         Assert.Equal("cause", new ZoneException("boom", new InvalidOperationException("cause")).InnerException!.Message);

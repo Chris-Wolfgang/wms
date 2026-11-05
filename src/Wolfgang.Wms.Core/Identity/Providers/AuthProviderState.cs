@@ -11,11 +11,11 @@ using Wolfgang.Wms.Domain.Settings;
 namespace Wolfgang.Wms.Core.Identity.Providers;
 
 /// <summary>
-/// The providers currently enabled (E11.0), kept in step with the <c>auth.providers.enabled</c> setting
-/// by <see cref="AuthProviderSync"/>: a challenge provider's scheme is added to
-/// <see cref="IAuthenticationSchemeProvider"/> when it becomes enabled and removed when it is disabled;
-/// a provider whose settings changed is told to drop its cached options. Unknown names are logged and
-/// skipped. With <see cref="AuthProviderSettings.ForceLocalKey"/> set, only <c>local</c> is enabled.
+/// The provider currently active (E11.0), kept in step with the <c>auth.provider</c> setting by
+/// <see cref="AuthProviderSync"/>: a challenge provider's scheme is added to
+/// <see cref="IAuthenticationSchemeProvider"/> when it becomes active and removed when it stops being; a
+/// provider whose settings changed is told to drop its cached options. An unknown name is logged and leaves
+/// nothing active. With <see cref="AuthProviderSettings.ForceLocalKey"/> set, <c>local</c> is active.
 /// </summary>
 public sealed partial class AuthProviderState : IDisposable
 {
@@ -47,7 +47,7 @@ public sealed partial class AuthProviderState : IDisposable
 
 
     /// <summary>
-    /// The enabled providers in login-page order, as of the last refresh.
+    /// The active provider as of the last refresh: one entry, or none when the setting names an unknown one.
     /// </summary>
     public IReadOnlyList<AuthProviderInfo> Enabled => Volatile.Read(ref _enabled);
 
@@ -71,8 +71,8 @@ public sealed partial class AuthProviderState : IDisposable
 
 
     /// <summary>
-    /// Reads the setting and applies it: schemes added or removed, changed providers told to re-read their
-    /// settings, the enabled list replaced.
+    /// Reads the setting and applies it: schemes added or removed, a changed provider told to re-read its
+    /// settings, the active provider replaced.
     /// </summary>
     public async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -81,19 +81,17 @@ public sealed partial class AuthProviderState : IDisposable
         {
             using var scope = _scopes.CreateScope();
             var settings = scope.ServiceProvider.GetRequiredService<ISettings>();
-            var names = _forceLocal
-                ? [AuthProviderSettings.Local]
-                : AuthProviderSettings.Parse(await settings.GetAsync(AuthProviderSettings.Enabled, SettingScopeRef.Organization, cancellationToken).ConfigureAwait(false));
-            var enabled = new List<AuthProviderInfo>();
-            foreach (var name in names)
+            var active = _forceLocal
+                ? AuthProviderSettings.Local
+                : await settings.GetAsync(AuthProviderSettings.Active, SettingScopeRef.Organization, cancellationToken).ConfigureAwait(false);
+            var enabled = new List<AuthProviderInfo>(1);
+            var provider = _catalog.Find(active);
+            if (provider is null)
             {
-                var provider = _catalog.Find(name);
-                if (provider is null)
-                {
-                    LogUnknown(_logger, name);
-                    continue;
-                }
-
+                LogUnknown(_logger, active);
+            }
+            else
+            {
                 if (provider is IChallengeAuthProvider challenge)
                 {
                     await EnableChallengeAsync(challenge, settings, scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
@@ -171,7 +169,7 @@ public sealed partial class AuthProviderState : IDisposable
 
 
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "auth.providers.enabled names '{Name}', which is not a registered provider; skipped.")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "auth.provider names '{Name}', which is not a registered provider; none is active.")]
     private static partial void LogUnknown(ILogger logger, string name);
 
 

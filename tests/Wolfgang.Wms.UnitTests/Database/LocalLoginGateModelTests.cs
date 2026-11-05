@@ -25,14 +25,14 @@ public sealed class LocalLoginGateModelTests
         Assert.Equal("core", entity.GetSchema());
         Assert.Equal
         (
-            ["id", "locked_at", "locked_by", "row_version", "sso_verified_at", "sso_verified_provider", "unlocked_at", "unlocked_by", "unlocked_until"],
+            ["id", "locked_at", "locked_by", "row_version", "signature", "singleton", "sso_verified_at", "sso_verified_provider", "unlocked_at", "unlocked_by", "unlocked_until"],
             entity.GetProperties().Select(p => p.GetColumnName()).Order(StringComparer.Ordinal)
         );
         Assert.Equal(LocalLoginGate.ProviderLength, entity.FindProperty(nameof(LocalLoginGate.SsoVerifiedProvider))!.GetMaxLength());
         Assert.Equal(LocalLoginGate.ActorLength, entity.FindProperty(nameof(LocalLoginGate.UnlockedBy))!.GetMaxLength());
         Assert.Equal(LocalLoginGate.ActorLength, entity.FindProperty(nameof(LocalLoginGate.LockedBy))!.GetMaxLength());
         Assert.True(entity.FindProperty(nameof(LocalLoginGate.SsoVerifiedAt))!.IsNullable);
-        Assert.Equal(["ix_local_login_gate_row_version"], entity.GetIndexes().Select(i => i.GetDatabaseName()));
+        Assert.Equal(["ix_local_login_gate_row_version", "ux_local_login_gate_singleton"], entity.GetIndexes().Select(i => i.GetDatabaseName()).Order(StringComparer.Ordinal));
         Assert.Equal(["trg_local_login_gate_row_version"], entity.GetDeclaredTriggers().Select(t => t.ModelName));
         Assert.Throws<ArgumentNullException>(() => new LocalLoginGateConfiguration().Configure(null!));
     }

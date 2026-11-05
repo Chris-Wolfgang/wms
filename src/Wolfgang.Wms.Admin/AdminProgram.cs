@@ -72,6 +72,7 @@ public static class AdminProgram
         }
 
         configuration ??= new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: true)
             .AddEnvironmentVariables()
             .Build();

@@ -7,10 +7,10 @@ using Wolfgang.Wms.Domain.Settings;
 namespace Wolfgang.Wms.Infrastructure.Database.Settings;
 
 /// <summary>
-/// The settings cascade over the stored sites (E16.1): the organisation's children are every site, active
-/// and retired (a retired site keeps its effective values consistent for its history), and a site's parent is
-/// the organisation. Zones (E16.2) will sit below their site; until then a site has no children and a zone or
-/// SKU scope has no parent, as the no-database hierarchy answers.
+/// The settings cascade over the stored sites and zones (E16.1, E16.2): the organisation's children are
+/// every site, a site's children are its zones (active and retired alike, so their effective values stay
+/// consistent for their history), a zone's parent is its site and a site's parent is the organisation. A
+/// SKU scope has no parent or children here; a zone that does not exist has no parent.
 /// </summary>
 public sealed class EfSettingScopeHierarchy : ISettingScopeHierarchy
 {
@@ -30,10 +30,18 @@ public sealed class EfSettingScopeHierarchy : ISettingScopeHierarchy
 
 
     /// <inheritdoc/>
-    public Task<SettingScopeRef?> ParentAsync(SettingScopeRef scope, CancellationToken cancellationToken)
+    public async Task<SettingScopeRef?> ParentAsync(SettingScopeRef scope, CancellationToken cancellationToken)
     {
-        SettingScopeRef? parent = scope.Type == SettingScope.Site ? SettingScopeRef.Organization : null;
-        return Task.FromResult(parent);
+        switch (scope.Type)
+        {
+            case SettingScope.Site:
+                return SettingScopeRef.Organization;
+            case SettingScope.Zone:
+                var siteId = await _context.Zones.AsNoTracking().Where(z => z.Id == scope.Id).Select(z => (long?)z.SiteId).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+                return siteId is { } id ? SettingScopeRef.Site(id) : null;
+            default:
+                return null;
+        }
     }
 
 
@@ -41,12 +49,16 @@ public sealed class EfSettingScopeHierarchy : ISettingScopeHierarchy
     /// <inheritdoc/>
     public async Task<IReadOnlyList<SettingScopeRef>> ChildrenAsync(SettingScopeRef scope, CancellationToken cancellationToken)
     {
-        if (scope.Type != SettingScope.Organization)
+        switch (scope.Type)
         {
-            return [];
+            case SettingScope.Organization:
+                var sites = await _context.Sites.AsNoTracking().OrderBy(s => s.Id).Select(s => s.Id).ToListAsync(cancellationToken).ConfigureAwait(false);
+                return sites.Select(SettingScopeRef.Site).ToList();
+            case SettingScope.Site:
+                var zones = await _context.Zones.AsNoTracking().Where(z => z.SiteId == scope.Id).OrderBy(z => z.Id).Select(z => z.Id).ToListAsync(cancellationToken).ConfigureAwait(false);
+                return zones.Select(SettingScopeRef.Zone).ToList();
+            default:
+                return [];
         }
-
-        var ids = await _context.Sites.AsNoTracking().OrderBy(s => s.Id).Select(s => s.Id).ToListAsync(cancellationToken).ConfigureAwait(false);
-        return ids.Select(SettingScopeRef.Site).ToList();
     }
 }

@@ -216,6 +216,39 @@ many. Complete or cancel them first, then retry; or leave the site active and st
 Sites live in the database and `Wms:Database:Provider` is `None` (or not set). Configure the database and
 restart the API.
 
+## Zones (`zones.*`)
+
+<a id="zones-site-not-found"></a>
+### `zones.site_not_found`
+No site has the `siteId` in the route. `GET /sites` lists every site with its id.
+
+<a id="zones-not-found"></a>
+### `zones.not_found`
+No zone of that site has that id. `GET /sites/{siteId}/zones` lists the site's zones, active and retired; a zone
+is never deleted, and a zone of another site answers this too.
+
+<a id="zones-code-taken"></a>
+### `zones.code_taken`
+Another zone of the same site already has that code. Codes are compared without regard to case within a site
+(`a01` and `A01` are the same zone); the same code in another site is fine.
+
+<a id="zones-invalid"></a>
+### `zones.invalid`
+A field is missing, too long, or not what it must be: the message names the field. `code` is 1-32 letters,
+digits, `-` and `_`; `name` at most 128 characters; `walkOrderPrefix` at most 16; `type` is `Pick`, `Bulk` or
+`Resolution`; `isRejectLane` is for pick zones only; `resolution` is required for a resolution zone and absent
+otherwise, and its `resolverUserIds` must be existing users, each named once.
+
+<a id="zones-has-open-groups"></a>
+### `zones.has_open_groups`
+The zone cannot be retired (`isActive: false`) while zone groups are open in it: the message says how many.
+Let the pickers complete them first, then retry.
+
+<a id="zones-unavailable"></a>
+### `zones.unavailable`
+Zones live in the database and `Wms:Database:Provider` is `None` (or not set). Configure the database and
+restart the API.
+
 ## Settings (`settings.*`)
 
 <a id="settings-unknown-key"></a>

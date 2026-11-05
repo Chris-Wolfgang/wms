@@ -1248,6 +1248,177 @@
           }
         }
       }
+    },
+    "/api/v0/sites/{siteId}/zones": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every zone of the site, active and retired, in code order.",
+        "operationId": "ListZones",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ZoneInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates a zone in the site; 409 zones.code_taken when the code is in use there.",
+        "operationId": "CreateZone",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZoneDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/zones/{zoneId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One zone; the ETag is the row\u0027s version.",
+        "operationId": "GetZone",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "zoneId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces a zone\u0027s details; If-Match required; 409 zones.has_open_groups when retiring a zone with open groups.",
+        "operationId": "UpdateZone",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "zoneId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZoneDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneInfo"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2333,6 +2504,68 @@
         },
         "description": "One catalog entry as the API and the console see it (E10.1)."
       },
+      "ResolutionZone": {
+        "required": [
+          "restockingBin",
+          "returnsContainer",
+          "resolverUserIds",
+          "acceptsWeightFailures",
+          "acceptsShorts",
+          "acceptsAdjustments",
+          "acceptsMisdirects",
+          "isVirtualQueue"
+        ],
+        "type": "object",
+        "properties": {
+          "restockingBin": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The bin (a location barcode or label, E17.1) resolved stock is restocked to; null when none."
+          },
+          "returnsContainer": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The container returns are collected in; null when none."
+          },
+          "resolverUserIds": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            },
+            "description": "The users assigned to resolve here; empty when anyone with the permission may."
+          },
+          "acceptsWeightFailures": {
+            "type": "boolean",
+            "description": "Whether totes that failed the weight check are routed here."
+          },
+          "acceptsShorts": {
+            "type": "boolean",
+            "description": "Whether short picks are resolved here."
+          },
+          "acceptsAdjustments": {
+            "type": "boolean",
+            "description": "Whether quantity adjustments are resolved here."
+          },
+          "acceptsMisdirects": {
+            "type": "boolean",
+            "description": "Whether misdirected totes are resolved here."
+          },
+          "isVirtualQueue": {
+            "type": "boolean",
+            "description": "True for a virtual queue (work items, no conveyor lane); false for a physical lane."
+          }
+        },
+        "description": "The properties only a ZoneType.Resolution zone carries (E16.2): where resolved stock goes, who resolves, which exceptions it accepts, and whether it is a physical lane or a virtual queue."
+      },
       "RoleAssignmentInfo": {
         "required": [
           "id",
@@ -2842,6 +3075,168 @@
           }
         },
         "description": "A site as the API reports it (E16.1): one warehouse, the operational level pickers, role assignments and settings are scoped to."
+      },
+      "ZoneDraft": {
+        "required": [
+          "code",
+          "name",
+          "type",
+          "walkOrderPrefix",
+          "isRejectLane",
+          "resolution"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The code, unique within the site: letters, digits, \u0060-\u0060 and \u0060_\u0060, compared without regard to case."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "type": {
+            "description": "What the zone is for.",
+            "$ref": "#/components/schemas/ZoneType"
+          },
+          "walkOrderPrefix": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "An optional sortable prefix the zone\u0027s locations\u0027 walk sequences start with (E17.1); null for none."
+          },
+          "isRejectLane": {
+            "type": "boolean",
+            "description": "True when a pick zone is also the conveyor\u0027s error/overflow lane; drives the reject diagnostics (E26.3). Pick zones only."
+          },
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The resolution-zone properties; required for a ZoneType.Resolution zone, absent otherwise.",
+                "$ref": "#/components/schemas/ResolutionZone"
+              }
+            ]
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False to retire the zone. Refused while open zone groups exist.",
+            "default": true
+          }
+        },
+        "description": "What an administrator sends to create or replace a zone (E16.2)."
+      },
+      "ZoneInfo": {
+        "required": [
+          "id",
+          "siteId",
+          "code",
+          "name",
+          "type",
+          "walkOrderPrefix",
+          "isRejectLane",
+          "resolution",
+          "isActive",
+          "updatedAt",
+          "updatedBy",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The site the zone belongs to.",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string",
+            "description": "The code, unique within the site."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "type": {
+            "description": "What the zone is for.",
+            "$ref": "#/components/schemas/ZoneType"
+          },
+          "walkOrderPrefix": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The sortable prefix of the zone\u0027s locations\u0027 walk sequences; null for none."
+          },
+          "isRejectLane": {
+            "type": "boolean",
+            "description": "True when the pick zone is also the conveyor\u0027s error/overflow lane."
+          },
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The resolution-zone properties; null for pick and bulk zones.",
+                "$ref": "#/components/schemas/ResolutionZone"
+              }
+            ]
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False once the zone is retired."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When the row was last written (UTC).",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string",
+            "description": "Who last wrote the row."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s version (E5.1); the string ZoneInfo.Etag is derived from it.",
+            "format": "int64"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag a client sends back in \u0060If-Match\u0060."
+          }
+        },
+        "description": "A zone as the API reports it (E16.2): a picking area, bulk storage or resolution zone within a site."
+      },
+      "ZoneType": {
+        "enum": [
+          "Pick",
+          "Bulk",
+          "Resolution"
+        ],
+        "description": "What a zone is for (E16.2)."
       }
     }
   },

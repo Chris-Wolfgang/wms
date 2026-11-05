@@ -53,3 +53,9 @@ Every error the API answers with (E82.3): `application/problem+json` whose `code
 | `sites.invalid` | 400 | error | {0} | [sites-invalid](../troubleshooting.md#sites-invalid) |
 | `sites.not_found` | 404 | warning | The site does not exist. | [sites-not-found](../troubleshooting.md#sites-not-found) |
 | `sites.unavailable` | 503 | warning | Sites are unavailable until the database is configured. | [sites-unavailable](../troubleshooting.md#sites-unavailable) |
+| `zones.code_taken` | 409 | error | {0} | [zones-code-taken](../troubleshooting.md#zones-code-taken) |
+| `zones.has_open_groups` | 409 | error | {0} | [zones-has-open-groups](../troubleshooting.md#zones-has-open-groups) |
+| `zones.invalid` | 400 | error | {0} | [zones-invalid](../troubleshooting.md#zones-invalid) |
+| `zones.not_found` | 404 | warning | The zone does not exist. | [zones-not-found](../troubleshooting.md#zones-not-found) |
+| `zones.site_not_found` | 404 | warning | The site does not exist. | [zones-site-not-found](../troubleshooting.md#zones-site-not-found) |
+| `zones.unavailable` | 503 | warning | Zones are unavailable until the database is configured. | [zones-unavailable](../troubleshooting.md#zones-unavailable) |

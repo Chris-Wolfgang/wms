@@ -11,12 +11,13 @@
          separate executable next to the AOT CLI. Analyzers for trimming/AOT are off like Infrastructure's. -->
     <IsAotCompatible>false</IsAotCompatible>
     <IsTrimmable>false</IsTrimmable>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- E14.2: Microsoft.Data.SqlClient refuses invariant globalization on Linux; the tool runs in the worker image. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup>

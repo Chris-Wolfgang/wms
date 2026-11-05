@@ -6,6 +6,77 @@
     "version": "0"
   },
   "paths": {
+    "/api/v0/system/logging": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "The server\u0027s log level: permanent, in force now, and the running elevation (E12.4).",
+        "operationId": "GetLogLevel",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoggingStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/system/logging/elevate": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Lowers the level to Trace, Debug or Information for a number of minutes; reverts by itself.",
+        "operationId": "ElevateLogLevel",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElevateLogLevelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoggingStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Ends the running elevation now.",
+        "operationId": "EndLogLevelElevation",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoggingStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v0/system/schema": {
       "get": {
         "tags": [
@@ -26,10 +97,3660 @@
           }
         }
       }
+    },
+    "/api/v0/settings/registry": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every setting the host knows: kind, scopes, default, description (read-only).",
+        "operationId": "GetSettingRegistry",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SettingDescriptor"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/settings/{scopeType}/{scopeId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every setting at a scope with its configured and effective value.",
+        "operationId": "ListSettings",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SettingValue"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/settings/{scopeType}/{scopeId}/{key}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One setting at a scope; the ETag is the stored row\u0027s version.",
+        "operationId": "GetSetting",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Configures a setting at a scope: a value, or a cascade mode (per_site, per_zone, per_sku); both null resets. If-Match required when a row exists.",
+        "operationId": "SetSetting",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSettingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingValue"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Removes the configured value at a scope so it inherits again; If-Match required when a row exists.",
+        "operationId": "ResetSetting",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingValue"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/local/login": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled or gate closed.",
+        "operationId": "LocalLogin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/local/status": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Whether local sign-in is open: before single sign-on is verified, inside a host-opened window, or under the ForceLocal override (E9.3).",
+        "operationId": "GetLocalLoginStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalLoginStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/logout": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Ends the session.",
+        "operationId": "Logout",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/me": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Who is signed in.",
+        "operationId": "GetSession",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/local/password": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces the signed-in local user\u0027s password; clears the must-change flag and refreshes the cookie.",
+        "operationId": "ChangeLocalPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/permissions": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every permission the host knows, with its module (E10.1).",
+        "operationId": "GetPermissionCatalog",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PermissionDescriptor"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/providers": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "The active identity provider, as a list of at most one (E11.0).",
+        "operationId": "GetAuthProviders",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuthProviderInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/{provider}/challenge": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Sends the browser to a challenge provider; 404 when the provider is not enabled.",
+        "operationId": "ChallengeAuthProvider",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/providers/{name}/check": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Runs a provider\u0027s health check (discovery for OIDC); 404 for an unknown provider.",
+        "operationId": "CheckAuthProvider",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProviderHealth"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/providers/{name}/groups": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "A provider\u0027s directory groups mapped to roles (E11.2); users in no mapped group hold no role.",
+        "operationId": "GetGroupRoleMappings",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GroupRoleMappingInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Maps a directory group to a role, everywhere or at one site; 409 when it exists.",
+        "operationId": "AddGroupRoleMapping",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupRoleMappingDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupRoleMappingInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/providers/groups/{mappingId}": {
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Removes a group-to-role mapping; members lose the role at their next sign-in.",
+        "operationId": "RemoveGroupRoleMapping",
+        "parameters": [
+          {
+            "name": "mappingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/roles": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every role: built-in first, then by name.",
+        "operationId": "ListRoles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates a role from catalog permissions.",
+        "operationId": "CreateRole",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/roles/{roleId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One role; the ETag is the row\u0027s version.",
+        "operationId": "GetRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces a role\u0027s name, description and permissions; If-Match required; built-in roles are read-only.",
+        "operationId": "UpdateRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Deletes a role and its assignments; built-in roles cannot be deleted.",
+        "operationId": "DeleteRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v0/auth/roles/{roleId}/copy": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates an editable copy of a role (the way to customise a built-in one).",
+        "operationId": "CopyRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/users/{userId}/roles": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "A user\u0027s role assignments, active and expired.",
+        "operationId": "ListUserRoles",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleAssignmentInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Assigns a role everywhere (no site) or at one site, optionally until a date.",
+        "operationId": "AssignRole",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleAssignmentInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/auth/assignments/{assignmentId}": {
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Removes an assignment.",
+        "operationId": "UnassignRole",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v0/system/license": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "GET: the license page.",
+        "operationId": "GetLicense",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/system/license/keys": {
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "PUT: installs a key.",
+        "operationId": "InstallLicenseKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallLicenseKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/system/license/keys/{keyId}": {
+      "delete": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "DELETE: removes a key by id.",
+        "operationId": "RemoveLicenseKey",
+        "parameters": [
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/system/license/comparison": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "GET: the comparison with the installed tier marked.",
+        "operationId": "GetLicenseComparison",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureComparison"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/organization/public": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "The organization\u0027s name and logo, for the login page; 404 until the first-run wizard created it.",
+        "operationId": "GetOrganizationPublic",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationPublicInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/organization": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "The organization; the ETag is the row\u0027s version; 404 until the first-run wizard created it.",
+        "operationId": "GetOrganization",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates the organization (the first-run wizard\u0027s first step); 409 when it already exists.",
+        "operationId": "CreateOrganization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces the organization\u0027s details; If-Match required.",
+        "operationId": "UpdateOrganization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every site the caller may see (all with an organization-level grant, their own with site-level grants), active and retired, in code order.",
+        "operationId": "ListSites",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SiteInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates a site; 409 sites.code_taken when the code is in use.",
+        "operationId": "CreateSite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One site; the ETag is the row\u0027s version.",
+        "operationId": "GetSite",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces a site\u0027s details; If-Match required; 409 sites.has_open_releases when retiring a site with open releases.",
+        "operationId": "UpdateSite",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/zones": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Every zone of the site, active and retired, in code order.",
+        "operationId": "ListZones",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ZoneInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates a zone in the site; 409 zones.code_taken when the code is in use there.",
+        "operationId": "CreateZone",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZoneDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/zones/{zoneId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One zone; the ETag is the row\u0027s version.",
+        "operationId": "GetZone",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "zoneId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces a zone\u0027s details; If-Match required; 409 zones.has_open_groups when retiring a zone with open groups.",
+        "operationId": "UpdateZone",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "zoneId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZoneDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/locations": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One page of the site\u0027s locations (after/before cursor, sort=walk_sequence|code|barcode|id, size, id_from/id_to, zone_id).",
+        "operationId": "ListLocations",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "id_from",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "id_to",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "zone_id",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfLocationInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Creates a location in the site; 409 locations.code_taken or locations.barcode_taken when in use there.",
+        "operationId": "CreateLocation",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/locations/{locationId}": {
+      "get": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "One location; the ETag is the row\u0027s version.",
+        "operationId": "GetLocation",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Replaces a location\u0027s details; If-Match required.",
+        "operationId": "UpdateLocation",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/imports/zones": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Loads a zones file (JSON array of zones plus action) into the site; policy=all_or_nothing (default)|accept_valid_rows|validate_only; format=csv for the row results as CSV.",
+        "operationId": "ImportZones",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "policy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ZoneImportRow"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/imports/locations": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Loads a locations file (JSON array of locations with zoneCode plus action) into the site; policy=accept_valid_rows (default)|all_or_nothing|validate_only; format=csv for the row results as CSV.",
+        "operationId": "ImportLocations",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "policy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LocationImportRow"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/copy": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Copies the site (settings overrides, zones, locations as chosen) under a new code; the copy carries copiedFromId.",
+        "operationId": "CopySite",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/zones/{zoneId}/copy": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Copies the zone within or across sites (settings overrides, locations with a code-prefix substitution as chosen).",
+        "operationId": "CopyZone",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "zoneId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZoneCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/locations/{locationId}/copy": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Copies the location with a new code and barcode.",
+        "operationId": "CopyLocation",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v0/sites/{siteId}/locations/copy-range": {
+      "post": {
+        "tags": [
+          "wms"
+        ],
+        "summary": "Copies every location whose code starts with a prefix, substituting the prefix in codes and barcodes; all or nothing.",
+        "operationId": "CopyLocationRange",
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationRangeCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LocationInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AssignRoleRequest": {
+        "required": [
+          "roleId"
+        ],
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The role to assign.",
+            "format": "int64"
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site, or null for everywhere.",
+            "format": "int64"
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the assignment stops applying, or null for no expiry.",
+            "format": "date-time"
+          }
+        },
+        "description": "Body of \u0060POST /auth/users/{userId}/roles\u0060 (E10.3)."
+      },
+      "AuthProviderHealth": {
+        "required": [
+          "healthy",
+          "detail"
+        ],
+        "type": "object",
+        "properties": {
+          "healthy": {
+            "type": "boolean",
+            "description": "True when the provider can sign people in."
+          },
+          "detail": {
+            "type": "string",
+            "description": "What was checked, or why it failed; never a secret."
+          }
+        },
+        "description": "The result of a provider\u0027s health check (E11.0)."
+      },
+      "AuthProviderInfo": {
+        "required": [
+          "name",
+          "displayName",
+          "kind",
+          "challengeUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The provider name."
+          },
+          "displayName": {
+            "type": "string",
+            "description": "The button label."
+          },
+          "kind": {
+            "description": "Credentials (a form) or Challenge (a redirect).",
+            "$ref": "#/components/schemas/AuthProviderKind"
+          },
+          "challengeUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Where the browser goes for a challenge provider; null for a credentials one."
+          }
+        },
+        "description": "One enabled provider as the login page sees it (E11.0)."
+      },
+      "AuthProviderKind": {
+        "enum": [
+          "Credentials",
+          "Challenge"
+        ],
+        "description": "How a provider signs a console user in (E11.0)."
+      },
+      "ChangePasswordRequest": {
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "description": "The password in use."
+          },
+          "newPassword": {
+            "type": "string",
+            "description": "The replacement; must satisfy PasswordPolicy."
+          }
+        },
+        "description": "Body of \u0060POST /auth/local/password\u0060 (E9.1, E9.2)."
+      },
+      "ComparisonRow": {
+        "required": [
+          "name",
+          "description",
+          "area",
+          "cells"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The feature or limit name."
+          },
+          "description": {
+            "type": "string",
+            "description": "Its description."
+          },
+          "area": {
+            "type": "string",
+            "description": "The area the name is grouped under (the part before the first dot)."
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "One cell per tier, in the table\u0027s tier order: \u0022\u2713\u0022 or \u0022\u2014\u0022 for a feature, the number or \u0022unlimited\u0022 for a limit."
+          }
+        },
+        "description": "One row of the feature comparison (E79.10): a feature or a limit and its cell per tier."
+      },
+      "CopyRoleRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The new role\u0027s name."
+          }
+        },
+        "description": "Body of \u0060POST /auth/roles/{id}/copy\u0060 (E10.2)."
+      },
+      "CoverageStatus": {
+        "enum": [
+          "Perpetual",
+          "Covered",
+          "Lapsed"
+        ],
+        "description": "Whether this release is covered by the base key (E79.5)."
+      },
+      "ElevateLogLevelRequest": {
+        "required": [
+          "level",
+          "minutes"
+        ],
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "description": "Trace, Debug or Information."
+          },
+          "minutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How long, up to the \u0060logging.elevation_max_minutes\u0060 setting.",
+            "format": "int32"
+          }
+        },
+        "description": "A timed elevation as posted (E12.4): \u0022Debug for 30 minutes\u0022."
+      },
+      "FeatureComparison": {
+        "required": [
+          "version",
+          "tiers",
+          "features",
+          "limits",
+          "installedTier"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "The release."
+          },
+          "tiers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The tier names across the top, lowest first."
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComparisonRow"
+            },
+            "description": "Feature rows, in catalogue order."
+          },
+          "limits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComparisonRow"
+            },
+            "description": "Limit rows, in catalogue order."
+          },
+          "installedTier": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The tier in force here, for the console to highlight; null on the docs page."
+          }
+        },
+        "description": "The feature-by-tier table for a release (E79.10), generated from the same tier table the enforcement uses, so it can never disagree with what the product does."
+      },
+      "GroupRoleMappingDraft": {
+        "required": [
+          "group",
+          "roleId"
+        ],
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string",
+            "description": "The group identifier as the provider sends it."
+          },
+          "roleId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The role to grant.",
+            "format": "int64"
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site, or null for everywhere.",
+            "format": "int64"
+          }
+        },
+        "description": "A group-to-role mapping as posted (E11.2)."
+      },
+      "GroupRoleMappingInfo": {
+        "required": [
+          "id",
+          "provider",
+          "group",
+          "roleId",
+          "roleName",
+          "siteId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "provider": {
+            "type": "string",
+            "description": "The provider whose groups these are."
+          },
+          "group": {
+            "type": "string",
+            "description": "The group identifier as the provider sends it (an object id, a name, a DN)."
+          },
+          "roleId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The role granted.",
+            "format": "int64"
+          },
+          "roleName": {
+            "type": "string",
+            "description": "The role\u0027s name."
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site the role applies at, or null for everywhere.",
+            "format": "int64"
+          }
+        },
+        "description": "One directory group mapped to one role (E11.2), everywhere or at one site."
+      },
+      "ImportAction": {
+        "enum": [
+          "Upsert",
+          "Delete"
+        ],
+        "description": "What a row asks for (E16.6): an upsert by natural key (the default) or a soft delete."
+      },
+      "ImportPolicy": {
+        "enum": [
+          "AllOrNothing",
+          "AcceptValidRows",
+          "ValidateOnly"
+        ],
+        "description": "What an import does with bad rows (E16.6), chosen per run with a default per entity type."
+      },
+      "ImportResult": {
+        "required": [
+          "entity",
+          "policy",
+          "written",
+          "inserted",
+          "updated",
+          "deleted",
+          "unchanged",
+          "failed",
+          "rows"
+        ],
+        "type": "object",
+        "properties": {
+          "entity": {
+            "type": "string",
+            "description": "The entity type the file carried (\u0060zones\u0060, \u0060locations\u0060)."
+          },
+          "policy": {
+            "description": "The bad-row policy the run used.",
+            "$ref": "#/components/schemas/ImportPolicy"
+          },
+          "written": {
+            "type": "boolean",
+            "description": "True when the rows were written; false under ImportPolicy.ValidateOnly and for a rolled-back ImportPolicy.AllOrNothing run."
+          },
+          "inserted": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Rows with a new key.",
+            "format": "int32"
+          },
+          "updated": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Rows whose key existed and changed.",
+            "format": "int32"
+          },
+          "deleted": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Rows retired.",
+            "format": "int32"
+          },
+          "unchanged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Rows that needed nothing.",
+            "format": "int32"
+          },
+          "failed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Rows refused.",
+            "format": "int32"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportRowResult"
+            },
+            "description": "The rows, never null."
+          }
+        },
+        "description": "What an import run produced (E16.6): the counts, whether anything was written, and one line per row. The same shape is returned by the API, shown in the console and downloadable as CSV (string ImportResult.ToCsv())."
+      },
+      "ImportRowOutcome": {
+        "enum": [
+          "Inserted",
+          "Updated",
+          "Deleted",
+          "Unchanged",
+          "Failed"
+        ],
+        "description": "What happened to one row (E16.6), or what would have happened under ImportPolicy.ValidateOnly and for the valid rows of a rolled-back ImportPolicy.AllOrNothing run."
+      },
+      "ImportRowResult": {
+        "required": [
+          "row",
+          "key",
+          "outcome",
+          "code",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "row": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s position in the file, starting at 1.",
+            "format": "int32"
+          },
+          "key": {
+            "type": "string",
+            "description": "The row\u0027s natural key (zone code, bin code); blank when the row had none."
+          },
+          "outcome": {
+            "description": "What happened, or would have happened.",
+            "$ref": "#/components/schemas/ImportRowOutcome"
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The error code when the row failed; null otherwise."
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Why the row failed; null otherwise."
+          }
+        },
+        "description": "One row of an import result (E16.6): the same shape in the API, the console and the downloadable CSV."
+      },
+      "InstalledKeyInfo": {
+        "required": [
+          "keyId",
+          "kind",
+          "tier",
+          "organization",
+          "devices",
+          "features",
+          "coverageFrom",
+          "coverageTo",
+          "issuedAt",
+          "status",
+          "reason",
+          "summary"
+        ],
+        "type": "object",
+        "properties": {
+          "keyId": {
+            "type": "string",
+            "description": "The key id (or the line, for a document that could not be read)."
+          },
+          "kind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Base or add-on; null when unreadable.",
+                "$ref": "#/components/schemas/LicenseKeyKind"
+              }
+            ]
+          },
+          "tier": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The tier of a base key."
+          },
+          "organization": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The organization the key binds to."
+          },
+          "devices": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Devices the key adds.",
+            "format": "int32"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Features the key grants explicitly."
+          },
+          "coverageFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The first covered day, or null when perpetual or co-terminating.",
+            "format": "date"
+          },
+          "coverageTo": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The last covered day, or null when perpetual or co-terminating.",
+            "format": "date"
+          },
+          "issuedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the key was issued.",
+            "format": "date"
+          },
+          "status": {
+            "description": "Its status.",
+            "$ref": "#/components/schemas/KeyStatus"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Why, for a status other than active."
+          },
+          "summary": {
+            "type": "string",
+            "description": "One line: \u0022Pro base, covered to 2027-03-31\u0022 or \u0022\u002B10 devices\u0022."
+          }
+        },
+        "description": "One installed key on the license page (E79.11): what it adds, its coverage and its status."
+      },
+      "InstallLicenseKeyRequest": {
+        "required": [
+          "key"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "The pasted key document."
+          }
+        },
+        "description": "The body of \u0060PUT /system/license/keys\u0060 (E79.3): the signed document as issued."
+      },
+      "KeyStatus": {
+        "enum": [
+          "Active",
+          "Lapsed",
+          "Superseded",
+          "ForeignOrganization",
+          "ExtraBase",
+          "Invalid"
+        ],
+        "description": "How an installed key takes part in the effective license (E79.11)."
+      },
+      "LicenseKeyKind": {
+        "enum": [
+          "Base",
+          "AddOn",
+          null
+        ]
+      },
+      "LicenseStatus": {
+        "required": [
+          "tier",
+          "organization",
+          "coverage",
+          "coveredUntil",
+          "releaseVersion",
+          "releaseDate",
+          "features",
+          "limits",
+          "includedDevices",
+          "purchasedDevices",
+          "allowancePercent",
+          "allowanceMinimumUnits",
+          "graceDays",
+          "usageWarningPercent",
+          "keys",
+          "banners"
+        ],
+        "type": "object",
+        "properties": {
+          "tier": {
+            "type": "string",
+            "description": "The tier name."
+          },
+          "organization": {
+            "type": "string",
+            "description": "The organization the base key binds to; empty on the free tier."
+          },
+          "coverage": {
+            "description": "Whether this release is covered.",
+            "$ref": "#/components/schemas/CoverageStatus"
+          },
+          "coveredUntil": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The last covered day, or null when perpetual.",
+            "format": "date"
+          },
+          "releaseVersion": {
+            "type": "string",
+            "description": "This release."
+          },
+          "releaseDate": {
+            "type": "string",
+            "description": "Its date, the one coverage is checked against.",
+            "format": "date"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The feature names granted."
+          },
+          "limits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LimitUsage"
+            },
+            "description": "Every limit with its usage."
+          },
+          "includedDevices": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Devices the tier includes.",
+            "format": "int32"
+          },
+          "purchasedDevices": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Devices bought through add-ons.",
+            "format": "int32"
+          },
+          "allowancePercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The overage allowance in percent.",
+            "format": "int32"
+          },
+          "allowanceMinimumUnits": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The allowance floor in units.",
+            "format": "int32"
+          },
+          "graceDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The grace period in days.",
+            "format": "int32"
+          },
+          "usageWarningPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The warning threshold.",
+            "format": "int32"
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstalledKeyInfo"
+            },
+            "description": "Every installed key."
+          },
+          "banners": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What the console shows at the top: lapsed coverage, limits over, warnings."
+          }
+        },
+        "description": "The license page (E79.6, E79.11): the tier and coverage, every feature granted, every limit with its usage, the device totals (\u00225 included \u002B 10 purchased = 15\u0022), every installed key, and the banners."
+      },
+      "LimitOutcome": {
+        "enum": [
+          "Allowed",
+          "WithinAllowance",
+          "Blocked"
+        ],
+        "description": "What a creation against a limit may do (E79.4)."
+      },
+      "LimitUsage": {
+        "required": [
+          "name",
+          "description",
+          "ceiling",
+          "count",
+          "percent",
+          "warning",
+          "outcome",
+          "graceEndsOn",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The limit name."
+          },
+          "description": {
+            "type": "string",
+            "description": "Its description."
+          },
+          "ceiling": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The licensed value, or null when unlimited.",
+            "format": "int32"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The count now.",
+            "format": "int32"
+          },
+          "percent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Count as a percentage of the ceiling, or null when unlimited.",
+            "format": "int32"
+          },
+          "warning": {
+            "type": "boolean",
+            "description": "True when the count has reached the warning threshold."
+          },
+          "outcome": {
+            "description": "The standing: allowed, within the allowance (grace running), or blocked.",
+            "$ref": "#/components/schemas/LimitOutcome"
+          },
+          "graceEndsOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The last day of grace while over, else null.",
+            "format": "date"
+          },
+          "message": {
+            "type": "string",
+            "description": "The banner while over, else empty."
+          }
+        },
+        "description": "One limit on the license page (E79.6): the licensed value, the count now, and the standing."
+      },
+      "LocalLoginRequest": {
+        "required": [
+          "userName",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "userName": {
+            "type": "string",
+            "description": "The sign-in name."
+          },
+          "password": {
+            "type": "string",
+            "description": "The password."
+          }
+        },
+        "description": "Body of \u0060POST /auth/local/login\u0060 (E9.2)."
+      },
+      "LocalLoginStatus": {
+        "required": [
+          "localLoginOpen",
+          "ssoVerified",
+          "unlockedUntil",
+          "forcedLocal"
+        ],
+        "type": "object",
+        "properties": {
+          "localLoginOpen": {
+            "type": "boolean",
+            "description": "True when a local sign-in may proceed right now."
+          },
+          "ssoVerified": {
+            "type": "boolean",
+            "description": "True once an external sign-in has succeeded on this install."
+          },
+          "unlockedUntil": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "End of the open unlock window; null when no window is open.",
+            "format": "date-time"
+          },
+          "forcedLocal": {
+            "type": "boolean",
+            "description": "True when \u0060Wms:Auth:ForceLocal\u0060 keeps local sign-in open regardless."
+          }
+        },
+        "description": "Whether local sign-in is open (\u0060GET /auth/local/status\u0060, E9.3): read anonymously by the login page (to hide or show the password form) and by the console (to show the unlock banner). Carries no user names."
+      },
+      "LocationCopyRequest": {
+        "required": [
+          "code",
+          "barcode"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The new bin code, unique within the site."
+          },
+          "barcode": {
+            "type": "string",
+            "description": "The new barcode, unique within the site."
+          },
+          "walkSequence": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The new walk sequence; null to keep the source\u0027s."
+          },
+          "zoneId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The zone to copy into; null for the source location\u0027s zone.",
+            "format": "int64"
+          }
+        },
+        "description": "What an administrator sends to copy one location (E16.5): the same properties with a new code and barcode."
+      },
+      "LocationDraft": {
+        "required": [
+          "code",
+          "barcode",
+          "zoneId",
+          "walkSequence"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The bin code, unique within the site: letters, digits, \u0060-\u0060 and \u0060_\u0060, compared without regard to case (the site\u0027s code format, E17.11, generates it from aisle/bay/level/position)."
+          },
+          "barcode": {
+            "type": "string",
+            "description": "The label on the bin, unique within the site; what a picker scans."
+          },
+          "zoneId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The zone the bin is in; a zone of the same site.",
+            "format": "int64"
+          },
+          "walkSequence": {
+            "type": "string",
+            "description": "A sortable string: the order a picker walks the bins in. Starts with the zone\u0027s walk-order prefix when the zone has one."
+          },
+          "isPickable": {
+            "type": "boolean",
+            "description": "False for a bin that holds stock but is never picked from (staging, overflow).",
+            "default": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False to retire the bin: it stays in history but takes no new stock or tasks.",
+            "default": true
+          }
+        },
+        "description": "What an administrator (or an import) sends to create or replace a location (E17.1): one bin."
+      },
+      "LocationImportRow": {
+        "required": [
+          "code",
+          "barcode",
+          "zoneCode",
+          "walkSequence",
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The natural key: the bin code, unique within the site."
+          },
+          "barcode": {
+            "type": "string",
+            "description": "The label on the bin, unique within the site."
+          },
+          "zoneCode": {
+            "type": "string",
+            "description": "The code of a zone of the site; it must already exist."
+          },
+          "walkSequence": {
+            "type": "string",
+            "description": "The sortable walk order; starts with the zone\u0027s walk-order prefix when it has one."
+          },
+          "action": {
+            "description": "\u0060Upsert\u0060 (the default) or \u0060Delete\u0060.",
+            "$ref": "#/components/schemas/ImportAction"
+          },
+          "isPickable": {
+            "type": "boolean",
+            "description": "False for a bin never picked from.",
+            "default": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False to retire the bin.",
+            "default": true
+          }
+        },
+        "description": "One location in a locations file (E16.6): the same object as LocationDraft except that the zone is named by its code (the natural key an ERP or a spreadsheet knows), plus the optional ImportAction LocationImportRow.Action."
+      },
+      "LocationInfo": {
+        "required": [
+          "id",
+          "siteId",
+          "zoneId",
+          "code",
+          "barcode",
+          "walkSequence",
+          "isPickable",
+          "isActive",
+          "updatedAt",
+          "updatedBy",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The site the bin belongs to.",
+            "format": "int64"
+          },
+          "zoneId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The zone the bin is in.",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string",
+            "description": "The bin code, unique within the site."
+          },
+          "barcode": {
+            "type": "string",
+            "description": "The label on the bin, unique within the site."
+          },
+          "walkSequence": {
+            "type": "string",
+            "description": "The sortable walk order."
+          },
+          "isPickable": {
+            "type": "boolean",
+            "description": "False for a bin never picked from."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False once the bin is retired."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When the row was last written (UTC).",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string",
+            "description": "Who last wrote the row."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s version (E5.1); the string LocationInfo.Etag is derived from it.",
+            "format": "int64"
+          },
+          "copiedFromId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The id of the row this one was copied from (E16.5); null when created outright.",
+            "format": "int64"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag a client sends back in \u0060If-Match\u0060."
+          }
+        },
+        "description": "A location as the API reports it (E17.1): one bin in a zone of a site."
+      },
+      "LocationRangeCopyRequest": {
+        "required": [
+          "codePrefixFrom",
+          "codePrefixTo"
+        ],
+        "type": "object",
+        "properties": {
+          "codePrefixFrom": {
+            "type": "string",
+            "description": "The prefix the source codes start with."
+          },
+          "codePrefixTo": {
+            "type": "string",
+            "description": "The replacement prefix for the copies\u0027 codes and barcodes."
+          },
+          "zoneId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The zone the copies go to; null to keep each source\u0027s zone.",
+            "format": "int64"
+          },
+          "walkPrefixFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Optional: the prefix of the source walk sequences to replace."
+          },
+          "walkPrefixTo": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The replacement walk prefix; required when WalkPrefixFrom is given."
+          }
+        },
+        "description": "What an administrator sends to copy a range of locations at once (E16.5), such as aisle \u0060A\u0060 to aisle \u0060B\u0060: every location whose code starts with the prefix is copied with the prefix replaced in its code and barcode (and, optionally, its walk sequence)."
+      },
+      "LoggingStatus": {
+        "required": [
+          "level",
+          "effectiveLevel",
+          "elevatedLevel",
+          "elevatedUntil",
+          "maxElevationMinutes"
+        ],
+        "type": "object",
+        "properties": {
+          "level": {
+            "description": "The permanent level (the \u0060logging.level\u0060 setting).",
+            "$ref": "#/components/schemas/LogLevel"
+          },
+          "effectiveLevel": {
+            "description": "The level in force now.",
+            "$ref": "#/components/schemas/LogLevel"
+          },
+          "elevatedLevel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The elevated level while an elevation runs, else null.",
+                "$ref": "#/components/schemas/LogLevel"
+              }
+            ]
+          },
+          "elevatedUntil": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the elevation ends, else null.",
+            "format": "date-time"
+          },
+          "maxElevationMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The longest elevation the console may start.",
+            "format": "int32"
+          }
+        },
+        "description": "The server\u0027s log level as the console shows it (E12.4)."
+      },
+      "LogLevel": {
+        "enum": [
+          "Trace",
+          "Debug",
+          "Information",
+          "Warning",
+          "Error",
+          "Critical",
+          "None"
+        ]
+      },
+      "OrganizationAddress": {
+        "required": [
+          "line1",
+          "line2",
+          "city",
+          "region",
+          "postalCode",
+          "country"
+        ],
+        "type": "object",
+        "properties": {
+          "line1": {
+            "type": "string",
+            "description": "Street and number."
+          },
+          "line2": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Second line (suite, building); null when none."
+          },
+          "city": {
+            "type": "string",
+            "description": "City or town."
+          },
+          "region": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "State, province or county; null when the country has none."
+          },
+          "postalCode": {
+            "type": "string",
+            "description": "Postal or ZIP code."
+          },
+          "country": {
+            "type": "string",
+            "description": "Country, as written on an envelope."
+          }
+        },
+        "description": "The organisation\u0027s postal address (E16.0), as printed on cards and digests."
+      },
+      "OrganizationContact": {
+        "required": [
+          "name",
+          "email",
+          "phone"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The person or team."
+          },
+          "email": {
+            "type": "string",
+            "description": "Their e-mail address."
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Their phone number; null when none."
+          }
+        },
+        "description": "A named contact of the organisation (E16.0): the primary contact the vendor and the install talk to, and the support contact users are pointed at."
+      },
+      "OrganizationDraft": {
+        "required": [
+          "name",
+          "legalName",
+          "logoDataUrl",
+          "timeZone",
+          "locale",
+          "address",
+          "primaryContact",
+          "supportContact"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name users see: console header, login page, notifications, cards; 1\u2013128 characters."
+          },
+          "legalName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The registered company name; null to use Name."
+          },
+          "logoDataUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The logo as a \u0060data:image/\u2026\u0060 URL, at most 256 KB; null for none."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The default time zone (IANA or Windows id), the one sites inherit."
+          },
+          "locale": {
+            "type": "string",
+            "description": "The default culture name (\u0060en-US\u0060), the one users inherit."
+          },
+          "address": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The postal address; null when not yet known.",
+                "$ref": "#/components/schemas/OrganizationAddress"
+              }
+            ]
+          },
+          "primaryContact": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Who the vendor and the install talk to; null when not yet known.",
+                "$ref": "#/components/schemas/OrganizationContact"
+              }
+            ]
+          },
+          "supportContact": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Who users are pointed at; null to use the primary contact.",
+                "$ref": "#/components/schemas/OrganizationContact"
+              }
+            ]
+          }
+        },
+        "description": "Body of \u0060POST /organization\u0060 (the first-run wizard\u0027s first step) and \u0060PUT /organization\u0060 (E16.0)."
+      },
+      "OrganizationInfo": {
+        "required": [
+          "id",
+          "name",
+          "legalName",
+          "logoDataUrl",
+          "timeZone",
+          "locale",
+          "address",
+          "primaryContact",
+          "supportContact",
+          "updatedAt",
+          "updatedBy",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "legalName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The registered company name; null to use Name."
+          },
+          "logoDataUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The logo as a \u0060data:image/\u2026\u0060 URL; null for none."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The default time zone id."
+          },
+          "locale": {
+            "type": "string",
+            "description": "The default culture name."
+          },
+          "address": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The postal address; null when not yet known.",
+                "$ref": "#/components/schemas/OrganizationAddress"
+              }
+            ]
+          },
+          "primaryContact": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Who the vendor and the install talk to; null when not yet known.",
+                "$ref": "#/components/schemas/OrganizationContact"
+              }
+            ]
+          },
+          "supportContact": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Who users are pointed at; null to use the primary contact.",
+                "$ref": "#/components/schemas/OrganizationContact"
+              }
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When the row was last written (UTC).",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string",
+            "description": "Who last wrote it."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s version (the entity tag on updates).",
+            "format": "int64"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag for \u0060If-Match\u0060."
+          }
+        },
+        "description": "The organisation as the API and the console see it (E16.0): the one row per install that is the top of the settings cascade, the name on the console header, the licensee the keys name, and the install\u0027s name in multi-install monitoring."
+      },
+      "OrganizationPublicInfo": {
+        "required": [
+          "name",
+          "logoDataUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "logoDataUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The logo as a \u0060data:image/\u2026\u0060 URL; null for none."
+          }
+        },
+        "description": "The organisation as the login page shows it before anyone is signed in (E16.0): the name and the logo, nothing that identifies people or places."
+      },
+      "PageOfLocationInfo": {
+        "required": [
+          "nextCursor",
+          "previousCursor",
+          "minId",
+          "maxId",
+          "items",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Cursor for the page after this one (\u0060after=\u0060), or null on the last page."
+          },
+          "previousCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Cursor for the page before this one (\u0060before=\u0060), or null on the first page."
+          },
+          "minId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Lowest id matching the filters in scope, or null when empty.",
+            "format": "int64"
+          },
+          "maxId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Highest id matching the filters in scope, or null when empty.",
+            "format": "int64"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocationInfo"
+            },
+            "description": "The items on this page, never null."
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Exact total in scope; never negative.",
+            "format": "int64"
+          }
+        },
+        "description": "One keyset page of a list endpoint (E82.3): the items, opaque cursors for the neighbouring pages, the exact total in scope, and the id bounds so a parallel client can split the range with \u0060id_from\u0060/\u0060id_to\u0060."
+      },
+      "PermissionDescriptor": {
+        "required": [
+          "name",
+          "description",
+          "module"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The permission name (\u0060settings.write\u0060)."
+          },
+          "description": {
+            "type": "string",
+            "description": "What it allows."
+          },
+          "module": {
+            "type": "string",
+            "description": "The module that declares it (\u0060console\u0060 for workspaces)."
+          }
+        },
+        "description": "One catalog entry as the API and the console see it (E10.1)."
+      },
+      "ResolutionZone": {
+        "required": [
+          "restockingBin",
+          "returnsContainer",
+          "resolverUserIds",
+          "acceptsWeightFailures",
+          "acceptsShorts",
+          "acceptsAdjustments",
+          "acceptsMisdirects",
+          "isVirtualQueue"
+        ],
+        "type": "object",
+        "properties": {
+          "restockingBin": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The bin (a location barcode or label, E17.1) resolved stock is restocked to; null when none."
+          },
+          "returnsContainer": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The container returns are collected in; null when none."
+          },
+          "resolverUserIds": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            },
+            "description": "The users assigned to resolve here; empty when anyone with the permission may."
+          },
+          "acceptsWeightFailures": {
+            "type": "boolean",
+            "description": "Whether totes that failed the weight check are routed here."
+          },
+          "acceptsShorts": {
+            "type": "boolean",
+            "description": "Whether short picks are resolved here."
+          },
+          "acceptsAdjustments": {
+            "type": "boolean",
+            "description": "Whether quantity adjustments are resolved here."
+          },
+          "acceptsMisdirects": {
+            "type": "boolean",
+            "description": "Whether misdirected totes are resolved here."
+          },
+          "isVirtualQueue": {
+            "type": "boolean",
+            "description": "True for a virtual queue (work items, no conveyor lane); false for a physical lane."
+          }
+        },
+        "description": "The properties only a ZoneType.Resolution zone carries (E16.2): where resolved stock goes, who resolves, which exceptions it accepts, and whether it is a physical lane or a virtual queue."
+      },
+      "RoleAssignmentInfo": {
+        "required": [
+          "id",
+          "userId",
+          "roleId",
+          "roleName",
+          "siteId",
+          "expiresAt",
+          "expired"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "userId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The user.",
+            "format": "int64"
+          },
+          "roleId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The role.",
+            "format": "int64"
+          },
+          "roleName": {
+            "type": "string",
+            "description": "The role\u0027s name."
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site, or null for everywhere (the organisation).",
+            "format": "int64"
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the assignment stops applying, or null for no expiry.",
+            "format": "date-time"
+          },
+          "expired": {
+            "type": "boolean",
+            "description": "True when DateTimeOffset? RoleAssignmentInfo.ExpiresAt has passed."
+          }
+        },
+        "description": "One role assignment (E10.3): a user holds a role everywhere or at one site, optionally until a date."
+      },
+      "RoleDraft": {
+        "required": [
+          "name",
+          "description",
+          "permissions"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The role name, unique (case-insensitive), 1\u2013128 characters."
+          },
+          "description": {
+            "type": "string",
+            "description": "What the role is for."
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Catalog permission names the role grants."
+          }
+        },
+        "description": "Body of \u0060POST /auth/roles\u0060 and \u0060PUT /auth/roles/{id}\u0060 (E10.2)."
+      },
+      "RoleInfo": {
+        "required": [
+          "id",
+          "name",
+          "description",
+          "builtIn",
+          "permissions",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "description": "The role name, unique (case-insensitive)."
+          },
+          "description": {
+            "type": "string",
+            "description": "What the role is for."
+          },
+          "builtIn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The built-in role key (\u0060administrator\u0060) when the role is one, else null; built-in roles are read-only."
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The permission names the role grants, sorted; \u0060*\u0060 for the administrator."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s version (the entity tag on updates).",
+            "format": "int64"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag for \u0060If-Match\u0060."
+          }
+        },
+        "description": "A role as the API and the console see it (E10.2)."
+      },
       "SchemaStatus": {
         "required": [
           "current",
@@ -58,6 +3779,668 @@
           }
         },
         "description": "The database schema as the API sees it (E82.5): the migration the database is at and the one this build expects. Read-only; applying migrations is a bootstrap step outside the API (\u0060wms-migrate\u0060)."
+      },
+      "SessionInfo": {
+        "required": [
+          "userId",
+          "userName",
+          "displayName",
+          "mustChangePassword",
+          "isLocalAdmin",
+          "permissions"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The user\u0027s id.",
+            "format": "int64"
+          },
+          "userName": {
+            "type": "string",
+            "description": "The sign-in name."
+          },
+          "displayName": {
+            "type": "string",
+            "description": "The name shown on screen."
+          },
+          "mustChangePassword": {
+            "type": "boolean",
+            "description": "True while the password must be replaced before anything else."
+          },
+          "isLocalAdmin": {
+            "type": "boolean",
+            "description": "True for the break-glass administrator."
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The permission grants the session carries (\u0060name@organization\u0060, \u0060name@site:3\u0060, \u0060*@organization\u0060)."
+          }
+        },
+        "description": "Who is signed in (\u0060GET /auth/me\u0060, E9)."
+      },
+      "SetSettingRequest": {
+        "required": [
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The stored text, or null."
+          },
+          "mode": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The cascade mode\u0027s stored name, or null to keep or set a value."
+          }
+        },
+        "description": "Body of \u0060PUT /settings/{scope}/{id}/{key}\u0060 (E6.3, E7.2): a value as stored text, or a cascade mode (\u0060per_site\u0060, \u0060per_zone\u0060, \u0060per_sku\u0060) that delegates the decision downward. Both null resets the scope to inherit (the same as \u0060DELETE\u0060); mode \u0060value\u0060 alone does the same."
+      },
+      "SettingDescriptor": {
+        "required": [
+          "name",
+          "kind",
+          "scopes",
+          "default",
+          "description",
+          "choices",
+          "requiresRestart",
+          "triggersDeviceResync"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The setting name."
+          },
+          "kind": {
+            "description": "How the value is edited and stored.",
+            "$ref": "#/components/schemas/SettingKind"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The scope names the setting may be configured at, organisation first."
+          },
+          "default": {
+            "type": "string",
+            "description": "The default value as stored text; masked for secrets."
+          },
+          "description": {
+            "type": "string",
+            "description": "The one-line description."
+          },
+          "choices": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The allowed values when the kind is a fixed list, else null."
+          },
+          "requiresRestart": {
+            "type": "boolean",
+            "description": "True when a change needs a host restart."
+          },
+          "triggersDeviceResync": {
+            "type": "boolean",
+            "description": "True when a change makes devices resync."
+          }
+        },
+        "description": "One registry entry as the API and the console see it (E6.1): everything a settings page needs to render and validate a setting without knowing its CLR type."
+      },
+      "SettingKind": {
+        "enum": [
+          "Boolean",
+          "Integer",
+          "Number",
+          "Enum",
+          "String",
+          "Duration",
+          "Timestamp",
+          "Secret",
+          "Json"
+        ],
+        "description": "How a setting\u0027s value is edited and stored (E6.1). Every value is stored as invariant-culture text; the kind tells the settings page which editor to show and the accessor how to parse the text."
+      },
+      "SettingValue": {
+        "required": [
+          "name",
+          "scope",
+          "kind",
+          "configuredValue",
+          "effectiveValue",
+          "inheritedFrom",
+          "cascadeMode",
+          "allowedModes",
+          "rowVersion",
+          "updatedBy",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The setting name."
+          },
+          "scope": {
+            "type": "string",
+            "description": "The scope (\u0060organization\u0060, \u0060site:3\u0060)."
+          },
+          "kind": {
+            "description": "How the value is edited.",
+            "$ref": "#/components/schemas/SettingKind"
+          },
+          "configuredValue": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The text configured at this scope, or null when it inherits."
+          },
+          "effectiveValue": {
+            "type": "string",
+            "description": "The text that applies at this scope."
+          },
+          "inheritedFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The scope the effective value comes from (\u0060organization\u0060), \u0060default\u0060 for the key\u0027s default, or null when configured here."
+          },
+          "cascadeMode": {
+            "type": "string",
+            "description": "How this scope takes part in the cascade: \u0060value\u0060, or \u0060per_site\u0060/\u0060per_zone\u0060/\u0060per_sku\u0060 when it delegates (E7.2)."
+          },
+          "allowedModes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The modes this key allows at this scope."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The stored row\u0027s version, or null when no row exists at this scope yet.",
+            "format": "int64"
+          },
+          "updatedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Who last wrote the row, if one exists."
+          },
+          "updatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the row was last written, if one exists.",
+            "format": "date-time"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag of the stored row (\u0060If-Match\u0060 on writes), or null when no row exists."
+          }
+        },
+        "description": "One setting at one scope as the API and the console see it (E6.3): what is configured here, what applies here, and where the effective value comes from when it is inherited. Secrets are masked."
+      },
+      "SiteCopyRequest": {
+        "required": [
+          "code",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The new site\u0027s code, unique across sites."
+          },
+          "name": {
+            "type": "string",
+            "description": "The new site\u0027s name."
+          },
+          "timeZone": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The new site\u0027s time zone; null to keep the source site\u0027s."
+          },
+          "settings": {
+            "type": "boolean",
+            "description": "Bring the source site\u0027s settings overrides (configured values and cascade modes; secrets are never copied).",
+            "default": true
+          },
+          "zones": {
+            "type": "boolean",
+            "description": "Bring the zones with their reject-lane flags, resolution properties and settings overrides.",
+            "default": true
+          },
+          "locations": {
+            "type": "boolean",
+            "description": "Bring the locations (requires Zones), with the code substitution applied to codes and barcodes.",
+            "default": true
+          },
+          "codePrefixFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Optional: the prefix of the source codes and barcodes to replace (a renumbering such as aisle \u0060A\u0060 to \u0060B\u0060)."
+          },
+          "codePrefixTo": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The replacement prefix; required when CodePrefixFrom is given."
+          }
+        },
+        "description": "What an administrator sends to copy a site (E16.5): the fields that must differ and a checklist of what to bring. Transactional data and pickers\u0027 assignments are never copied."
+      },
+      "SiteDraft": {
+        "required": [
+          "code",
+          "name",
+          "timeZone"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The short unique code (\u0060DC1\u0060, \u0060HAM-01\u0060): letters, digits, \u0060-\u0060 and \u0060_\u0060, compared without regard to case."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "timeZone": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "An IANA or Windows time zone id the host knows; what the site\u0027s clocks, cut-offs and digests use. Null or blank to take the organisation\u0027s default time zone (E16.4); required until the organisation exists."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False to retire the site: it stays in reports and history but takes no new work. Refused while open releases exist.",
+            "default": true
+          }
+        },
+        "description": "What an administrator sends to create or replace a site (E16.1)."
+      },
+      "SiteInfo": {
+        "required": [
+          "id",
+          "code",
+          "name",
+          "timeZone",
+          "isActive",
+          "updatedAt",
+          "updatedBy",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier; what \u0060siteId\u0060 route values and \u0060X-Wms-Site\u0060 carry.",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string",
+            "description": "The short unique code."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The site\u0027s time zone id."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False once the site is retired."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When the row was last written (UTC).",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string",
+            "description": "Who last wrote the row."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s version (E5.1); the string SiteInfo.Etag is derived from it.",
+            "format": "int64"
+          },
+          "copiedFromId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The id of the row this one was copied from (E16.5); null when created outright.",
+            "format": "int64"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag a client sends back in \u0060If-Match\u0060."
+          }
+        },
+        "description": "A site as the API reports it (E16.1): one warehouse, the operational level pickers, role assignments and settings are scoped to."
+      },
+      "ZoneCopyRequest": {
+        "required": [
+          "code",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The new zone\u0027s code, unique within the target site."
+          },
+          "name": {
+            "type": "string",
+            "description": "The new zone\u0027s name."
+          },
+          "targetSiteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The site to copy into; null for the source zone\u0027s own site.",
+            "format": "int64"
+          },
+          "settings": {
+            "type": "boolean",
+            "description": "Bring the zone\u0027s settings overrides (secrets are never copied).",
+            "default": true
+          },
+          "locations": {
+            "type": "boolean",
+            "description": "Bring the zone\u0027s locations, with the code substitution applied to codes and barcodes.",
+            "default": true
+          },
+          "codePrefixFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Optional: the prefix of the source location codes and barcodes to replace; required when copying locations within the same site."
+          },
+          "codePrefixTo": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The replacement prefix; required when CodePrefixFrom is given."
+          }
+        },
+        "description": "What an administrator sends to copy a zone within or across sites (E16.5)."
+      },
+      "ZoneDraft": {
+        "required": [
+          "code",
+          "name",
+          "type",
+          "walkOrderPrefix",
+          "isRejectLane",
+          "resolution"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The code, unique within the site: letters, digits, \u0060-\u0060 and \u0060_\u0060, compared without regard to case."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "type": {
+            "description": "What the zone is for.",
+            "$ref": "#/components/schemas/ZoneType"
+          },
+          "walkOrderPrefix": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "An optional sortable prefix the zone\u0027s locations\u0027 walk sequences start with (E17.1); null for none."
+          },
+          "isRejectLane": {
+            "type": "boolean",
+            "description": "True when a pick zone is also the conveyor\u0027s error/overflow lane; drives the reject diagnostics (E26.3). Pick zones only."
+          },
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The resolution-zone properties; required for a ZoneType.Resolution zone, absent otherwise.",
+                "$ref": "#/components/schemas/ResolutionZone"
+              }
+            ]
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False to retire the zone. Refused while open zone groups exist.",
+            "default": true
+          }
+        },
+        "description": "What an administrator sends to create or replace a zone (E16.2)."
+      },
+      "ZoneImportRow": {
+        "required": [
+          "code",
+          "name",
+          "type",
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The natural key: the zone\u0027s code, unique within the site."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "type": {
+            "description": "\u0060Pick\u0060 (the default) or \u0060Bulk\u0060.",
+            "$ref": "#/components/schemas/ZoneType"
+          },
+          "action": {
+            "description": "\u0060Upsert\u0060 (the default) or \u0060Delete\u0060.",
+            "$ref": "#/components/schemas/ImportAction"
+          },
+          "walkOrderPrefix": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The optional sortable prefix the zone\u0027s locations\u0027 walk sequences start with."
+          },
+          "isRejectLane": {
+            "type": "boolean",
+            "description": "True when a pick zone is also the conveyor\u0027s error/overflow lane.",
+            "default": false
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False to retire the zone.",
+            "default": true
+          }
+        },
+        "description": "One zone in a zones file (E16.6): the same object as ZoneDraft plus the optional ImportAction ZoneImportRow.Action. Resolution zones are not importable (E16.2): a row with \u0060type: Resolution\u0060 fails."
+      },
+      "ZoneInfo": {
+        "required": [
+          "id",
+          "siteId",
+          "code",
+          "name",
+          "type",
+          "walkOrderPrefix",
+          "isRejectLane",
+          "resolution",
+          "isActive",
+          "updatedAt",
+          "updatedBy",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The server-assigned identifier.",
+            "format": "int64"
+          },
+          "siteId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The site the zone belongs to.",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string",
+            "description": "The code, unique within the site."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name users see."
+          },
+          "type": {
+            "description": "What the zone is for.",
+            "$ref": "#/components/schemas/ZoneType"
+          },
+          "walkOrderPrefix": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The sortable prefix of the zone\u0027s locations\u0027 walk sequences; null for none."
+          },
+          "isRejectLane": {
+            "type": "boolean",
+            "description": "True when the pick zone is also the conveyor\u0027s error/overflow lane."
+          },
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The resolution-zone properties; null for pick and bulk zones.",
+                "$ref": "#/components/schemas/ResolutionZone"
+              }
+            ]
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "False once the zone is retired."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When the row was last written (UTC).",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string",
+            "description": "Who last wrote the row."
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The row\u0027s version (E5.1); the string ZoneInfo.Etag is derived from it.",
+            "format": "int64"
+          },
+          "copiedFromId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The id of the row this one was copied from (E16.5); null when created outright.",
+            "format": "int64"
+          },
+          "etag": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The entity tag a client sends back in \u0060If-Match\u0060."
+          }
+        },
+        "description": "A zone as the API reports it (E16.2): a picking area, bulk storage or resolution zone within a site."
+      },
+      "ZoneType": {
+        "enum": [
+          "Pick",
+          "Bulk",
+          "Resolution"
+        ],
+        "description": "What a zone is for (E16.2)."
       }
     }
   },

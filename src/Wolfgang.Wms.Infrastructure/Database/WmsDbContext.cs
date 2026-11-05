@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Wolfgang.AuditTrail;
 using Wolfgang.Wms.Infrastructure.Database.Auditing;
+using Wolfgang.Wms.Infrastructure.Organization;
 using Wolfgang.Wms.Infrastructure.Database.Conventions;
 using Wolfgang.Wms.Infrastructure.Database.Settings;
 using Wolfgang.Wms.Infrastructure.Identity;
@@ -91,6 +92,13 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
 
 
 
+    /// <summary>
+    /// The one organisation of the install (E16.0), created by the first-run wizard.
+    /// </summary>
+    public DbSet<Organization.Organization> Organizations => Set<Organization.Organization>();
+
+
+
     /// <inheritdoc/>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -113,6 +121,7 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration<UserRole>(roles);
         modelBuilder.ApplyConfiguration(new GroupRoleMappingConfiguration());   // E11.2
         modelBuilder.ApplyConfiguration(new LocalLoginGateConfiguration());   // E9.3
+        modelBuilder.ApplyConfiguration(new OrganizationConfiguration());   // E16.0
         modelBuilder.Entity<DataProtectionKey>().ToTable("data_protection_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E8.6: library-owned, in wms like the migrations history
         modelBuilder.Entity<DataProtectionKey>().Property(k => k.FriendlyName).HasMaxLength(256);
         modelBuilder.Entity<IntegrityKey>().ToTable("integrity_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E10.4: the HMAC key, protected by the ring

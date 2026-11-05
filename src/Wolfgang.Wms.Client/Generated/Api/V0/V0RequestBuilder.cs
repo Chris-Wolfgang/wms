@@ -7,6 +7,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth;
+using Wolfgang.Wms.Client.Generated.Api.V0.Organization;
 using Wolfgang.Wms.Client.Generated.Api.V0.Settings;
 using Wolfgang.Wms.Client.Generated.Api.V0.System;
 namespace Wolfgang.Wms.Client.Generated.Api.V0
@@ -21,6 +22,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.AuthRequestBuilder Auth
         {
             get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.AuthRequestBuilder(PathParameters, RequestAdapter);
+        }
+        /// <summary>The organization property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Organization.OrganizationRequestBuilder Organization
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Organization.OrganizationRequestBuilder(PathParameters, RequestAdapter);
         }
         /// <summary>The settings property</summary>
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Settings.SettingsRequestBuilder Settings

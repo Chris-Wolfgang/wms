@@ -37,6 +37,10 @@ Every error the API answers with (E82.3): `application/problem+json` whose `code
 | `license.key_rejected` | 400 | error | The key was refused: {0}. | [license-key-rejected](../troubleshooting.md#license-key-rejected) |
 | `license.limit_reached` | 403 | warning | {0} | [license-limit-reached](../troubleshooting.md#license-limit-reached) |
 | `logging.elevation_rejected` | 400 | error | The elevation was refused: {0}. | [logging-elevation-rejected](../troubleshooting.md#logging-elevation-rejected) |
+| `organization.already_exists` | 409 | error | The organization already exists; edit it instead of creating another. | [organization-already-exists](../troubleshooting.md#organization-already-exists) |
+| `organization.invalid` | 400 | error | {0} | [organization-invalid](../troubleshooting.md#organization-invalid) |
+| `organization.not_created` | 404 | warning | The organization has not been created yet; run the first-run wizard. | [organization-not-created](../troubleshooting.md#organization-not-created) |
+| `organization.unavailable` | 503 | warning | The organization is unavailable until the database is configured. | [organization-unavailable](../troubleshooting.md#organization-unavailable) |
 | `settings.decided_elsewhere` | 409 | error | {0} is decided {1} (set by {2}); it cannot be configured at the {3} scope. | [settings-decided-elsewhere](../troubleshooting.md#settings-decided-elsewhere) |
 | `settings.invalid_value` | 400 | error | {0} | [settings-invalid-value](../troubleshooting.md#settings-invalid-value) |
 | `settings.mode_not_allowed` | 400 | error | {0} cannot be delegated {1} at the {2} scope. | [settings-mode-not-allowed](../troubleshooting.md#settings-mode-not-allowed) |

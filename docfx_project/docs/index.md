@@ -7,12 +7,17 @@ app, starting with the picking module. These pages are for the people who instal
 
 - [Introduction](introduction.md) - what the product is, what is in it today and what is still arriving
 - [Getting Started](getting-started.md) - from an empty database to a console you can open
+- [Licensing](licensing.md) - tiers, keys, limits and expiry; the [feature comparison](licensing/feature-comparison.md) per release
+- [Troubleshooting](troubleshooting.md) - every error code, what it means and what to do
 
 ## Operating the server
 
 - [Before the API can serve](bootstrap.md) - the order of first-run steps and the schema endpoint
 - [Configuration](configuration.md) - every `Wms:*` setting, where it is read from and what it does
+- [Running in containers](containers.md) - the images, the worker roles, the compose stack and its variables
+- [Signing in and identity providers](sign-in.md) - which sign-in methods the console offers, the lock-out override, and the provider endpoints
 - [Database migrations](migrate.md) - `wms-migrate`: apply, status, script, targeted up and down
+- [Integrity signatures](integrity.md) - how security rows are signed, what is guarded against, repair and alerting
 - [Database conventions](database-conventions.md) - how tables, columns, keys and indexes are named on both engines
 
 ## Using the console and devices
@@ -24,5 +29,7 @@ app, starting with the picking module. These pages are for the people who instal
 
 ## Reference
 
+- [HTTP API contract](http-api.md) - the OpenAPI document for the HTTP endpoints, requests and responses
 - [API Reference](../api/index.md) - generated from the source code
+- Generated from the product: [settings](reference/settings.md), [permissions](reference/permissions.md), [error codes](reference/error-codes.md), [modules](reference/modules.md), [import formats](reference/import-formats.md)
 - [Project website](https://github.com/Chris-Wolfgang/wms)

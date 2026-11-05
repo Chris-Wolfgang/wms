@@ -1,7 +1,10 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Microsoft.AspNetCore.HttpOverrides;
 using Wolfgang.Wms.Web.Components;
 using Wolfgang.Wms.Web.Shared;
+
+using Wolfgang.Wms.Logging;
 
 namespace Wolfgang.Wms.Web;
 
@@ -18,6 +21,8 @@ public static class ConsoleProgram
     public static Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        builder.Host.UseWindowsService(options => options.ServiceName = "WolfgangWms.Web");   // E15.1: a no-op outside a service
+        builder.UseWmsSerilog();   // E12.2: the same log pipeline as the API; the console's level follows Wms:Logging only (its settings ride the API)
 
         // Blazor Web App in Server render mode for v1 (E82.4); components are render-mode-agnostic.
         builder.Services.AddRazorComponents()
@@ -26,10 +31,19 @@ public static class ConsoleProgram
         // Workspace entry gate: free tier until the license (E79) and identity (E11) endpoints replace it.
         builder.Services.AddSingleton<IWorkspaceAccess, FreeTierWorkspaceAccess>();
 
+        // E9.3: the break-glass banner; the placeholder until the console has its API client (then ApiLocalLoginNotice).
+        builder.Services.AddSingleton<ILocalLoginNotice, NoLocalLoginNotice>();
+
         // Every user-visible string comes from ConsoleText.resx (E82.4), in the request's culture.
         builder.Services.AddConsoleLocalization();
 
+        // E10.6: the same Wms:Hosting:BehindProxy key as the API (the console cannot share Core's code).
+        builder.Services.Configure<ForwardedHeadersOptions>(options => ConsoleHosting.ConfigureForwardedHeaders(options, builder.Configuration));
+
         var app = builder.Build();
+
+        app.UseForwardedHeaders();
+        app.UseWmsSecurityHeaders();   // E10.6: CSP for Blazor Server, nosniff, referrer policy, no framing
 
         // Resolve the request culture before anything renders text (error and not-found pages included).
         app.UseRequestLocalization();
@@ -47,6 +61,7 @@ public static class ConsoleProgram
         app.UseAntiforgery();
 
         app.MapStaticAssets();
+        app.MapConsoleHelp();   // E83.4: the packaged docs site at /help/ when the release put it next to the console
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode()
             .AddAdditionalAssemblies([.. WorkspaceAssemblies.All]);

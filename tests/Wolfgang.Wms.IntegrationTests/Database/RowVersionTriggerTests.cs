@@ -49,13 +49,21 @@ public sealed class RowVersionTriggerTests
 
 
     /// <summary>
-    /// After the helper dropped the only trigger the shared function is gone; while a second table still uses
-    /// it, dropping the first table's trigger keeps it, and dropping the last one removes it.
+    /// Once every table's trigger is dropped the shared function is gone (the migrations give real tables triggers
+    /// too, so those go first); while a second table still uses it, dropping the first table's trigger keeps it,
+    /// and dropping the last one removes it.
     /// </summary>
     private static async Task AssertFunctionGoesWithTheLastTriggerAsync(WmsDbContext context)
     {
         const string functionExists = "SELECT (to_regproc('wms.set_row_version') IS NOT NULL) AS \"Value\"";
+        const string tablesWithTriggers = "SELECT n.nspname || '.' || c.relname AS \"Value\" FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE t.tgfoid = to_regproc('wms.set_row_version')";
         var providerName = context.Database.ProviderName!;
+
+        foreach (var table in await context.Database.SqlQueryRaw<string>(tablesWithTriggers).ToListAsync())
+        {
+            var parts = table.Split('.');
+            await context.Database.ExecuteSqlRawAsync(RowVersioning.DropTriggerSql(providerName, parts[0], parts[1]));
+        }
 
         Assert.False((await context.Database.SqlQueryRaw<bool>(functionExists).ToListAsync())[0], "the function must go with the last trigger");
 

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Wolfgang.Wms.Core.Jobs;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Domain.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
@@ -19,7 +20,15 @@ namespace Wolfgang.Wms.Infrastructure.Integrity;
 /// </summary>
 public sealed partial class IntegrityVerificationJob : BackgroundService
 {
+    /// <summary>
+    /// The leader lock name: one instance verifies at a time (E12.6).
+    /// </summary>
+    public const string LockName = "integrity.verify";
+
+
+
     private readonly IServiceScopeFactory _scopes;
+    private readonly ILeaderLock _lock;
     private readonly ILogger<IntegrityVerificationJob> _logger;
 
 
@@ -28,9 +37,10 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
     /// Creates the job.
     /// </summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
-    public IntegrityVerificationJob(IServiceScopeFactory scopes, ILogger<IntegrityVerificationJob> logger)
+    public IntegrityVerificationJob(IServiceScopeFactory scopes, ILeaderLock leaderLock, ILogger<IntegrityVerificationJob> logger)
     {
         _scopes = scopes ?? throw new ArgumentNullException(nameof(scopes));
+        _lock = leaderLock ?? throw new ArgumentNullException(nameof(leaderLock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -55,6 +65,7 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
         rows.AddRange((await context.Users.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(u => ((ISignedEntity)u, "core.user")));
         rows.AddRange((await context.Roles.Include(r => r.Permissions).AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(r => ((ISignedEntity)r, "core.role")));
         rows.AddRange((await context.UserRoles.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(a => ((ISignedEntity)a, "core.user_role")));
+        rows.AddRange((await context.GroupRoleMappings.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(m => ((ISignedEntity)m, "core.group_role_mapping")));
 
         // Nothing is revoked here: every request recomputes the session's grants from rows that verify (ISessionGrants),
         // so a failed row stops granting at once. The scan finds the failures for the log and the health endpoint.
@@ -94,7 +105,21 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
             TimeSpan interval;
             try
             {
-                await RunOnceAsync(stoppingToken).ConfigureAwait(false);
+                var lease = await _lock.TryAcquireAsync(LockName, TimeSpan.FromMinutes(5), stoppingToken).ConfigureAwait(false);
+                if (lease is null)
+                {
+                    LogNotLeader(_logger);   // another instance verifies; this one checks again next interval
+                }
+                else
+                {
+                    await using (lease.ConfigureAwait(false))
+                    {
+                        // A lost lease (another instance took over) stops this scan, so two instances never verify at once.
+                        using var run = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, lease.Lost);
+                        await RunOnceAsync(run.Token).ConfigureAwait(false);
+                    }
+                }
+
                 interval = await IntervalAsync(stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -123,7 +148,13 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
     private async Task<TimeSpan> IntervalAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopes.CreateScope();
-        return await scope.ServiceProvider.GetRequiredService<ISettings>().GetAsync(Wolfgang.Wms.Core.Identity.AuthSettings.IntegrityVerifyInterval, SettingScopeRef.Organization, cancellationToken).ConfigureAwait(false);
+        var key = Wolfgang.Wms.Core.Identity.AuthSettings.IntegrityVerifyInterval;
+        if (!scope.ServiceProvider.GetRequiredService<SettingRegistry>().Contains(key))
+        {
+            return key.DefaultValue;   // a host without the auth module (the worker) keeps the default interval
+        }
+
+        return await scope.ServiceProvider.GetRequiredService<ISettings>().GetAsync(key, SettingScopeRef.Organization, cancellationToken).ConfigureAwait(false);
     }
 
 
@@ -140,4 +171,9 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Integrity verification run failed; retrying after the default interval.")]
     private static partial void LogRunFailed(ILogger logger, Exception exception);
+
+
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Integrity verification: another instance holds the leader lock; skipping this interval.")]
+    private static partial void LogNotLeader(ILogger logger);
 }

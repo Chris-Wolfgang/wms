@@ -16,6 +16,11 @@ using Wolfgang.Wms.Infrastructure.Secrets;
 using Microsoft.AspNetCore.Identity;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Identity.External;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Wolfgang.Wms.Core.Jobs;
+using Wolfgang.Wms.Infrastructure.Database.Health;
+using Wolfgang.Wms.Infrastructure.Database.Leader;
 using Wolfgang.Wms.Infrastructure.Identity;
 using Wolfgang.Wms.Infrastructure.Integrity;
 
@@ -98,6 +103,9 @@ public static class DatabaseServiceCollectionExtensions
         services.AddScoped<ISchemaVersionSource, MigrationsSchemaVersionSource>();
         services.AddScoped<MigrationRunner>();
         services.TryAddSingleton(TimeProvider.System);
+        services.AddHealthChecks().AddCheck<DatabaseHealthCheck>(DatabaseHealthCheck.Name, failureStatus: HealthStatus.Unhealthy, tags: [Core.Hosting.WmsHealth.ReadyTag]);   // E12.1: readiness = reachable + at the build's schema
+        services.RemoveAll<ILeaderLock>();
+        services.AddSingleton<ILeaderLock, EfLeaderLock>();   // E12.6: singleton jobs run under a database lease
         services.AddWmsModules();
         services.TryAddSingleton(provider => new SettingRegistry(provider.GetRequiredService<ModuleCollection>()));   // hosts without the settings module (the worker) still get the accessor
         services.TryAddSingleton<ISettingScopeHierarchy, OrganizationOnlyScopeHierarchy>();
@@ -127,6 +135,10 @@ public static class DatabaseServiceCollectionExtensions
         services.AddScoped<ISessionRevocations, EfSessionRevocations>();   // E10.5: per-user "sessions valid after"
         services.RemoveAll<ISessionGrants>();
         services.AddScoped<ISessionGrants, EfSessionGrants>();   // E10.4: a session's grants recomputed on every request
+        services.RemoveAll<IExternalAccounts>();
+        services.AddScoped<IExternalAccounts, EfExternalAccounts>();   // E11.1: provider accounts in core.user
+        services.RemoveAll<IGroupRoleMappings>();
+        services.AddScoped<IGroupRoleMappings, EfGroupRoleMappings>();   // E11.2: directory groups → roles
         services.AddHostedService<BuiltInRolesCheck>();   // E10.2: built-in roles follow the catalog; local administrators hold Administrator
     }
 

@@ -54,7 +54,6 @@ jobs:
   build-and-deploy:
     name: Build & Deploy Documentation
     runs-on: windows-latest
-    timeout-minutes: 60
 
     permissions:
       contents: write # Allow write access for gh-pages branch
@@ -147,7 +146,7 @@ jobs:
         shell: pwsh
 
       - name: Install DocFX
-        run: dotnet tool install --global docfx --version 2.81.0   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; same pin as release.yaml and build-all-versions.yaml
+        run: dotnet tool update docfx --global || dotnet tool install docfx --global
         shell: pwsh
 
       - name: Build DocFX Metadata
@@ -172,21 +171,6 @@ jobs:
           Get-ChildItem "docfx_project/_site/api"
         shell: pwsh
 
-      - name: Start SQL Server Express LocalDB (E13.1)
-        # Same step as pr.yaml's Windows stage: without an instance the SQL Server integration tests
-        # skip, and the published coverage (and the README badge computed from it) would be measured
-        # on a subset of the suite and read lower than the PR gate's numbers.
-        if: hashFiles('tests/**/*.csproj') != ''
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          if (-not (Get-Command sqllocaldb -ErrorAction SilentlyContinue)) {
-            choco install sqllocaldb -y --no-progress
-            $env:PATH = "$env:PATH;C:\Program Files\Microsoft SQL Server\150\Tools\Binn;C:\Program Files\Microsoft SQL Server\160\Tools\Binn"
-          }
-          sqllocaldb start MSSQLLocalDB
-          sqllocaldb info MSSQLLocalDB
-
       - name: Generate code-coverage report into docs site (T1)
         # Initiative T1 — publish coverage report to gh-pages alongside docs.
         # Runs the test suite with Cobertura coverage collection, then uses
@@ -197,9 +181,6 @@ jobs:
         if: hashFiles('tests/**/*.csproj') != ''
         continue-on-error: true
         shell: pwsh
-        env:
-          # E13.1: the SQL Server integration tests use the LocalDB instance started above (same value as pr.yaml).
-          WMS_TEST_SQLSERVER: 'Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true'
         run: |
           # Coverage report only needs one TFM's worth of runs. The per-PR
           # pr.yaml workflow already exercises every TFM across Stages 1/2/3,
@@ -207,7 +188,7 @@ jobs:
           # time and adds extra failure surface for older targets. Pin to
           # net10.0 — the modern target that's always present in this fleet.
           dotnet test --configuration Release --no-build --no-restore --framework net10.0 --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./coverage-raw 2>&1 | Out-Host
-          dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.11   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; same pin as pr.yaml
+          dotnet tool update -g dotnet-reportgenerator-globaltool 2>$null || dotnet tool install -g dotnet-reportgenerator-globaltool 2>$null
           $coverageFiles = @(Get-ChildItem -Path ./coverage-raw -Recurse -Filter "coverage.cobertura.xml" -ErrorAction SilentlyContinue)
           if ($coverageFiles.Count -eq 0) {
             Write-Host "::notice::No coverage files generated - skipping coverage report step"

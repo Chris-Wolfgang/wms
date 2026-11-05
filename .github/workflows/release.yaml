@@ -27,7 +27,6 @@ jobs:
   validate-release:
     name: Validate Release Build
     runs-on: windows-latest
-    timeout-minutes: 60
     if: github.repository != 'Chris-Wolfgang/repo-template'
     steps:
       - name: Checkout code
@@ -53,20 +52,6 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
         with:
           dotnet-version: 10.0.x
-
-      - name: Restore .NET workloads
-        # The solution carries a net10.0-android project (the handheld), and the android workload is
-        # not part of the SDK: a solution-level dotnet restore fails on it (NETSDK1147) without this.
-        # Same probe as pr.yaml and verify-docs-build below: only runs when a csproj declares a
-        # workload-bearing TFM.
-        shell: bash
-        run: |
-          if find . -name '*.csproj' -type f -exec grep -lE 'net[0-9]+\.[0-9]+-(android|ios|maccatalyst|maui|tvos|tizen|browser)' {} \; | grep -q .; then
-            echo "Workload-bearing TFMs detected — running dotnet workload restore"
-            dotnet workload restore
-          else
-            echo "No workload-bearing TFMs in any csproj — skipping dotnet workload restore"
-          fi
 
       - name: Restore dependencies
         run: dotnet restore
@@ -271,7 +256,7 @@ jobs:
             exit 1
           }
           
-          dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.11   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately
+          dotnet tool install -g dotnet-reportgenerator-globaltool
           
           reportgenerator `
             -reports:"TestResults/**/coverage.cobertura.xml" `
@@ -358,7 +343,6 @@ jobs:
     name: Pack & Validate NuGet
     needs: validate-release
     runs-on: windows-latest
-    timeout-minutes: 60
     outputs:
       has-packages: ${{ steps.check-packages.outputs.has-packages }}
     steps:
@@ -371,20 +355,6 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
         with:
           dotnet-version: 10.0.x
-
-      - name: Restore .NET workloads
-        # The solution carries a net10.0-android project (the handheld), and the android workload is
-        # not part of the SDK: a solution-level dotnet restore fails on it (NETSDK1147) without this.
-        # Same probe as pr.yaml and verify-docs-build below: only runs when a csproj declares a
-        # workload-bearing TFM.
-        shell: bash
-        run: |
-          if find . -name '*.csproj' -type f -exec grep -lE 'net[0-9]+\.[0-9]+-(android|ios|maccatalyst|maui|tvos|tizen|browser)' {} \; | grep -q .; then
-            echo "Workload-bearing TFMs detected — running dotnet workload restore"
-            dotnet workload restore
-          else
-            echo "No workload-bearing TFMs in any csproj — skipping dotnet workload restore"
-          fi
 
       - name: Restore and build
         run: |
@@ -399,16 +369,12 @@ jobs:
           $packagesPath = Join-Path $PWD 'nuget-packages'
           New-Item -ItemType Directory -Force -Path $packagesPath | Out-Null
 
-          # Only projects that opt in with <IsPackable>true</IsPackable> are packed. Directory.Build.props
-          # makes IsPackable false by default: src/ holds the API, the console, the worker, the simulator,
-          # the handheld and wms-migrate, none of which is a NuGet package. Today the one package is
-          # Wolfgang.Wms.Client, the generated API client.
-          $projects = @(Get-ChildItem -Path 'src' -Recurse -Filter '*.csproj' |
-            Where-Object { (Get-Content $_.FullName -Raw) -match '<IsPackable>\s*true\s*</IsPackable>' })
+          # Find all .csproj files in the src directory recursively
+          $projects = Get-ChildItem -Path 'src' -Recurse -Filter '*.csproj'
           
           # Handle case when no projects are found (e.g., template repository)
           if ($projects.Count -eq 0) {
-            Write-Warning "No packable projects (<IsPackable>true</IsPackable>) found under src/ - skipping package creation"
+            Write-Warning "No projects found in src/ directory - skipping package creation"
             Write-Warning "Downstream publish and release jobs will be skipped"
             # Create empty directory for artifact upload
             New-Item -ItemType File -Path (Join-Path $packagesPath '.placeholder') -Force | Out-Null
@@ -517,8 +483,7 @@ jobs:
           
           Push-Location $testDir
           try {
-            # Every project in this solution targets net10.0 (E85.1), so the package can only be referenced from net10.0.
-            dotnet new console -n SmokeTest -f net10.0
+            dotnet new console -n SmokeTest -f net8.0
             
             # Try to install the newly created package(s)
             foreach ($package in $packages) {
@@ -557,7 +522,7 @@ jobs:
         if: steps.check-packages.outputs.has-packages == 'true'
         shell: pwsh
         run: |
-          dotnet tool install --global CycloneDX --version 6.2.0   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; same pin as sbom.yaml
+          dotnet tool install --global CycloneDX
 
           $sbomDir = Join-Path $PWD 'nuget-packages'
           $srcProjects = Get-ChildItem -Path 'src' -Filter '*.csproj' -Recurse -ErrorAction SilentlyContinue
@@ -596,7 +561,6 @@ jobs:
   verify-docs-build:
     name: Verify Documentation Builds
     runs-on: windows-latest
-    timeout-minutes: 60
     # Gate on the prior validation jobs so we don't burn ~5-10 min of Windows
     # runner time on a release that's already failing earlier in the pipeline.
     # No repo guard here: validate-release carries it, and a `needs:` on a
@@ -657,7 +621,7 @@ jobs:
       - name: Install DocFX
         if: steps.check.outputs.found == 'true'
         shell: pwsh
-        run: dotnet tool install --global docfx --version 2.81.0   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; same pin as docfx.yaml
+        run: dotnet tool update docfx --global || dotnet tool install docfx --global
 
       - name: Build DocFX metadata
         if: steps.check.outputs.found == 'true'
@@ -689,7 +653,6 @@ jobs:
     needs: [pack-and-validate, verify-docs-build]
     if: needs.pack-and-validate.outputs.has-packages == 'true'
     runs-on: windows-latest
-    timeout-minutes: 30
     permissions:
       id-token: write       # OIDC token for NuGet trusted publishing (no stored API key) AND for signing the provenance attestation
       attestations: write   # record the SLSA build-provenance attestation on GitHub
@@ -780,7 +743,6 @@ jobs:
     needs: [validate-release, pack-and-validate, publish-nuget]
     if: needs.pack-and-validate.outputs.has-packages == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     permissions:
       contents: write  # Required to upload assets to the GitHub Release
     steps:

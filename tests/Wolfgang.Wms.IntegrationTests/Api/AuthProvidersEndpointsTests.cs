@@ -11,7 +11,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Identity.Providers;
 using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Domain.Keys;
@@ -115,7 +114,6 @@ public sealed class AuthProvidersEndpointsTests : IClassFixture<WebApplicationFa
         await Assert.ThrowsAsync<NotSupportedException>(() => settings.SetAsync(key, scope, "x", "me", CancellationToken.None));
         await Assert.ThrowsAsync<NotSupportedException>(() => settings.ResetAsync(key, scope, "me", CancellationToken.None));
         await Assert.ThrowsAsync<NotSupportedException>(() => settings.SetModeAsync(key, scope, CascadeMode.Value, "me", CancellationToken.None));
-        await Assert.ThrowsAsync<NotSupportedException>(() => settings.PopulateAsync(scope, "me", CancellationToken.None));
         await Assert.ThrowsAsync<NotSupportedException>(() => settings.ListAsync(scope, CancellationToken.None));
         await Assert.ThrowsAsync<NotSupportedException>(() => settings.SetTextAsync(key.Name, scope, "x", "me", CancellationToken.None));
     }
@@ -202,8 +200,6 @@ public sealed class AuthProvidersEndpointsTests : IClassFixture<WebApplicationFa
         public Task<SettingValue> ResetAsync(SettingKey key, SettingScopeRef scope, string updatedBy, CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<SettingValue> SetModeAsync(SettingKey key, SettingScopeRef scope, CascadeMode mode, string updatedBy, CancellationToken cancellationToken) => throw new NotSupportedException();
-
-        public Task<int> PopulateAsync(SettingScopeRef scope, string updatedBy, CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<IReadOnlyList<SettingValue>> ListAsync(SettingScopeRef scope, CancellationToken cancellationToken) => throw new NotSupportedException();
 

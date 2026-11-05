@@ -2,9 +2,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Wolfgang.Wms.Core.Imports;
-using Wolfgang.Wms.Core.Settings;
 using Wolfgang.Wms.Core.Zones;
-using Wolfgang.Wms.Domain.Settings;
 using Wolfgang.Wms.Infrastructure.Database;
 using Wolfgang.Wms.Infrastructure.Zones;
 
@@ -21,16 +19,14 @@ internal sealed class ZoneImporter
     private const string Entity = "zones";
     private readonly WmsDbContext _context;
     private readonly TimeProvider _timeProvider;
-    private readonly ISettings _settings;
     private readonly IOpenZoneGroups _openGroups;
 
 
 
-    public ZoneImporter(WmsDbContext context, TimeProvider timeProvider, ISettings settings, IOpenZoneGroups openGroups)
+    public ZoneImporter(WmsDbContext context, TimeProvider timeProvider, IOpenZoneGroups openGroups)
     {
         _context = context;
         _timeProvider = timeProvider;
-        _settings = settings;
         _openGroups = openGroups;
     }
 
@@ -197,10 +193,6 @@ internal sealed class ZoneImporter
 
         await _context.Zones.AddRangeAsync(inserted, cancellationToken).ConfigureAwait(false);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var zone in inserted)
-        {
-            await _settings.PopulateAsync(SettingScopeRef.Zone(zone.Id), updatedBy, cancellationToken).ConfigureAwait(false);   // E16.4: a new zone starts with its site's effective values
-        }
     }
 
 

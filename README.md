@@ -2,7 +2,7 @@
 
 Warehouse management system (Wolfgang.Wms): an installed server with a web console and a handheld app. The picking module is the first one, and is in progress; `main` holds the hosts, the data layer, the API primitives and the console and handheld shells it is built on.
 
-[![PR build](https://img.shields.io/github/actions/workflow/status/Chris-Wolfgang/wms/pr.yaml?event=pull_request_target&label=PR%20build&logo=github)](https://github.com/Chris-Wolfgang/wms/actions/workflows/pr.yaml)
+[![PR build](https://img.shields.io/github/actions/workflow/status/Chris-Wolfgang/wms/pr.yaml?event=pull_request&label=PR%20build&logo=github)](https://github.com/Chris-Wolfgang/wms/actions/workflows/pr.yaml)
 [![release](https://img.shields.io/github/actions/workflow/status/Chris-Wolfgang/wms/release.yaml?event=release&label=release&logo=github)](https://github.com/Chris-Wolfgang/wms/actions/workflows/release.yaml)
 [![License: TBD](https://img.shields.io/badge/License-TBD-blue.svg)](LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com/)

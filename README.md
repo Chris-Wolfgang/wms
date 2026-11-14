@@ -8,7 +8,6 @@ Warehouse management system (Wolfgang.Wms): an installed server with a web conso
 [![.NET 10](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?logo=github)](https://github.com/Chris-Wolfgang/wms)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Chris-Wolfgang/wms/badge)](https://scorecard.dev/viewer/?uri=github.com/Chris-Wolfgang/wms)
-[![Coverage](https://img.shields.io/endpoint?url=https://Chris-Wolfgang.github.io/wms/versions/latest/coverage/badge.json&logo=github)](https://Chris-Wolfgang.github.io/wms/versions/latest/coverage/)
 
 ---
 
@@ -40,7 +39,7 @@ This project is **not yet licensed**. All rights reserved pending license select
 ## 📚 Documentation
 
 - **GitHub Repository:** [https://github.com/Chris-Wolfgang/wms](https://github.com/Chris-Wolfgang/wms)
-- **API Documentation:** https://Chris-Wolfgang.github.io/wms/
+- **API Documentation:** published to GitHub Pages by the first release (the site is not deployed yet, so there is no link until then)
 - **Formatting Guide:** [docs/README-FORMATTING.md](docs/README-FORMATTING.md)
 - **Contributing Guide:** [CONTRIBUTING.md](CONTRIBUTING.md)
 

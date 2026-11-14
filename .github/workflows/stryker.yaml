@@ -104,15 +104,29 @@ jobs:
 
             foreach ($proj in $tests) {
               $dir = $proj.DirectoryName
-              Write-Host "::group::Stryker in $dir"
-              Push-Location $dir
-              try {
-                dotnet stryker
-                if ($LASTEXITCODE -ne 0) { $failed++ }
-              } finally {
-                Pop-Location
+              # Stryker mutates ONE project per run and refuses to guess when the test
+              # project references several ("Multiple projects identified as potential
+              # candidates"). So run once per referenced project, naming it with --project.
+              # A test project with a single reference needs no --project.
+              [xml]$csproj = Get-Content -Raw $proj.FullName
+              $refs = @(
+                $csproj.SelectNodes('//ProjectReference') |
+                  ForEach-Object { $_.Include.Split([char[]]'\/')[-1] }
+              )
+              $targets = if ($refs.Count -gt 1) { $refs } else { @($null) }
+
+              foreach ($target in $targets) {
+                Write-Host "::group::Stryker in $dir $(if ($target) { "-> $target" })"
+                Push-Location $dir
+                try {
+                  if ($target) { dotnet stryker --project $target }
+                  else { dotnet stryker }
+                  if ($LASTEXITCODE -ne 0) { $failed++ }
+                } finally {
+                  Pop-Location
+                }
+                Write-Host "::endgroup::"
               }
-              Write-Host "::endgroup::"
             }
           }
 

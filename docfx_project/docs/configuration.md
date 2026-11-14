@@ -82,3 +82,9 @@ You can also run several workers. Jobs that must run once at a time (integrity v
 as they arrive) take a lock in the database, so exactly one worker runs each job; if that worker stops or
 loses its connection for longer than the lock's lease, another one takes over. Lease times come from the
 database server's clock, so the servers' own clocks need not agree.
+
+## Worker role
+
+`Wms:Worker:Role` chooses what a worker process runs: `worker` (the default; the background jobs that must
+run once at a time) or `ingest` (file-drop and connector jobs, once they arrive). In containers it is set
+with `WMS_ROLE`; see [Running in containers](containers.md).

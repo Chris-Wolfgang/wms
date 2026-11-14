@@ -24,6 +24,8 @@ two in step.
 | `Logging:*` | the framework's own level table; the product's pipeline is `Wms:Logging` (docs/LOGGING.md) and the runtime level is a setting (E12.4) |
 | `Wms:Logging:*` | E12.2, docs/LOGGING.md: sinks (stdout, file, Event Log, OpenTelemetry) and the boot level |
 
+On Windows the services and IIS sites carry these keys in their environment (docs/INSTALL-WINDOWS.md); in containers, `compose.yaml` does (docs/CONTAINERS.md).
+
 Any other key in an `appsettings*.json` file is ignored, and the host logs one warning at startup naming each
 one with its file (`Smtp:Host (appsettings.json)`), so a value typed into the wrong place is noticed. Those
 values are settings: define them in a module (docs/SETTINGS.md) and edit them in the Configure workspace.

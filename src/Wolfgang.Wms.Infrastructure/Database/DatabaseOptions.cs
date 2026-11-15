@@ -87,7 +87,7 @@ public sealed class DatabaseOptions
         var connectionString = ProtectedText.Reveal(ConnectionString, protector) ?? string.Empty;
         if (ParsedProvider == DatabaseProvider.SqlServer && TrustServerCertificate)
         {
-            var builder = new SqlConnectionStringBuilder(connectionString) { TrustServerCertificate = true };
+            var builder = new SqlConnectionStringBuilder(connectionString) { TrustServerCertificate = true };   // DevSkim: ignore DS114352 - the documented TrustServerCertificate opt-in (SQL Server Express self-signed certificate), applied only when configured
             builder.Encrypt = builder.Encrypt.Equals(SqlConnectionEncryptOption.Strict)
                 ? SqlConnectionEncryptOption.Strict
                 : SqlConnectionEncryptOption.Mandatory;

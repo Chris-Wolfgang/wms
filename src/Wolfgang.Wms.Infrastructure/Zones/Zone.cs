@@ -110,6 +110,27 @@ public sealed class Zone : IVersionedEntity
 
 
 
+    /// <summary>
+    /// True when applying <paramref name="draft"/> would change nothing a pick or bulk zone carries (E16.6:
+    /// an unchanged import row).
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="draft"/> is null.</exception>
+    public bool Matches(ZoneDraft draft)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+
+        return string.Equals(Code, draft.Code.Trim(), StringComparison.Ordinal)
+            && string.Equals(Name, draft.Name.Trim(), StringComparison.Ordinal)
+            && Type == draft.Type
+            && string.Equals(WalkOrderPrefix, Trimmed(draft.WalkOrderPrefix), StringComparison.Ordinal)
+            && IsRejectLane == draft.IsRejectLane
+            && IsActive == draft.IsActive
+            && draft.Resolution is null
+            && Resolvers.Count == 0;
+    }
+
+
+
     private void ApplyResolution(ResolutionZone? resolution)
     {
         RestockingBin = Trimmed(resolution?.RestockingBin);

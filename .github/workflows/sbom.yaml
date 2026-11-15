@@ -53,7 +53,7 @@ jobs:
 
       - name: Install CycloneDX
         if: steps.detect.outputs.found == 'true'
-        run: dotnet tool install --global CycloneDX
+        run: dotnet tool install --global CycloneDX --version 6.2.0   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately; same pin as release.yaml
 
       - name: Restore .NET workloads
         # Same gate as pr.yaml: only repos with workload-bearing TFMs (net10.0-android,

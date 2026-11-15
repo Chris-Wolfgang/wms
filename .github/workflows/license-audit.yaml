@@ -69,7 +69,7 @@ jobs:
 
       - name: Install nuget-license
         if: steps.detect.outputs.found == 'true'
-        run: dotnet tool install --global nuget-license
+        run: dotnet tool install --global nuget-license --version 4.0.18   # pinned by hand (Dependabot cannot bump a run: step); bump deliberately
 
       # Gate: fail if any src project's dependency license is not on the allow-list.
       - name: Restore .NET workloads

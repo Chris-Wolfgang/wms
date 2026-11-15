@@ -1076,7 +1076,7 @@ jobs:
         env:
           # E13.1: the SQL Server integration tests use the LocalDB instance started above. A fixed value
           # here rather than a $GITHUB_ENV write from the previous step (zizmor github-env).
-          WMS_TEST_SQLSERVER: 'Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true'
+          WMS_TEST_SQLSERVER: 'Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true'   # DevSkim: ignore DS114352 - LocalDB on the runner uses a self-signed certificate
         run: |
           $ErrorActionPreference = 'Stop'
 

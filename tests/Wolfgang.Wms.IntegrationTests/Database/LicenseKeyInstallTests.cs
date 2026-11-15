@@ -65,7 +65,7 @@ public sealed class LicenseKeyInstallTests
         await TestMigrations.ApplyAsync(provider, connectionString);
         var runtime = await TestLogins.CreateRuntimeAsync(provider, connectionString);
 
-        using var pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);   // DevSkim: ignore DS440100 - names the P-256 curve; the key pair is generated per test run, nothing secret is in source
         await using var app = await StartHostAsync(provider, runtime, trustServerCertificate, Convert.ToBase64String(pair.ExportSubjectPublicKeyInfo()));
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", await TestSessions.SignInAsAdministratorAsync(client));

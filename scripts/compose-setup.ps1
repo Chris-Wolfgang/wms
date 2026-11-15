@@ -68,7 +68,7 @@ if ($LASTEXITCODE -ne 0) { throw 'db-init failed' }
 function Protect-ConnectionString([string] $login, [string] $passwordFile)
 {
     $password = [System.IO.File]::ReadAllText($passwordFile).Trim()
-    $plain = "Server=db;Database=wms;User Id=$login;Password=$password;Encrypt=True;TrustServerCertificate=True"
+    $plain = "Server=db;Database=wms;User Id=$login;Password=$password;Encrypt=True;TrustServerCertificate=True"   # DevSkim: ignore DS114352 - the compose stack SQL Server container has a self-signed certificate; the connection is still encrypted
     # The plaintext goes in on standard input (-T: no TTY, so the pipe reaches the container), never on a command
     # line: not in the host's process list, and not in the one-off container's recorded command.
     $output = $plain | docker compose run --rm --no-deps -T -e WMS_ROLE=migrate migrate --protect --key-ring /keys --connection-string - 2>&1

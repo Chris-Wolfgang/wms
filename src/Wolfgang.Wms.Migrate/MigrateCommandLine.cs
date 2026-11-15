@@ -118,7 +118,7 @@ public sealed record MigrateCommandLine
                 "--status" => result with { Status = true },
                 "--script" => result with { Script = true },
                 "--confirm-data-loss" => result with { ConfirmDataLoss = true },
-                "--trust-server-certificate" => result with { TrustServerCertificate = true },
+                "--trust-server-certificate" => result with { TrustServerCertificate = true },   // DevSkim: ignore DS114352 - the documented --trust-server-certificate flag, applied only when the operator passes it
                 "--help" or "-h" => result with { Help = true },
                 "--to" => result with { To = value },
                 "--from" => result with { From = value },

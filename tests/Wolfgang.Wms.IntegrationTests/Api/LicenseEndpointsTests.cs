@@ -43,7 +43,7 @@ public sealed class LicenseEndpointsTests : IClassFixture<WebApplicationFactory<
     public async Task The_free_tier_page_refusals_and_the_comparison()
     {
         using var client = _factory.WithTestAuth().CreateClient();
-        using var pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);   // DevSkim: ignore DS440100 - names the P-256 curve; the key pair is generated per test run, nothing secret is in source
         var foreign = LicenseKeySigner.Sign(new LicenseKey(1, "b1", LicenseKeyKind.Base, "pro", "Acme", [new CoveragePeriod(new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1))], [], new Dictionary<string, LimitValue>(StringComparer.Ordinal), 0, [], new DateOnly(2026, 1, 1)), pair);
 
         using var anonymous = await client.GetAsync(new Uri("/api/v0/system/license", UriKind.Relative));

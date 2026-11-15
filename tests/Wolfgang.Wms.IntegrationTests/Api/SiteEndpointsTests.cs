@@ -52,7 +52,7 @@ public sealed class SiteEndpointsTests : IClassFixture<WebApplicationFactory<Pro
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, ownSite.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, otherSite.StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, listThroughHeader.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, listThroughHeader.StatusCode);   // E16.3: admitted, and the list is filtered to the caller's sites
         Assert.Equal(HttpStatusCode.Forbidden, createThroughHeader.StatusCode);
     }
 

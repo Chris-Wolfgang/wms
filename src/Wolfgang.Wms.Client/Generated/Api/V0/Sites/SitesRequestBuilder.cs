@@ -47,7 +47,7 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites
         {
         }
         /// <summary>
-        /// Every site, active and retired, in code order.
+        /// Every site the caller may see (all with an organization-level grant, their own with site-level grants), active and retired, in code order.
         /// </summary>
         /// <returns>A List&lt;global::Wolfgang.Wms.Client.Generated.Models.SiteInfo&gt;</returns>
         /// <param name="cancellationToken">Cancellation token to use when cancelling requests</param>
@@ -86,7 +86,7 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Sites
             return await RequestAdapter.SendAsync<global::Wolfgang.Wms.Client.Generated.Models.SiteInfo>(requestInfo, global::Wolfgang.Wms.Client.Generated.Models.SiteInfo.CreateFromDiscriminatorValue, default, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// Every site, active and retired, in code order.
+        /// Every site the caller may see (all with an organization-level grant, their own with site-level grants), active and retired, in code order.
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>

@@ -1,5 +1,7 @@
 // Copyright (c) Chris Wolfgang. All rights reserved. SPDX-License-Identifier: LicenseRef-TBD
 
+using Wolfgang.Wms.Core.Authorization;
+
 namespace Wolfgang.Wms.Core.Sites;
 
 /// <summary>
@@ -9,9 +11,10 @@ namespace Wolfgang.Wms.Core.Sites;
 public interface ISites
 {
     /// <summary>
-    /// Every site, active and retired, in code order.
+    /// Every site in the caller's <paramref name="scope"/> (E16.3), active and retired, in code order.
     /// </summary>
-    Task<IReadOnlyList<SiteInfo>> ListAsync(CancellationToken cancellationToken);
+    /// <exception cref="ArgumentNullException"><paramref name="scope"/> is null.</exception>
+    Task<IReadOnlyList<SiteInfo>> ListAsync(SiteScope scope, CancellationToken cancellationToken);
 
 
 

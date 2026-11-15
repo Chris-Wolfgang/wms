@@ -15,7 +15,7 @@ public static class SecurityHeaders
     /// <summary>
     /// The content-security policy.
     /// </summary>
-    public const string ContentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";
+    public const string ContentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";   // DevSkim: ignore DS172412 - Blazor Server render mode styles components inline (E10.6); scripts stay self-only
 
 
 

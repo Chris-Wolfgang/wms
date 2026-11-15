@@ -173,6 +173,11 @@ function Invoke-Failed
     $allLabels = @($script:BaseLabels + $Labels | Select-Object -Unique)
     Confirm-Label 'automated' 'bfd4f2' 'Opened by a scheduled workflow; closes itself on the next green run'
     Confirm-Label 'nightly' 'bfd4f2' 'Scheduled check'
+    # Caller-supplied labels (-Labels) must exist too: `gh issue create --label` fails on a missing label.
+    foreach ($l in $allLabels | Where-Object { $_ -notin $script:BaseLabels })
+    {
+        Confirm-Label $l 'bfd4f2' 'Used by automated failure issues'
+    }
     if ($DryRun)
     {
         Write-Host "[dry-run] would create '$issueTitle' with labels $($allLabels -join ', ')"
@@ -216,13 +221,13 @@ function Invoke-Summary
     {
         $lines += '## Escalation: critical, open longer than 2 days'
         $lines += ''
-        foreach ($i in $critical) { $lines += "- #$($i.number) $($i.title) (opened $($i.createdAt.Substring(0, 10)))" }
+        foreach ($i in $critical) { $lines += "- #$($i.number) $($i.title) (opened $(([datetime]$i.createdAt).ToString('yyyy-MM-dd')))" }
         $lines += ''
     }
     $lines += "## Open longer than $OlderThanDays days"
     $lines += ''
     if ($stale.Count -eq 0) { $lines += '_None._' }
-    foreach ($i in $stale) { $lines += "- #$($i.number) $($i.title) (opened $($i.createdAt.Substring(0, 10)))" }
+    foreach ($i in $stale) { $lines += "- #$($i.number) $($i.title) (opened $(([datetime]$i.createdAt).ToString('yyyy-MM-dd')))" }
     $lines += ''
     $lines += '🤖 Claude Code automation (`summary`)'
     $text = $lines -join "`n"

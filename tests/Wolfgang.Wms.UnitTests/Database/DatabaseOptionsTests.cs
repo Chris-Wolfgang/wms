@@ -64,10 +64,10 @@ public sealed class DatabaseOptionsTests
         Assert.Equal
         (
             ["Wms:Database:TrustServerCertificate applies to SqlServer only; remove it for PostgreSql."],
-            new DatabaseOptions { Provider = "PostgreSql", ConnectionString = "Host=db", TrustServerCertificate = true }.Validate()
+            new DatabaseOptions { Provider = "PostgreSql", ConnectionString = "Host=db", TrustServerCertificate = true }.Validate()   // DevSkim: ignore DS114352 - a test of the TrustServerCertificate option, never a connection
         );
         Assert.Empty(new DatabaseOptions { Provider = "None" }.Validate());
-        Assert.Empty(new DatabaseOptions { Provider = "SqlServer", ConnectionString = "Server=db", TrustServerCertificate = true }.Validate());
+        Assert.Empty(new DatabaseOptions { Provider = "SqlServer", ConnectionString = "Server=db", TrustServerCertificate = true }.Validate());   // DevSkim: ignore DS114352 - a test of the TrustServerCertificate option, never a connection
     }
 
 
@@ -75,7 +75,7 @@ public sealed class DatabaseOptionsTests
     [Fact]
     public void TrustServerCertificate_is_applied_to_the_SqlServer_connection_string_only()
     {
-        var sqlServer = new DatabaseOptions { Provider = "SqlServer", ConnectionString = "Server=db;Database=wms;Encrypt=True", TrustServerCertificate = true };
+        var sqlServer = new DatabaseOptions { Provider = "SqlServer", ConnectionString = "Server=db;Database=wms;Encrypt=True", TrustServerCertificate = true };   // DevSkim: ignore DS114352 - a test of the TrustServerCertificate option, never a connection
         // Built with the provider's builder (as the encryption test below does) rather than written as a literal.
         var postgresString = new NpgsqlConnectionStringBuilder { Host = "db", Database = "wms" }.ConnectionString;
         var postgres = new DatabaseOptions { Provider = "PostgreSql", ConnectionString = postgresString };
@@ -100,7 +100,7 @@ public sealed class DatabaseOptionsTests
     private static SqlConnectionEncryptOption EncryptionWhenTrusting(SqlConnectionEncryptOption configured)
     {
         var configuredString = new SqlConnectionStringBuilder { DataSource = "db", InitialCatalog = "wms", Encrypt = configured }.ConnectionString;
-        var options = new DatabaseOptions { Provider = "SqlServer", ConnectionString = configuredString, TrustServerCertificate = true };
+        var options = new DatabaseOptions { Provider = "SqlServer", ConnectionString = configuredString, TrustServerCertificate = true };   // DevSkim: ignore DS114352 - a test of the TrustServerCertificate option, never a connection
 
         return new SqlConnectionStringBuilder(options.EffectiveConnectionString()).Encrypt;
     }

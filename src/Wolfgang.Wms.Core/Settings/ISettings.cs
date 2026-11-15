@@ -7,11 +7,12 @@ namespace Wolfgang.Wms.Core.Settings;
 
 /// <summary>
 /// The one way to read and change a setting (E6.3). <see cref="GetAsync{T}"/> returns the effective value
-/// at a scope (its own configured value, else the nearest ancestor's, else the key's default), served from
-/// a per-instance cache invalidated by <c>row_version</c>. Every write validates against the registry
-/// (registration, allowed scope, kind, validator), stores the invariant text, recomputes descendants that
-/// inherit (E7.1), is audited (E6.4) and invalidates the cache. The console and the API call this; nothing
-/// writes <c>core.setting</c> directly.
+/// at a scope (its own configured value, else the nearest ancestor's, else the key's default, ADR 0009).
+/// Every write validates against the registry (registration, allowed scope, kind, validator), stores the
+/// invariant text and is audited (E6.4); descendants that inherit see it through resolution (E7.1). The
+/// stored implementation is decorated in the container: <see cref="ProtectedSettings"/> keeps secrets
+/// encrypted at rest and a cache memoises resolutions per instance. The console and the API call this;
+/// nothing writes <c>core.setting</c> directly.
 /// </summary>
 public interface ISettings
 {

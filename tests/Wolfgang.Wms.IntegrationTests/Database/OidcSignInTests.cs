@@ -73,7 +73,7 @@ public sealed class OidcSignInTests
 
         await using var mockProvider = MockProvider();
         await mockProvider.StartAsync();
-        var authority = $"http://{mockProvider.Hostname}:{mockProvider.GetMappedPublicPort(8080)}/{Issuer}";
+        var authority = $"http://{mockProvider.Hostname}:{mockProvider.GetMappedPublicPort(8080)}/{Issuer}";   // DevSkim: ignore DS137138 - the test identity provider runs in a local container on plain HTTP
 
         await using var app = await StartHostAsync(provider, runtime, trustServerCertificate);
         using var client = app.GetTestClient();

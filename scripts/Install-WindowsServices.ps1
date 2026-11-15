@@ -116,7 +116,7 @@ $migrateExe = Join-Path $InstallRoot 'worker\migrate\wms-migrate.exe'
 if (-not (Test-Path $migrateExe)) { $migrateExe = Join-Path $InstallRoot 'worker\wms-migrate.exe' }
 switch ($Authentication)
 {
-    'Integrated' { $stored = "Server=$Server;Database=wms;Integrated Security=true;Encrypt=True;TrustServerCertificate=True" }
+    'Integrated' { $stored = "Server=$Server;Database=wms;Integrated Security=true;Encrypt=True;TrustServerCertificate=True" }   # DevSkim: ignore DS114352 - the documented TrustServerCertificate opt-in for SQL Server Express, whose certificate is self-signed
     'Sql'
     {
         if (-not $ConnectionString) { throw 'ConnectionString is required for Sql authentication.' }

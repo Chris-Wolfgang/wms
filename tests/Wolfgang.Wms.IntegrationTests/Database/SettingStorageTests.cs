@@ -21,7 +21,7 @@ public sealed class SettingStorageTests
     {
         await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await AssertStorageAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = database.ConnectionString, TrustServerCertificate = true });
+        await AssertStorageAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = database.ConnectionString, TrustServerCertificate = true });   // DevSkim: ignore DS114352 - the test SQL Server instance uses a self-signed certificate
     }
 
 

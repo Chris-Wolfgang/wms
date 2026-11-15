@@ -58,6 +58,7 @@ public sealed class TriggerScriptTests
         Assert.InRange(functionAt, 0, triggerAt - 1);
         Assert.InRange(blockEndAt, triggerAt, up.Length);
         Assert.Contains("DROP TRIGGER IF EXISTS trg_note_row_version ON sample.note;", down, StringComparison.Ordinal);
+        Assert.Contains("DO $wms$ BEGIN", down, StringComparison.Ordinal);   // the function-drop block nests inside the script's DO $EF$ block
     }
 
 

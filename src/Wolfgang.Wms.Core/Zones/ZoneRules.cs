@@ -35,6 +35,7 @@ public static class ZoneRules
         return Code(draft.Code)
             ?? Text("name", draft.Name, required: true, NameLength)
             ?? Text("walkOrderPrefix", draft.WalkOrderPrefix, required: false, WalkOrderPrefixLength)
+            ?? WalkOrderPrefix(draft.WalkOrderPrefix)
             ?? Type(draft)
             ?? Resolution(draft);
     }
@@ -115,6 +116,18 @@ public static class ZoneRules
         }
 
         return ids.Distinct().Count() == ids.Count ? null : "resolution.resolverUserIds must not repeat a user.";
+    }
+
+
+
+    /// <summary>
+    /// The same characters a location's walk sequence allows, since every sequence in the zone starts with this.
+    /// </summary>
+    private static string? WalkOrderPrefix(string? prefix)
+    {
+        return string.IsNullOrWhiteSpace(prefix) || prefix.Trim().All(c => c is > ' ' and <= '~' && c != '|')
+            ? null
+            : "walkOrderPrefix may contain visible ASCII characters except '|'.";
     }
 
 

@@ -2,7 +2,7 @@
 
 Every repository owned by `Chris-Wolfgang` is measured against the items below. Gaps become one issue per
 failing item in the repository where the item fails (title `Baseline: <item name>`, label `baseline` plus
-`security` or `process`). The audit is automated by [`scripts/audit-repos.ps1`](../scripts/audit-repos.ps1);
+`security` or `process`). The audit is automated by `scripts/audit-repos.ps1` in the template repository (template-only; it runs from a template checkout, not from here);
 this document is the human-readable definition of what that script checks and how to fix each gap.
 
 Status vocabulary used by the audit:

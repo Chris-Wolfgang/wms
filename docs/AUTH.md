@@ -54,8 +54,10 @@ they are an attack surface. The gate (`ILocalLoginGate`, one audited row in `cor
   tool's own name) in the audited row, and logs every command at Warning. Nothing in the web API opens the
   gate. Details: [ADMIN.md](ADMIN.md); the channel's keys: [CONFIGURATION.md](CONFIGURATION.md).
 - **`GET /auth/local/status`** (anonymous): `{ localLoginOpen, ssoVerified, unlockedUntil, forcedLocal }`.
-  The login page hides the password form when local sign-in is closed; the console shows a banner while a
-  window is open. The response carries no user names.
+  The login page hides the password form when local sign-in is closed; the console shows a banner on every
+  workspace while a window is open (`ILocalLoginNotice` in `Wolfgang.Wms.Web.Shared`; the API-backed source
+  reads this endpoint, the placeholder shows nothing until the console's API client is wired). The response
+  carries no user names.
 - **`Wms:Auth:ForceLocal=true`** (the E11.0 emergency override) keeps local sign-in open whatever the gate
   says, so a broken provider change is still recoverable from `appsettings` on the host.
 

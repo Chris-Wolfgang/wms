@@ -62,6 +62,10 @@
     <value>Loading…</value>
     <comment>Shown while the workspace entry check runs.</comment>
   </data>
+  <data name="layout.local_login_unlocked" xml:space="preserve">
+    <value>Local sign-in is unlocked until {0}. It was opened from the host; run wms-admin lock there when you are done.</value>
+    <comment>The break-glass banner (E9.3); {0} is when the window ends, in the browser's local time.</comment>
+  </data>
   <data name="layout.scan_unused" xml:space="preserve">
     <value>Scan {0} is not used on this screen.</value>
     <comment>{0} is the scanned text.</comment>

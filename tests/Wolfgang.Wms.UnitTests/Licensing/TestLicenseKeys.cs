@@ -12,7 +12,7 @@ namespace Wolfgang.Wms.UnitTests.Licensing;
 /// </summary>
 internal sealed class TestLicenseKeys : IDisposable
 {
-    private readonly ECDsa _pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+    private readonly ECDsa _pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);   // DevSkim: ignore DS440100 - names the P-256 curve; the key pair is generated per test run, nothing secret is in source
 
 
 

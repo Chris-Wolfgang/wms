@@ -31,7 +31,7 @@ public sealed class SyncTests
     {
         await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await AssertSyncAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = database.ConnectionString, TrustServerCertificate = true });
+        await AssertSyncAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = database.ConnectionString, TrustServerCertificate = true });   // DevSkim: ignore DS114352 - the test SQL Server instance uses a self-signed certificate
     }
 
 

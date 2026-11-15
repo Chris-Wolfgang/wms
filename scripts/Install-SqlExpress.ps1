@@ -96,4 +96,4 @@ if ($SkipProvision)
 }
 
 & (Join-Path $PSScriptRoot 'Provision-WmsDatabase.ps1') -Instance "localhost\$InstanceName" -MigrateIdentity $caller -RuntimeAccounts $RuntimeAccounts -WhatIf:$WhatIfPreference
-Write-Host "Install-SqlExpress: done. Connection string for the services: Server=localhost\$InstanceName;Database=wms;Integrated Security=true;Encrypt=True;TrustServerCertificate=True"
+Write-Host "Install-SqlExpress: done. Connection string for the services: Server=localhost\$InstanceName;Database=wms;Integrated Security=true;Encrypt=True;TrustServerCertificate=True"   # DevSkim: ignore DS114352 - the documented TrustServerCertificate opt-in for SQL Server Express, whose certificate is self-signed

@@ -5,7 +5,7 @@
 .DESCRIPTION
     Three checks, each a finding list; any finding fails the run so report-failure.ps1 opens the issue.
 
-    fragments  Changelog fragments under changelog/unreleased added more than -FragmentMaxAgeDays ago (from
+    fragments  Changelog fragments under changelog/unreleased added more than -FragmentMaxAgeDays ago (skipped until a vX.Y.Z tag exists; from
                `git log --diff-filter=A`). A fragment that old means a change has been sitting unreleased.
     skips      [Fact]/[Theory] with Skip = "..." whose reason does not name an issue (#N), or names a closed
                one. A skipped test without an open issue is a test that silently stopped existing.
@@ -55,6 +55,12 @@ function Test-Fragments
 {
     $dir = Join-Path $Root 'changelog/unreleased'
     if (-not (Test-Path $dir)) { return }
+    # Nothing has been released yet, so fragments cannot be 'stale': there is no release to assemble them into.
+    if ($null -eq (Get-LatestReleaseVersion))
+    {
+        Write-Host '::notice::[fragments] no vX.Y.Z release tag exists yet; skipping the stale-fragment check until the first release'
+        return
+    }
     $now = (Get-Date).ToUniversalTime()
     foreach ($f in Get-ChildItem $dir -File -Filter *.md | Where-Object { $_.Name -ne 'README.md' })
     {

@@ -14,7 +14,7 @@
 
   <ItemGroup>
     <!-- Kiota runtime: abstractions, HttpClient adapter and the reflection-free JSON/text/form serializers. -->
-    <PackageReference Include="Microsoft.Kiota.Bundle" Version="2.1.2" />
+    <PackageReference Include="Microsoft.Kiota.Bundle" Version="2.1.6" />
   </ItemGroup>
 
 </Project>

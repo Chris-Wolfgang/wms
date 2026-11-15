@@ -64,6 +64,7 @@ public sealed partial class IntegrityVerificationJob : BackgroundService
         var rows = new List<(ISignedEntity Row, string Table)>();
         rows.AddRange((await context.Users.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(u => ((ISignedEntity)u, "core.user")));
         rows.AddRange((await context.Roles.Include(r => r.Permissions).AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(r => ((ISignedEntity)r, "core.role")));
+        rows.AddRange((await context.LocalLoginGates.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(g => ((ISignedEntity)g, "core.local_login_gate")));
         rows.AddRange((await context.UserRoles.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(a => ((ISignedEntity)a, "core.user_role")));
         rows.AddRange((await context.GroupRoleMappings.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false)).Select(m => ((ISignedEntity)m, "core.group_role_mapping")));
 

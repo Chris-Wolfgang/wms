@@ -3,6 +3,7 @@
 using System.Text.Json.Serialization;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
+using Wolfgang.Wms.Core.Identity.BreakGlass;
 using Wolfgang.Wms.Core.Identity.Providers;
 using Wolfgang.Wms.Core.Licensing;
 using Wolfgang.Wms.Core.Logging;
@@ -29,6 +30,7 @@ namespace Wolfgang.Wms.Core.Json;
 [JsonSerializable(typeof(LoggingStatus))]
 [JsonSerializable(typeof(IReadOnlyList<AuthProviderInfo>))]
 [JsonSerializable(typeof(AuthProviderHealth))]
+[JsonSerializable(typeof(LocalLoginStatus))]
 [JsonSerializable(typeof(IReadOnlyList<PermissionDescriptor>))]
 [JsonSerializable(typeof(RoleInfo))]
 [JsonSerializable(typeof(IReadOnlyList<RoleInfo>))]

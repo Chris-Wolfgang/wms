@@ -1,7 +1,7 @@
 # Integrity signatures
 
-The security tables are signed. A row of `core.user`, `core.role` (with its `core.role_permission` rows)
-or `core.user_role` carries an HMAC-SHA256 over its security-relevant fields, computed by the application
+The security tables are signed. A row of `core.user`, `core.role` (with its `core.role_permission` rows),
+`core.user_role` or `core.local_login_gate` carries an HMAC-SHA256 over its security-relevant fields, computed by the application
 on every save and checked before the row is honoured. A row edited through the database, without the key,
 fails the check and is treated as absent: the user cannot sign in, the assignment grants nothing, the role
 grants nothing.

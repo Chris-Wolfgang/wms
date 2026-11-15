@@ -34,7 +34,7 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local.Login
         {
         }
         /// <summary>
-        /// Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled.
+        /// Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled or gate closed.
         /// </summary>
         /// <returns>A <see cref="Stream"/></returns>
         /// <param name="body">Body of `POST /auth/local/login` (E9.2).</param>
@@ -54,7 +54,7 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth.Local.Login
             return await RequestAdapter.SendPrimitiveAsync<Stream>(requestInfo, default, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled.
+        /// Signs in a local account and sets the session cookie; 401 wrong credentials, 423 locked, 403 disabled or gate closed.
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="body">Body of `POST /auth/local/login` (E9.2).</param>

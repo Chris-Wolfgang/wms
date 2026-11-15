@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Identity;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Identity;
 using Wolfgang.Wms.Core.Identity.BreakGlass;
+using Wolfgang.Wms.Core.Organization;
 using Wolfgang.Wms.Core.Identity.External;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Wolfgang.Wms.Core.Jobs;
@@ -115,6 +116,8 @@ public static class DatabaseServiceCollectionExtensions
         services.TryAddSingleton<SettingsCache>();
         services.RemoveAll<ISettings>();
         services.AddScoped<ISettings, EfSettings>();   // E6.3: the stored accessor replaces the defaults-only one
+        services.RemoveAll<IOrganization>();
+        services.AddScoped<IOrganization, Organization.EfOrganization>();   // E16.0: the stored organization replaces the placeholder
         services.AddHostedService<SchemaStartupCheck>();   // E4.4: refuse to start on a schema that is behind or ahead
         AddIdentity(services, configuration);   // E9, E10: accounts, roles, sessions, integrity
         return services;

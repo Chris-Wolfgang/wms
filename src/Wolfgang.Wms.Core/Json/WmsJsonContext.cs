@@ -7,6 +7,7 @@ using Wolfgang.Wms.Core.Identity.BreakGlass;
 using Wolfgang.Wms.Core.Identity.Providers;
 using Wolfgang.Wms.Core.Licensing;
 using Wolfgang.Wms.Core.Logging;
+using Wolfgang.Wms.Core.Organization;
 using Wolfgang.Wms.Core.Schema;
 using Wolfgang.Wms.Core.Settings;
 
@@ -42,6 +43,9 @@ namespace Wolfgang.Wms.Core.Json;
 [JsonSerializable(typeof(LicenseStatus))]
 [JsonSerializable(typeof(InstallLicenseKeyRequest))]
 [JsonSerializable(typeof(FeatureComparison))]
+[JsonSerializable(typeof(OrganizationInfo))]
+[JsonSerializable(typeof(OrganizationDraft))]
+[JsonSerializable(typeof(OrganizationPublicInfo))]
 public sealed partial class WmsJsonContext : JsonSerializerContext
 {
 }

@@ -12,5 +12,7 @@ Every permission an endpoint checks (E10.1), by module, with the built-in roles 
 | `license.manage` | license | — | Install and remove license keys |
 | `license.read` | license | Supervisor, Support, Viewer | View the license, usage against limits and the tier comparison |
 | `logging.manage` | logging | Supervisor, Support | See the server log level and elevate it for a while |
+| `organization.read` | organization | Supervisor, Support, Viewer | View the organization's details |
+| `organization.write` | organization | — | Create and edit the organization |
 | `settings.read` | settings | Supervisor, Support, Viewer | View settings and their values |
 | `settings.write` | settings | — | Change settings |

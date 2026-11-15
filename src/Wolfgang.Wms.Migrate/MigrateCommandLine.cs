@@ -37,8 +37,11 @@ public sealed record MigrateCommandLine
 
         Configuration is read from appsettings.json in the working directory and Wms__Database__* /
         Wms__DataProtection__* environment variables; flags win. Exit codes: 0 ok, 1 a migration failed (named
-        in the output), 2 usage or configuration error, 3 confirmation required, 4 nothing applied: the
-        database cannot be reached, its schema is newer than this build, or its migrations history has a gap.
+        in the output) or the tool failed before one ran (the message is in the output), 2 usage or configuration
+        error (an unwritable --output included), 3 confirmation required, 4 nothing applied, or with --status
+        nothing could be: the database cannot be reached, its schema is newer than this build, or its migrations
+        history has a gap, 5 (--status only) the schema is behind this build (the pending migrations are listed),
+        130 cancelled.
         """;
 
 

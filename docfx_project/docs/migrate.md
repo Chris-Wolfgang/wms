@@ -44,7 +44,7 @@ You name the version you want; the tool works out whether that is an upgrade or 
 |---------|------|
 | `wms-migrate` | Applies every pending migration, one at a time. |
 | `wms-migrate --status` | Lists applied and pending migrations, the version this build expects, whether the database can be reached, and any migrations this build does not know. |
-| `wms-migrate --to <migration>` | Moves the schema up or down to a migration: its full id (`20260920025830_Initial` on SQL Server; ids differ per database), its name (`Initial`), the start of its id, or `0` for an empty schema. A name or partial id that matches more than one migration is refused; give the full id. |
+| `wms-migrate --to <migration>` | Moves the schema up or down to a migration: its full id (`20260920025830_Initial` on SQL Server; ids differ per database), its name in any case (`Initial`, `initial`), the start of its id, or `0` for an empty schema. A name or partial id that matches more than one migration is refused; give the full id. |
 | `wms-migrate --script` | Writes SQL for a DBA to review and run, instead of changing the database. Needs only `--provider`: no connection and no connection string. Add `--from` and `--to` for the change between two versions, and `--output <file>` to write a file instead of the screen. The script can be run more than once safely. |
 
 ### Downgrades that lose data
@@ -65,7 +65,7 @@ data that a migration changed.
 | `1` | A migration failed; the output names it. Migrations before it were applied. |
 | `2` | Usage or configuration error, such as an unknown flag, a missing setting or a malformed connection string. |
 | `3` | The downgrade loses data and needs `--confirm-data-loss`. Nothing was changed or written. |
-| `4` | Nothing was applied: the database cannot be reached (including a database that does not exist yet: ask your DBA to create it), or its schema is newer than this version. Upgrade the software, or restore the backup taken before the upgrade. |
+| `4` | Nothing was applied: the database cannot be reached (including a database that does not exist yet: ask your DBA to create it), its schema is newer than this version (upgrade the software, or restore the backup taken before the upgrade), or its migrations history has a gap: a pending migration older than the last applied one, which only a hand-edited or partially restored history table produces (repair the table from the backup; the tool never guesses). |
 
 ## Examples
 

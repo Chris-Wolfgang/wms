@@ -64,14 +64,6 @@ public sealed class DefaultSettings : ISettings
 
 
     /// <inheritdoc/>
-    public Task<int> PopulateAsync(SettingScopeRef scope, string updatedBy, CancellationToken cancellationToken)
-    {
-        throw Unavailable();
-    }
-
-
-
-    /// <inheritdoc/>
     public Task<IReadOnlyList<SettingValue>> ListAsync(SettingScopeRef scope, CancellationToken cancellationToken)
     {
         return Task.FromResult<IReadOnlyList<SettingValue>>(_registry.All.Select(key => Default(key, scope)).ToList());

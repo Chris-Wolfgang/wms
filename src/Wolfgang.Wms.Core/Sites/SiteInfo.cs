@@ -14,6 +14,7 @@ namespace Wolfgang.Wms.Core.Sites;
 /// <param name="UpdatedAt">When the row was last written (UTC).</param>
 /// <param name="UpdatedBy">Who last wrote the row.</param>
 /// <param name="RowVersion">The row's version (E5.1); the <see cref="Etag"/> is derived from it.</param>
+/// <param name="CopiedFromId">The id of the row this one was copied from (E16.5); null when created outright.</param>
 public sealed record SiteInfo
 (
     long Id,
@@ -23,7 +24,8 @@ public sealed record SiteInfo
     bool IsActive,
     DateTimeOffset UpdatedAt,
     string UpdatedBy,
-    long RowVersion
+    long RowVersion,
+    long? CopiedFromId = null
 )
 {
     /// <summary>The entity tag a client sends back in <c>If-Match</c>.</summary>

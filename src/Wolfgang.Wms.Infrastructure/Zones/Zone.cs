@@ -67,6 +67,9 @@ public sealed class Zone : IVersionedEntity
     /// <summary>Who last wrote the row.</summary>
     public string UpdatedBy { get; set; } = string.Empty;
 
+    /// <summary>The id of the row this one was copied from (E16.5); null when created outright. Audited with the create.</summary>
+    public long? CopiedFromId { get; set; }
+
     /// <inheritdoc/>
     public long RowVersion { get; set; }
 
@@ -83,7 +86,7 @@ public sealed class Zone : IVersionedEntity
         var resolution = Type == ZoneType.Resolution
             ? new ResolutionZone(RestockingBin, ReturnsContainer, Resolvers.Select(r => r.UserId).Order().ToList(), AcceptsWeightFailures, AcceptsShorts, AcceptsAdjustments, AcceptsMisdirects, IsVirtualQueue)
             : null;
-        return new ZoneInfo(Id, SiteId, Code, Name, Type, WalkOrderPrefix, IsRejectLane, resolution, IsActive, UpdatedAt, UpdatedBy, RowVersion);
+        return new ZoneInfo(Id, SiteId, Code, Name, Type, WalkOrderPrefix, IsRejectLane, resolution, IsActive, UpdatedAt, UpdatedBy, RowVersion, CopiedFromId);
     }
 
 

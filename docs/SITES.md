@@ -44,3 +44,18 @@ organisation's children are every site (retired ones included, so their effectiv
 for their history), and a site's parent is the organisation. Setting a value at the organisation therefore
 rewrites the effective value of every site that inherits it (E7.1), and `POST /sites` followed by
 populating the new site's scope gives it the organisation's current values.
+
+## Defaults on creation (E16.4)
+
+- **Time zone.** A draft without `timeZone` (null or blank) takes the organisation's default time zone (E16.0).
+  Until the organisation exists there is no default and the draft is refused with `400 sites.invalid`
+  ("timeZone is required"). The console's create form suggests the browser's time zone and shows the
+  organisation's as the inherited value.
+- **Settings.** The moment a site is created its settings scope is populated: every setting allowed at site
+  level gets a row carrying the organisation's current effective value (E7.3), so nothing beneath the new site
+  is ever unresolved. The create screen reads the organisation's values (`GET /settings/organization/0`)
+  to show what the site will inherit and lets the user override only what differs, afterwards, at
+  `/settings/site/{id}`.
+- **Everything beneath a site** (zones, locations, paths, SKUs, barcodes, validation profiles) can be created one
+  at a time through the API or loaded in bulk through the master data import contract (E16.6), which serves
+  the console upload, the file drop and ERP pushes alike.

@@ -62,7 +62,7 @@ public sealed class Site : IVersionedEntity
         Code = draft.Code.Trim();
         CodeNormalized = SiteRules.Normalize(draft.Code);
         Name = draft.Name.Trim();
-        TimeZone = draft.TimeZone.Trim();
+        TimeZone = (draft.TimeZone ?? string.Empty).Trim();   // the store filled the organisation's default and the rules refused a blank one
         IsActive = draft.IsActive;
         UpdatedAt = now;
         UpdatedBy = updatedBy;

@@ -33,7 +33,7 @@ namespace Wolfgang.Wms.Client.Generated.Models
 #else
         public string Name { get; set; }
 #endif
-        /// <summary>An IANA or Windows time zone id the host knows; what the site&apos;s clocks, cut-offs and digests use.</summary>
+        /// <summary>An IANA or Windows time zone id the host knows; what the site&apos;s clocks, cut-offs and digests use. Null or blank to take the organisation&apos;s default time zone (E16.4); required until the organisation exists.</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
         public string? TimeZone { get; set; }

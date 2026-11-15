@@ -2999,8 +2999,11 @@
             "description": "The name users see."
           },
           "timeZone": {
-            "type": "string",
-            "description": "An IANA or Windows time zone id the host knows; what the site\u0027s clocks, cut-offs and digests use."
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "An IANA or Windows time zone id the host knows; what the site\u0027s clocks, cut-offs and digests use. Null or blank to take the organisation\u0027s default time zone (E16.4); required until the organisation exists."
           },
           "isActive": {
             "type": "boolean",

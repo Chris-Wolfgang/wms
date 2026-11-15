@@ -33,7 +33,7 @@ public sealed class SettingsAuditTests
     {
         await using var database = await SqlServerTestDatabase.StartAsync();
 
-        await AssertAuditedAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = database.ConnectionString, TrustServerCertificate = true });
+        await AssertAuditedAsync(new DatabaseOptions { Provider = "SqlServer", ConnectionString = database.ConnectionString, TrustServerCertificate = true });   // DevSkim: ignore DS114352 - the test SQL Server instance uses a self-signed certificate
     }
 
 

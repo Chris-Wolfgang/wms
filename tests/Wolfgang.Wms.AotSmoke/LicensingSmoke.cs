@@ -17,7 +17,7 @@ internal static class LicensingSmoke
 {
     public static void SignedKeyRoundTrips()
     {
-        using var pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);   // DevSkim: ignore DS440100 - names the P-256 curve; the key pair is generated per test run, nothing secret is in source
         using var verifier = new LicenseVerifier(Convert.ToBase64String(pair.ExportSubjectPublicKeyInfo()));
         var key = SampleKey();
 
@@ -31,8 +31,8 @@ internal static class LicensingSmoke
 
     public static void AlteredKeyIsRefused()
     {
-        using var pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        using var other = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);   // DevSkim: ignore DS440100 - names the P-256 curve; the key pair is generated per test run, nothing secret is in source
+        using var other = ECDsa.Create(ECCurve.NamedCurves.nistP256);   // DevSkim: ignore DS440100 - names the P-256 curve; the key pair is generated per test run, nothing secret is in source
         using var verifier = new LicenseVerifier(Convert.ToBase64String(pair.ExportSubjectPublicKeyInfo()));
 
         var foreign = verifier.Read(LicenseKeySigner.Sign(SampleKey(), other));

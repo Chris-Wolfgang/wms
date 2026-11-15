@@ -77,7 +77,7 @@ public sealed partial class KeycloakSignInTests
 
         await using var keycloak = Keycloak();
         await keycloak.StartAsync();
-        var authority = $"http://{keycloak.Hostname}:{keycloak.GetMappedPublicPort(8080)}/realms/{Realm}";
+        var authority = $"http://{keycloak.Hostname}:{keycloak.GetMappedPublicPort(8080)}/realms/{Realm}";   // DevSkim: ignore DS137138 - the test identity provider runs in a local container on plain HTTP
 
         await using var app = await StartHostAsync(provider, runtime, trustServerCertificate);
         using var client = app.GetTestClient();

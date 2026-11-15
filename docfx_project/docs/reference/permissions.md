@@ -18,3 +18,5 @@ Every permission an endpoint checks (E10.1), by module, with the built-in roles 
 | `settings.write` | settings | — | Change settings |
 | `sites.read` | sites | Supervisor, Support, Viewer | View the sites |
 | `sites.write` | sites | — | Create, edit and retire sites |
+| `zones.read` | zones | Supervisor, Support, Viewer | View the zones |
+| `zones.write` | zones | — | Create, edit and retire zones |

@@ -48,7 +48,7 @@ public sealed class DatabaseStartupTests
     [Fact]
     public async Task With_a_configured_but_unreachable_SqlServer_the_host_refuses_to_start()
     {
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => DatabaseHost.StartAsync("SqlServer", "Server=127.0.0.1,1;Database=wms;User Id=wms;Password=x;Encrypt=False;Connect Timeout=1;Connect Retry Count=0", trustServerCertificate: false));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => DatabaseHost.StartAsync("SqlServer", "Server=127.0.0.1,1;Database=wms;User Id=wms;Password=x;Encrypt=False;Connect Timeout=1;Connect Retry Count=0", trustServerCertificate: false));   // DevSkim: ignore DS114352 - an unreachable address the test expects to fail on, never a real connection
 
         Assert.Contains("cannot be reached", exception.Message, StringComparison.Ordinal);
     }

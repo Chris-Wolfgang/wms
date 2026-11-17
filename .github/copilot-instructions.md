@@ -2,11 +2,11 @@
 
 ## Repository Summary
 
-This is a **repository template** for creating new .NET repositories. It provides a standardized structure with comprehensive GitHub integration, CI/CD workflows, and development tooling. The template supports multi-TFM .NET projects using C# and follows Microsoft's recommended project organization patterns.
+This is **Wolfgang.Wms**, a warehouse management system: an installed server with a web console and a handheld app. It was created from the `repo-template` .NET template and keeps its CI/CD workflows and development tooling.
 
-**Repository Type**: Template (not a working project — it contains no csproj)
-**Target Platforms**: .NET Framework 4.6.2–4.8.1, .NET Core 3.1, .NET 5.0–10.0
-**Primary Language**: C#; the `scripts/` tooling is PowerShell 7 (`pwsh`). The one shell script is the git hook `.githooks/pre-commit` (bash, as git hooks must be), and CI `run:` steps use bash on the Linux/macOS stages.
+**Repository Type**: Application (server, web console, Android handheld), created from `repo-template`
+**Target Platforms**: .NET 10 only — every project targets `net10.0`, and the handheld `net10.0-android`
+**Primary Language**: C#; the `scripts/` tooling is PowerShell 7 (`pwsh`). The one shell script is the git hook `.githooks/pre-commit` (bash, as git hooks must be), and CI `run:` steps use bash on the Linux stage.
 
 ## Build and Validation Instructions
 
@@ -28,7 +28,7 @@ This is a **repository template** for creating new .NET repositories. It provide
    ```powershell
    pwsh ./scripts/build-pr.ps1
    ```
-   `-SkipSecurity` / `-SkipCoverage` / `-SkipTests` narrow it while iterating. The Linux and macOS stages only run in CI.
+   `-SkipSecurity` / `-SkipCoverage` / `-SkipTests` narrow it while iterating. The Linux stage only runs in CI.
 
 3. **Format**: `pwsh ./scripts/format.ps1` (`-Check` to verify only). The PR workflow does not run a format check; formatting is developer-side.
 
@@ -85,7 +85,7 @@ Runs on `pull_request` (plus `push` to `main`): the PR's own workflow file, conf
 
 1. **Secrets Scan (gitleaks)** and **Detect .NET Projects** (project discovery) run first; the **Protected Files Guard** classifies the PR's changed files from its own workflow.
 2. **Changelog Fragment Check** and **ReSharper InspectCode** run in parallel with the test stages.
-3. **Stage 1 Linux** (.NET 5.0–10.0 + coverage gate) → **Stage 2 Windows** (.NET Core 3.1, .NET 5.0–10.0, .NET Framework 4.6.2–4.8.1; integration tests; the full-TFM backstop) → **Stage 3 macOS** (.NET 6.0–10.0). Each stage discovers the projects' target frameworks at run time.
+3. **Stage 1 Linux** (coverage gate) → **Stage 2 Windows** (the SQL Server integration tests against LocalDB). There is no Stage 3: WMS builds on Windows and Linux only (E1.5). Each stage discovers the projects' target frameworks at run time, so today both test `net10.0`; the TFM ranges in the stage *names* are kept because the names are required status checks.
 4. **Security Scan (DevSkim)**; CodeQL, actionlint/zizmor, license audit and SBOM run from their own workflows.
 5. **Required checks** (ruleset): Protected Files Guard, Detect .NET Projects, Stage 1, Stage 2, DevSkim, CodeQL, gitleaks, Changelog Fragment Check. InspectCode, actionlint/zizmor, license audit and SBOM are advisory.
 

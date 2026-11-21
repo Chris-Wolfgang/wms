@@ -90,11 +90,9 @@ public sealed partial class EfExternalAccounts : IExternalAccounts
     private async Task NameAsync(User user, ExternalIdentity identity, CancellationToken cancellationToken)
     {
         var wanted = identity.UserName.Trim();
-        var name = wanted.Length > 0 ? wanted : identity.Subject;
-        if (await _context.Users.AnyAsync(u => u.UserNameNormalized == EfLocalAccounts.Normalize(name), cancellationToken).ConfigureAwait(false))
-        {
-            name = name + "@" + user.Provider;   // a local account already holds the plain name
-        }
+        var plain = wanted.Length > 0 ? wanted : identity.Subject;
+        var plainTaken = await _context.Users.AnyAsync(u => u.UserNameNormalized == EfLocalAccounts.Normalize(plain), cancellationToken).ConfigureAwait(false);
+        var name = plainTaken ? plain + "@" + user.Provider : plain;   // a local account already holds the plain name
 
         if (name.Length > User.UserNameLength || await _context.Users.AnyAsync(u => u.UserNameNormalized == EfLocalAccounts.Normalize(name), cancellationToken).ConfigureAwait(false))
         {

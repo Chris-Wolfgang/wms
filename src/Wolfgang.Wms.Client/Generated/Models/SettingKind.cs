@@ -3,7 +3,7 @@ using System.Runtime.Serialization;
 using System;
 namespace Wolfgang.Wms.Client.Generated.Models
 {
-    /// <summary>How the value is edited.</summary>
+    /// <summary>How the value is edited and stored.</summary>
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public enum SettingKind
     {

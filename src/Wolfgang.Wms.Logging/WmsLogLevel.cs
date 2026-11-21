@@ -8,8 +8,9 @@ namespace Wolfgang.Wms.Logging;
 
 /// <summary>
 /// The one level switch of the host (E12.4): the logger's minimum level is controlled by it, the boot value
-/// comes from configuration, and the settings-driven sync moves it at runtime. Per-component switches are a
-/// later refinement, not v1.
+/// comes from configuration, and the settings-driven sync moves it at runtime. EF Core has its own switch that
+/// follows it: Warning normally, the host's level once that is Debug or more verbose, so an elevation also brings
+/// the SQL diagnostics (still under the verbose rate limit).
 /// </summary>
 public sealed class WmsLogLevel
 {
@@ -19,6 +20,7 @@ public sealed class WmsLogLevel
     public WmsLogLevel(LogEventLevel initial = LogEventLevel.Information)
     {
         Switch = new LoggingLevelSwitch(initial);
+        EntityFrameworkSwitch = new LoggingLevelSwitch(ForEntityFramework(initial));
     }
 
 
@@ -27,6 +29,13 @@ public sealed class WmsLogLevel
     /// The switch Serilog reads on every event.
     /// </summary>
     public LoggingLevelSwitch Switch { get; }
+
+
+
+    /// <summary>
+    /// The switch for the <c>Microsoft.EntityFrameworkCore</c> categories (see <see cref="ForEntityFramework"/>).
+    /// </summary>
+    public LoggingLevelSwitch EntityFrameworkSwitch { get; }
 
 
 
@@ -48,13 +57,25 @@ public sealed class WmsLogLevel
         }
 
         Switch.MinimumLevel = level;
+        EntityFrameworkSwitch.MinimumLevel = ForEntityFramework(level);
         return true;
     }
 
 
 
     /// <summary>
-    /// The Serilog level of a Microsoft level (Trace is Verbose, Critical is Fatal, None logs nothing below Fatal).
+    /// The EF Core level for a host level: <see cref="LogEventLevel.Warning"/> unless the host is at
+    /// <see cref="LogEventLevel.Debug"/> or more verbose, then the same level.
+    /// </summary>
+    public static LogEventLevel ForEntityFramework(LogEventLevel level)
+    {
+        return level <= LogEventLevel.Debug ? level : LogEventLevel.Warning;   // SQL text is Verbose territory: only when asked for
+    }
+
+
+
+    /// <summary>
+    /// The Serilog level for a Microsoft logging level.
     /// </summary>
     public static LogEventLevel ToSerilog(LogLevel level)
     {

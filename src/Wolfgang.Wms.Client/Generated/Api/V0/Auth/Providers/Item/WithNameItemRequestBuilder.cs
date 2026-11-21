@@ -7,6 +7,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System;
 using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Item.Check;
+using Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Item.Groups;
 namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Item
 {
     /// <summary>
@@ -19,6 +20,11 @@ namespace Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Item
         public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Item.Check.CheckRequestBuilder Check
         {
             get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Item.Check.CheckRequestBuilder(PathParameters, RequestAdapter);
+        }
+        /// <summary>The groups property</summary>
+        public global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Item.Groups.GroupsRequestBuilder Groups
+        {
+            get => new global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Item.Groups.GroupsRequestBuilder(PathParameters, RequestAdapter);
         }
         /// <summary>
         /// Instantiates a new <see cref="global::Wolfgang.Wms.Client.Generated.Api.V0.Auth.Providers.Item.WithNameItemRequestBuilder"/> and sets the default values.

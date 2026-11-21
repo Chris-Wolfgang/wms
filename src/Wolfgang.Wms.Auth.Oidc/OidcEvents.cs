@@ -69,7 +69,7 @@ public static partial class OidcEvents
 
 
 
-    private static Task RefuseAsync(TokenValidatedContext context, Wolfgang.Wms.Domain.Keys.ErrorCode code, string? detail)
+    private static Task RefuseAsync(TokenValidatedContext context, Domain.Keys.ErrorCode code, string? detail)
     {
         context.HandleResponse();
         return ApiProblems.Problem(code, detail, detail ?? string.Empty).ExecuteAsync(context.HttpContext);

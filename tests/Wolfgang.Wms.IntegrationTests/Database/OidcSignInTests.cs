@@ -7,7 +7,6 @@ using System.Text.Json;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -42,6 +41,12 @@ public sealed class OidcSignInTests
 {
     private const string Issuer = "wms";
     private static readonly JsonSerializerOptions Json = JsonSerializerOptions.Web;
+
+    /// <summary>
+    /// Talks to the provider container directly; redirects are not followed, so each hop can be asserted.
+    /// One instance for the class, so the sign-in helper does not open a new connection pool per call.
+    /// </summary>
+    private static readonly HttpClient ProviderClient = new(new HttpClientHandler { AllowAutoRedirect = false });
 
 
 
@@ -185,9 +190,7 @@ public sealed class OidcSignInTests
         Assert.StartsWith(authority + "/authorize", authorize.ToString(), StringComparison.Ordinal);
         var cookies = string.Join("; ", challenge.Headers.GetValues("Set-Cookie").Select(c => c.Split(';')[0]));
 
-        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
-        using var provider = new HttpClient(handler);
-        using var atProvider = await provider.GetAsync(authorize);
+        using var atProvider = await ProviderClient.GetAsync(authorize);
         Assert.Equal(HttpStatusCode.Redirect, atProvider.StatusCode);
         var callback = atProvider.Headers.Location!;
         Assert.StartsWith("http://localhost/auth/oidc/callback?", callback.ToString(), StringComparison.Ordinal);

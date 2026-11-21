@@ -9,7 +9,6 @@ using Wolfgang.Wms.Core.Api;
 using Wolfgang.Wms.Core.Authorization;
 using Wolfgang.Wms.Core.Http;
 using Wolfgang.Wms.Core.Settings;
-using External = Wolfgang.Wms.Core.Identity.External;
 using Wolfgang.Wms.Domain.Keys;
 
 namespace Wolfgang.Wms.Core.Identity.Providers;
@@ -69,7 +68,7 @@ public static class AuthProviderEndpoints
             .RequirePermission(Manage)
             .WithName("GetGroupRoleMappings")
             .WithSummary("A provider's directory groups mapped to roles (E11.2); users in no mapped group hold no role.")
-            .Produces<IReadOnlyList<External.GroupRoleMappingInfo>>(StatusCodes.Status200OK);
+            .Produces<IReadOnlyList<External.GroupRoleMappingInfo>>();
         app.MapPost(GroupsRoute, AddGroupAsync)
             .RequirePermission(Manage)
             .WithName("AddGroupRoleMapping")
@@ -101,12 +100,6 @@ public static class AuthProviderEndpoints
         if (catalog.Find(name) is null)
         {
             return ApiProblems.Problem(AuthErrorCodes.ProviderNotEnabled, detail: null, name);
-        }
-
-        if (body is null)
-        {
-            const string reason = "A body with group and roleId is required.";
-            throw new AuthException(AuthErrorCodes.MappingRejected, reason, reason);
         }
 
         var mapping = await mappings.AddAsync(name, body, http.User.Identity?.Name ?? SettingsModule.AnonymousUser, cancellationToken).ConfigureAwait(false);

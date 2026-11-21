@@ -7,9 +7,10 @@ namespace Wolfgang.Wms.IntegrationTests.Database;
 
 /// <summary>
 /// A fact that needs a container runtime. On the Linux CI job Docker is present and it always runs; on the
-/// Windows CI job (no engine that runs Linux containers) it is skipped with a reason naming the tracking
-/// issue (every skip names an open issue); on a developer machine without a reachable Docker engine it is
-/// skipped the same way.
+/// Windows CI job (no engine that runs Linux containers) it is skipped with a reason naming the tracking issue (E13.1: every
+/// skip names an open issue; <c>scripts/Check-Skips.ps1</c> enforces it); on a developer machine without a
+/// reachable Docker engine it is skipped the same way. SQL Server tests use <see cref="SqlServerFactAttribute"/>
+/// instead, which also runs against a local instance.
 /// </summary>
 /// <remarks>
 /// Excluded from coverage for the same reason coverlet.runsettings excludes <c>*Fixture</c> classes: which

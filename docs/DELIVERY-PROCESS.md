@@ -39,10 +39,13 @@ Playwright + axe) run on `main` merges and nightly, never per PR. A `paths:` fil
 a **required** status check (a PR the filter skips would wait forever for it); path-based skipping is done
 inside the job with `dorny/paths-filter`-style detection, or the job is not required.
 
-Provider tests run against real engines in containers (`ProviderStartupTests`: SQL Server 2022, SQL Server 2025
-Express, PostgreSQL 16; they need Docker, which CI has, and skip on a developer machine without it); the
-migration-drift check is the Stage 1 step over `scripts/Check-Migrations.ps1`; the OpenAPI diff is the
-`openapi-diff` job. Not yet wired: Playwright + axe (E82 UI stories).
+Provider tests run against real engines: containers on the Linux job (SQL Server 2022 and 2025 Express,
+PostgreSQL 16, the mock OIDC provider), and on the Windows job the SQL Server tests run against SQL Server
+Express LocalDB (`WMS_TEST_SQLSERVER` names the instance; `SqlServerTestDatabase` creates a database per
+test) while the Docker-only tests are skipped naming Chris-Wolfgang/wms#220 — every skip must name an open
+issue, which `scripts/Check-Skips.ps1` verifies from the TRX files (E13.1). Test assemblies are measured at
+100% line coverage. The migration-drift check is the Stage 1 step over `scripts/Check-Migrations.ps1`; the
+OpenAPI diff is the `openapi-diff` job. Not yet wired: Playwright + axe (E82 UI stories).
 
 ## Main gate (E85.2)
 

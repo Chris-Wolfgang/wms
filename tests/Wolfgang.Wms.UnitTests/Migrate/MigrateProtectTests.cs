@@ -23,12 +23,16 @@ public sealed class MigrateProtectTests
             var exit = await MigrateProgram.RunAsync(["--protect", "--connection-string", "Host=db;Password=hunter2", "--key-ring", ring], output, error, Configuration(), CancellationToken.None);
             var encrypted = output.ToString().Trim();
             var byConfiguration = await MigrateProgram.RunAsync(["--protect", "--connection-string", "Host=db"], output, error, Configuration(("Wms:DataProtection:KeyRingPath", ring)), CancellationToken.None);
+            var piped = new StringWriter();
+            var byStandardInput = await MigrateProgram.RunAsync(["--protect", "--connection-string", "-", "--key-ring", ring], new StringReader("Host=db;Password=piped"), piped, error, Configuration(), CancellationToken.None);   // the plaintext never on a command line
 
             Assert.Equal(MigrateProgram.ExitOk, exit);
             Assert.StartsWith("enc:v1:", encrypted, StringComparison.Ordinal);
             Assert.DoesNotContain("hunter2", encrypted, StringComparison.Ordinal);
             Assert.Equal("Host=db;Password=hunter2", Wolfgang.Wms.Infrastructure.Secrets.KeyRing.CreateProtector(ring).Unprotect(encrypted));
             Assert.Equal(MigrateProgram.ExitOk, byConfiguration);
+            Assert.Equal(MigrateProgram.ExitOk, byStandardInput);
+            Assert.Equal("Host=db;Password=piped", Wolfgang.Wms.Infrastructure.Secrets.KeyRing.CreateProtector(ring).Unprotect(piped.ToString().Trim()));
             Assert.Equal(string.Empty, error.ToString());
         }
         finally
@@ -51,10 +55,14 @@ public sealed class MigrateProtectTests
         var noString = await MigrateProgram.RunAsync(["--protect"], output, error, Configuration(), CancellationToken.None);
         var already = await MigrateProgram.RunAsync(["--protect", "--connection-string", "enc:v1:abc"], output, error, Configuration(), CancellationToken.None);
         var noRing = await MigrateProgram.RunAsync(["--protect", "--connection-string", "Host=db"], output, error, Configuration(), CancellationToken.None);
+        var emptyInput = await MigrateProgram.RunAsync(["--protect", "--connection-string", "-"], new StringReader(string.Empty), output, error, Configuration(), CancellationToken.None);
 
         Assert.Equal(MigrateProgram.ExitUsage, noString);
         Assert.Equal(MigrateProgram.ExitUsage, already);
         Assert.Equal(MigrateProgram.ExitUsage, noRing);
+        Assert.Equal(MigrateProgram.ExitUsage, emptyInput);
+        Assert.Contains("read no connection string from standard input", error.ToString(), StringComparison.Ordinal);
+        await Assert.ThrowsAsync<ArgumentNullException>(() => MigrateProgram.RunAsync([], null!, output, error, Configuration(), CancellationToken.None));
         Assert.Contains("needs a connection string", error.ToString(), StringComparison.Ordinal);
         Assert.Contains("already encrypted", error.ToString(), StringComparison.Ordinal);
         Assert.Contains("Wms:DataProtection:KeyRingPath", error.ToString(), StringComparison.Ordinal);

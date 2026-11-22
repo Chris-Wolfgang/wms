@@ -63,6 +63,8 @@ lines can be pulled from any sink. Worker jobs push the same properties for the 
 The API and the worker each follow these settings within 5 seconds (every instance). The console takes its
 level from `Wms:Logging` at startup and does not follow the settings yet: it reads settings through the API,
 and runtime following arrives with the console's API client.
+EF Core's categories stay at Warning normally and follow an elevation to Debug or Trace (SQL text is Trace),
+still under the verbose rate limit.
 Elevation is timed only: `POST /system/logging/elevate {"level":"Debug","minutes":30}` lowers the level
 and reverts by itself; `DELETE /system/logging/elevate` ends it now; `GET /system/logging` shows the
 permanent level, the level in force and the running elevation (`logging.manage`; Supervisor and Support

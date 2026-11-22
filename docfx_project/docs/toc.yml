@@ -10,6 +10,8 @@
   href: bootstrap.md
 - name: Configuration
   href: configuration.md
+- name: Running in containers
+  href: containers.md
 - name: Signing in and identity providers
   href: sign-in.md
 - name: Database conventions

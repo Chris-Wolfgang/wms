@@ -1,0 +1,21 @@
+# E14.3: HTTPS in front of the API and the console. A public hostname gets an ACME certificate; `localhost`
+# gets Caddy's internal CA (trust it with `caddy trust`, or accept the browser warning in a lab).
+{$WMS_HOSTNAME} {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	handle /health/* {
+		reverse_proxy api:8080
+	}
+
+	handle /openapi/* {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		reverse_proxy web:8080
+	}
+}

@@ -14,5 +14,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Wolfgang.Wms.Domain\Wolfgang.Wms.Domain.csproj" />
     <ProjectReference Include="..\Wolfgang.Wms.Infrastructure\Wolfgang.Wms.Infrastructure.csproj" />
+    <!-- E14.2: the schema check names both providers' migration assemblies; they must ship with the host (found in the compose smoke test). -->
+    <ProjectReference Include="..\Wolfgang.Wms.Infrastructure.Migrations.SqlServer\Wolfgang.Wms.Infrastructure.Migrations.SqlServer.csproj" />
+    <ProjectReference Include="..\Wolfgang.Wms.Infrastructure.Migrations.PostgreSql\Wolfgang.Wms.Infrastructure.Migrations.PostgreSql.csproj" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,100 @@
+# E13.3: the container stack must start from the tree. The images are built from the checked-out commit,
+# scripts/compose-setup.ps1 provisions SQL Server Express and runs the migrations with the migration login,
+# `docker compose up` starts the API, the console, the worker and Caddy, /health/ready must answer 200 through
+# Caddy, and the stack is torn down. Runs on main merges, weekly and on demand (a slow check: never per PR);
+# a failure opens or updates an issue (scripts/report-failure.ps1), closed by the next green run.
+
+name: Compose smoke
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  schedule:
+    - cron: '23 3 * * 2'   # Tuesdays 03:23 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the issue actions without creating, commenting or closing anything'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  compose-smoke:
+    name: "Images build, stack provisions and migrates, /health/ready answers"
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the images, provision the database, migrate
+        id: setup
+        shell: pwsh
+        run: pwsh ./scripts/compose-setup.ps1 -NoStart
+
+      - name: Start the stack and wait for readiness
+        id: ready
+        shell: bash
+        run: |
+          docker compose up -d
+          code=""
+          for i in $(seq 1 40); do
+            code=$(curl -k -s -o /dev/null -w '%{http_code}' https://localhost/health/ready || true)
+            if [ "$code" = "200" ]; then
+              echo "/health/ready answered 200 after $((i * 5))s"
+              curl -k -s https://localhost/health/ready | tee ready.json
+              echo
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::/health/ready did not answer 200 within 200s (last: $code)"
+          docker compose ps
+          docker compose logs --tail 100 | tee compose-logs.txt
+          exit 1
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+      - name: Open or update the failure issue
+        if: failure()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '' }}
+        run: |
+          $flags = @()
+          if ($env:DRY_RUN) { $flags += '-DryRun' }
+          $body = if (Test-Path compose-logs.txt) { 'compose-logs.txt' } else { $null }
+          $bodyFlags = @()
+          if ($body) { $bodyFlags += '-BodyPath'; $bodyFlags += $body }
+          pwsh ./scripts/report-failure.ps1 -Repository $env:GITHUB_REPOSITORY -Workflow compose-smoke -Outcome failed `
+            -Signature stack -Title 'Compose smoke failed' -Labels ops @bodyFlags `
+            -SuggestedFix 'Run `pwsh scripts/compose-setup.ps1 -NoStart` and `docker compose up -d` locally (docs/CONTAINERS.md); the last 100 log lines are in the body.' @flags
+
+      - name: Close the failure issue after a green run
+        if: success()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '' }}
+        run: |
+          $flags = @()
+          if ($env:DRY_RUN) { $flags += '-DryRun' }
+          pwsh ./scripts/report-failure.ps1 -Repository $env:GITHUB_REPOSITORY -Workflow compose-smoke -Outcome succeeded @flags

@@ -10,18 +10,28 @@ Do not edit by hand; re-run the script after changing a package reference.
 | AsyncFixer | 2.1.0 | Apache-2.0 | Semih Okur | https://github.com/semihokur/AsyncFixer |
 | Azure.Core | 1.50.0 | MIT | Microsoft | https://github.com/Azure/azure-sdk-for-net/blob/Azure.Core_1.50.0/sdk/core/Azure.Core/README.md |
 | Azure.Identity | 1.17.1 | MIT | Microsoft | https://github.com/Azure/azure-sdk-for-net/blob/Azure.Identity_1.17.1/sdk/identity/Azure.Identity/README.md |
+| Google.Protobuf | 3.30.1 | BSD-3-Clause | Google Inc. | https://github.com/protocolbuffers/protobuf |
 | GoogleGson | 2.13.1.1 | MIT AND Apache-2.0 | Microsoft | https://aka.ms/android-libraries |
+| Grpc.Core.Api | 2.70.0 | Apache-2.0 | The gRPC Authors | https://github.com/grpc/grpc-dotnet |
+| Grpc.Net.Client | 2.70.0 | Apache-2.0 | The gRPC Authors | https://github.com/grpc/grpc-dotnet |
+| Grpc.Net.Common | 2.70.0 | Apache-2.0 | The gRPC Authors | https://github.com/grpc/grpc-dotnet |
 | Humanizer.Core | 2.14.1 | MIT | Mehdi Khalili, Claire Novotny | https://github.com/Humanizr/Humanizer |
 | Meziantou.Analyzer | 3.0.290 | MIT | meziantou | https://github.com/meziantou/Meziantou.Analyzer |
 | Microsoft.AspNetCore.App.Internal.Assets | 10.0.11 | MIT | Microsoft | https://asp.net/ |
+| Microsoft.AspNetCore.Authentication.OpenIdConnect | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.Authorization | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.Components | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.Components.Analyzers | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.Components.Forms | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.Components.Web | 10.0.12 | MIT | Microsoft | https://asp.net/ |
+| Microsoft.AspNetCore.Cryptography.Internal | 10.0.12 | MIT | Microsoft | https://asp.net/ |
+| Microsoft.AspNetCore.DataProtection | 10.0.12 | MIT | Microsoft | https://asp.net/ |
+| Microsoft.AspNetCore.DataProtection.Abstractions | 10.0.12 | MIT | Microsoft | https://asp.net/ |
+| Microsoft.AspNetCore.DataProtection.EntityFrameworkCore | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.Metadata | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.AspNetCore.OpenApi | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.Bcl.AsyncInterfaces | 8.0.0 | MIT | Microsoft | https://dot.net/ |
+| Microsoft.Bcl.Cryptography | 10.0.2 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Build.Framework | 18.0.2 | MIT | Microsoft | http://go.microsoft.com/fwlink/?LinkId=624683 |
 | Microsoft.Build.Tasks.Git | 10.0.401 | MIT | Microsoft | https://github.com/dotnet/dotnet |
 | Microsoft.CodeAnalysis.Analyzers | 3.11.0 | MIT | Microsoft | https://github.com/dotnet/roslyn-analyzers |
@@ -42,9 +52,7 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Microsoft.EntityFrameworkCore.SqlServer | 10.0.12 | MIT | Microsoft | https://docs.microsoft.com/ef/core/ |
 | Microsoft.Extensions.Caching.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Caching.Memory | 10.0.12 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.Configuration | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Configuration | 10.0.12 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.Configuration.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Configuration.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Configuration.Binder | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Configuration.CommandLine | 10.0.12 | MIT | Microsoft | https://dot.net/ |
@@ -52,49 +60,38 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Microsoft.Extensions.Configuration.FileExtensions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Configuration.Json | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Configuration.UserSecrets | 10.0.12 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.DependencyInjection | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.DependencyInjection | 10.0.12 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.DependencyInjection.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.DependencyInjection.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.DependencyInjection.Abstractions | 8.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.DependencyModel | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Diagnostics | 10.0.12 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.Diagnostics.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Diagnostics.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.FileProviders.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.FileProviders.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.FileProviders.Physical | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.FileSystemGlobbing | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Hosting | 10.0.12 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.Hosting.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Hosting.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Localization.Abstractions | 10.0.12 | MIT | Microsoft | https://asp.net/ |
-| Microsoft.Extensions.Logging | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Logging | 10.0.12 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.Logging.Abstractions | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Logging.Abstractions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Logging.Configuration | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Logging.Console | 10.0.12 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.Logging.Debug | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Logging.Debug | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Logging.EventLog | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Logging.EventSource | 10.0.12 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.Options | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Options | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Options.ConfigurationExtensions | 10.0.12 | MIT | Microsoft | https://dot.net/ |
-| Microsoft.Extensions.Primitives | 10.0.0 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Primitives | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | Microsoft.Extensions.Validation | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.Identity.Client | 4.84.2 | MIT | Microsoft | https://go.microsoft.com/fwlink/?linkid=844761 |
 | Microsoft.Identity.Client.Broker | 4.84.2 | MIT | Microsoft | https://go.microsoft.com/fwlink/?linkid=844761 |
 | Microsoft.Identity.Client.Extensions.Msal | 4.78.0 | MIT | Microsoft | https://go.microsoft.com/fwlink/?linkid=844761 |
 | Microsoft.Identity.Client.NativeInterop | 0.20.6 | LICENSE | Microsoft | https://office.visualstudio.com/_git/OneAuth |
-| Microsoft.IdentityModel.Abstractions | 8.14.0 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
-| Microsoft.IdentityModel.JsonWebTokens | 7.7.1 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
-| Microsoft.IdentityModel.Logging | 7.7.1 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
-| Microsoft.IdentityModel.Protocols | 7.7.1 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
-| Microsoft.IdentityModel.Protocols.OpenIdConnect | 7.7.1 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
-| Microsoft.IdentityModel.Tokens | 7.7.1 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
+| Microsoft.IdentityModel.Abstractions | 8.19.2 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
+| Microsoft.IdentityModel.JsonWebTokens | 8.19.2 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
+| Microsoft.IdentityModel.Logging | 8.19.2 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
+| Microsoft.IdentityModel.Protocols | 8.19.2 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
+| Microsoft.IdentityModel.Protocols.OpenIdConnect | 8.19.2 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
+| Microsoft.IdentityModel.Tokens | 8.19.2 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
 | Microsoft.IO.RecyclableMemoryStream | 3.0.1 | MIT | Microsoft | https://github.com/Microsoft/Microsoft.IO.RecyclableMemoryStream |
 | Microsoft.JSInterop | 10.0.12 | MIT | Microsoft | https://asp.net/ |
 | Microsoft.Kiota.Abstractions | 2.1.2 | MIT | Microsoft | https://aka.ms/kiota/docs |
@@ -126,6 +123,18 @@ Do not edit by hand; re-run the script after changing a package reference.
 | Npgsql.EntityFrameworkCore.PostgreSQL | 10.0.3 | PostgreSQL | Shay Rojansky,Austin Drenski,Yoh Deadfall | https://github.com/npgsql/efcore.pg |
 | Roslynator.Analyzers | 5.0.0 | Apache-2.0 | Josef Pihrt | https://github.com/dotnet/roslynator |
 | runtime.win-x64.Microsoft.DotNet.ILCompiler | 10.0.11 | MIT | Microsoft | https://dot.net/ |
+| Serilog | 4.3.0 | Apache-2.0 | Serilog Contributors | https://serilog.net/ |
+| Serilog.AspNetCore | 10.0.0 | Apache-2.0 | Microsoft,Serilog Contributors | https://github.com/serilog/serilog-aspnetcore |
+| Serilog.Extensions.Hosting | 10.0.0 | Apache-2.0 | Microsoft,Serilog Contributors | https://github.com/serilog/serilog-extensions-hosting |
+| Serilog.Extensions.Logging | 10.0.0 | Apache-2.0 | Microsoft,Serilog Contributors | https://github.com/serilog/serilog-extensions-logging |
+| Serilog.Formatting.Compact | 3.0.0 | Apache-2.0 | Serilog Contributors | https://github.com/serilog/serilog-formatting-compact |
+| Serilog.Settings.Configuration | 10.0.0 | Apache-2.0 | Serilog Contributors | https://github.com/serilog/serilog-settings-configuration |
+| Serilog.Sinks.Async | 2.1.0 | Apache-2.0 | Jezz Santos,Serilog Contributors | https://serilog.net/ |
+| Serilog.Sinks.Console | 6.1.1 | Apache-2.0 | Serilog Contributors | https://github.com/serilog/serilog-sinks-console |
+| Serilog.Sinks.Debug | 3.0.0 | Apache-2.0 | Serilog Contributors | https://github.com/serilog/serilog-sinks-debug |
+| Serilog.Sinks.EventLog | 4.0.0 | Apache-2.0 | Jeremy Clarke,Fabian Wetzel | https://serilog.net/ |
+| Serilog.Sinks.File | 7.0.0 | Apache-2.0 | Serilog Contributors | https://github.com/serilog/serilog-sinks-file |
+| Serilog.Sinks.OpenTelemetry | 4.2.0 | Apache-2.0 | Serilog Contributors | https://github.com/serilog/serilog-sinks-opentelemetry |
 | SonarAnalyzer.CSharp | 10.34.0.3385 | licenses\LICENSE.txt | SonarSource | https://redirect.sonarsource.com/doc/sonar-visualstudio.html |
 | Std.UriTemplate | 2.0.12 | Apache-2.0 | Std.UriTemplate | https://www.nuget.org/packages/Std.UriTemplate/2.0.12 |
 | System.ClientModel | 1.8.0 | MIT | Microsoft | https://github.com/Azure/azure-sdk-for-net/blob/System.ClientModel_1.8.0/sdk/core/System.ClientModel/README.md |
@@ -137,14 +146,15 @@ Do not edit by hand; re-run the script after changing a package reference.
 | System.Composition.Runtime | 9.0.0 | MIT | Microsoft | https://dot.net/ |
 | System.Composition.TypedParts | 9.0.0 | MIT | Microsoft | https://dot.net/ |
 | System.Configuration.ConfigurationManager | 9.0.11 | MIT | Microsoft | https://dot.net/ |
-| System.Diagnostics.EventLog | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | System.Diagnostics.EventLog | 9.0.11 | MIT | Microsoft | https://dot.net/ |
-| System.IdentityModel.Tokens.Jwt | 7.7.1 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
+| System.IdentityModel.Tokens.Jwt | 8.19.2 | MIT | Microsoft | https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet |
 | System.IO.Hashing | 10.0.12 | MIT | Microsoft | https://dot.net/ |
 | System.Memory.Data | 8.0.1 | MIT | Microsoft | https://dot.net/ |
 | System.Security.Cryptography.Pkcs | 10.0.13 | MIT | Microsoft | https://dot.net/ |
 | System.Security.Cryptography.ProtectedData | 9.0.11 | MIT | Microsoft | https://dot.net/ |
 | System.Security.Cryptography.Xml | 10.0.13 | MIT | Microsoft | https://dot.net/ |
+| Wolfgang.AuditTrail.Abstractions | 0.4.1 | MIT | Chris Wolfgang | https://github.com/Chris-Wolfgang/AuditTrail |
+| Wolfgang.AuditTrail.EntityFrameworkCore | 0.4.1 | MIT | Chris Wolfgang | https://github.com/Chris-Wolfgang/AuditTrail |
 | Wolfgang.TryPattern | 0.4.1 | MIT | Chris Wolfgang | https://github.com/Chris-Wolfgang/Try-Pattern |
 | Xamarin.Android.Glide | 4.16.0.14 | MIT AND BSD-2-Clause AND Apache-2.0 | Microsoft | https://aka.ms/android-libraries |
 | Xamarin.Android.Glide.Annotations | 4.16.0.14 | MIT AND BSD-2-Clause AND Apache-2.0 | Microsoft | https://aka.ms/android-libraries |

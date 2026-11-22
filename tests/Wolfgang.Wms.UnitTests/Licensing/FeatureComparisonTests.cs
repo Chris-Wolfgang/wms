@@ -16,7 +16,7 @@ public sealed class FeatureComparisonTests
 {
     private const string UpdateVariable = "WMS_UPDATE_LICENSING_DOCS";
     private static readonly string TableFile = Path.Combine(RepositoryFiles.Root, "docs", "licensing", "tier-table.txt");
-    private static readonly string ComparisonFile = Path.Combine(RepositoryFiles.Root, "docs", "licensing", "feature-comparison.md");
+    private static readonly string ComparisonFile = Path.Combine(RepositoryFiles.Root, "docfx_project", "docs", "licensing", "feature-comparison.md");
 
 
 

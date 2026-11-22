@@ -72,7 +72,7 @@ public sealed class SettingsRegistryEndpointTests : IClassFixture<WebApplication
         using var post = await client.SendAsync(TestAuth.As(HttpMethod.Post, "/api/v0/settings/registry", "*@organization", new StringContent("[]")));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.All(document.RootElement.EnumerateArray(), e => Assert.Matches(@"^(auth|api|logging)\.", e.GetProperty("name").GetString()));   // E9/E10.6/E12.4: the auth and logging modules' own settings
+        Assert.All(document.RootElement.EnumerateArray(), e => Assert.Matches(@"^(auth|api|logging|license|picking)\.", e.GetProperty("name").GetString()));   // E9/E10.6/E12.4/E79: the auth, logging and license modules' own settings
         Assert.Equal(HttpStatusCode.MethodNotAllowed, post.StatusCode);
     }
 }

@@ -1,6 +1,6 @@
 # ADR 0007: Evaluation and trial model — Free floor, trial keys, local trial first, install-per-visitor sandbox
 
-**Status:** Accepted, not yet implemented (design discussion 2026-09-22; sandbox topology 2026-10-01; the EV stories implement it, and the licensing manual lists the rules as planned until each ships) · **Date:** 2026-09-22 · **Related:** ADR 0002 (single tenant per install)
+**Status:** Accepted, not yet implemented (design discussion 2026-09-22; sandbox topology 2026-10-01; the EV stories implement it, and the licensing manual lists the rules as planned until each ships) · **Date:** 2026-09-22 · **Amends:** [0002](0002-data-conventions.md) point 1 (how a hosted install is isolated)
 
 ## Context
 
@@ -137,8 +137,10 @@ on by default, payload documented). Blocked outbound traffic simply means the in
   per-database job loops are built, and process-wide singletons (settings cache, license state, Data
   Protection) remain correct. The cost moves to hosting: one container per active visitor, which the
   provisioning layer caps and stops when idle.
-- ADR 0002's hosted model is unchanged ("one database and one isolated process per customer"); the
-  cloud sandbox is the same shape, one install per visitor, and so is hosting if it is ever sold.
+- ADR 0002 point 1 is amended: a hosted offering is one database and one isolated process (Kubernetes
+  namespace or container) per customer, where 0002 said one Kubernetes namespace. Its single-tenant rule is
+  unchanged. The cloud sandbox is the same shape, one install per visitor, never a shared process, and so is
+  hosting if it is ever sold.
 - The evaluation stories (seed pack, simulator start, reset, go-live, QR pairing with pinning, barcode seam,
   hardware check, provisioning) are tracked in the "Evaluation" epic (#234, stories EV.n);
   the multi-instance work in the "Multi-instance" epic (#245, stories MI.n; ADR 0008); the licensing

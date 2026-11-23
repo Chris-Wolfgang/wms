@@ -1,6 +1,6 @@
 # ADR 0002: Data conventions — single tenant, unit of work, repositories per aggregate, site scoping
 
-**Status:** Accepted (E1.11) · **Date:** 2026-09-19
+**Status:** Accepted (E1.11); Amended by [0007](0007-evaluation-and-trial-model.md) (point 1) · **Date:** 2026-09-19
 
 ## Context
 
@@ -11,8 +11,7 @@ domain and stays AOT-safe (E1.9). Reads for screens and reports have very differ
 ## Decision
 
 1. **Single tenant per install.** One company per database; no `tenant_id` anywhere. A hosted offering
-   would be siloed: one database and one isolated process (Kubernetes namespace or container) per customer.
-   ADR 0007's cloud sandbox follows the same rule: one install per visitor, never a shared process.
+   would be siloed: one database and one Kubernetes namespace per customer.
 2. **Unit of work.** One `DbContext` per request or job, behind `IUnitOfWork` (`Wolfgang.Wms.Core.Data`).
    A single `SaveChangesAsync` per operation. Explicit transactions only for the listed multi-step
    operations — deposit replay, marriage, intake, settings cascade, lease release/expiry — through

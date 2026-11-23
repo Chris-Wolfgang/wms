@@ -97,7 +97,7 @@ public sealed class DataProtectionTests
     public void An_encrypted_connection_string_decrypts_through_the_options_and_needs_a_protector()
     {
         var protector = new DataProtectionSecretProtector(new EphemeralDataProtectionProvider());
-        var options = new DatabaseOptions { Provider = "SqlServer", ConnectionString = protector.Protect("Server=db;Database=wms"), TrustServerCertificate = true };
+        var options = new DatabaseOptions { Provider = "SqlServer", ConnectionString = protector.Protect("Server=db;Database=wms"), TrustServerCertificate = true };   // DevSkim: ignore DS114352 - a test of option handling, never a connection
         var plainText = TestConnectionStrings.PostgreSql("db");   // built, not a literal: CodeQL traces literals into the SQL Server builder
         var plain = new DatabaseOptions { Provider = "PostgreSql", ConnectionString = plainText };
 

@@ -1,6 +1,6 @@
 # ADR 0002: Data conventions — single tenant, unit of work, repositories per aggregate, site scoping
 
-**Status:** Accepted (E1.11) · **Date:** 2026-09-19
+**Status:** Accepted (E1.11); Amended by [0007](0007-evaluation-and-trial-model.md) (point 1) · **Date:** 2026-09-19
 
 ## Context
 

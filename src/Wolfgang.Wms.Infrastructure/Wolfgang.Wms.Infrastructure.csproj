@@ -4,7 +4,7 @@
     <!-- E2: EF Core with both supported providers; the installer picks one at run time (Wms:Database:Provider).
          Npgsql (PostgreSQL licence, permissive) sits behind WmsDbContext and the repositories, never used directly. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.15" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.4" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="11.0.0" />
     <!-- E6.4: one audit store for every audited table (Chris-Wolfgang library; Model 1, AuditingDbContext). -->
     <PackageReference Include="Wolfgang.AuditTrail.EntityFrameworkCore" Version="0.4.1" />

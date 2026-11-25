@@ -8,3 +8,8 @@
 # semgrep.yaml installs with --no-deps so pip does not re-apply semgrep's pin. Delete
 # this line once a semgrep release allows pyjwt 2.15.
 pyjwt[crypto]~=2.15.0
+
+# semgrep pins wcmatch~=8.3 (still true of 1.187.0), but wcmatch <= 11.1 is affected by
+# GHSA-53pm-wgxf-c6qf (polynomial-time ReDoS on multi-star patterns).
+# Drop this override once a semgrep release allows wcmatch >= 11.2.
+wcmatch>=11.2

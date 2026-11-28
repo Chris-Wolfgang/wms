@@ -76,6 +76,13 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
 
 
 
+    /// <summary>
+    /// <c>core.group_role_mapping</c> (E11.2): a provider's groups mapped to roles.
+    /// </summary>
+    public DbSet<GroupRoleMapping> GroupRoleMappings => Set<GroupRoleMapping>();
+
+
+
     /// <inheritdoc/>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -96,6 +103,7 @@ public sealed class WmsDbContext : AuditingDbContext, IDataProtectionKeyContext
         modelBuilder.ApplyConfiguration<Role>(roles);
         modelBuilder.ApplyConfiguration<RolePermission>(roles);
         modelBuilder.ApplyConfiguration<UserRole>(roles);
+        modelBuilder.ApplyConfiguration(new GroupRoleMappingConfiguration());   // E11.2
         modelBuilder.Entity<DataProtectionKey>().ToTable("data_protection_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E8.6: library-owned, in wms like the migrations history
         modelBuilder.Entity<DataProtectionKey>().Property(k => k.FriendlyName).HasMaxLength(256);
         modelBuilder.Entity<IntegrityKey>().ToTable("integrity_key", DatabaseServiceCollectionExtensions.HistorySchema);   // E10.4: the HMAC key, protected by the ring

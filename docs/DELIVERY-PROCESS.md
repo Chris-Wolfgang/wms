@@ -22,7 +22,7 @@ tests the **Release** configuration; Debug is never used in CI.
 
 ## PR gate (E85.1)
 
-`pr.yaml` runs on every pull request: secrets scan (gitleaks), protected-file guard ("Detect .NET Projects"),
+`pr.yaml` runs on every pull request: secrets scan (gitleaks), project detection ("Detect .NET Projects"),
 changelog-fragment check, ReSharper InspectCode, Stage 1 (Linux build + tests + coverage gate: 90 % on `src/`,
 100 % on `tests/`, `COVERAGE_FLOORS` per assembly, Domain at 100 %), Stage 2 (Windows), security scans
 (DevSkim, CodeQL). The architecture tests (`Wolfgang.Wms.UnitTests/Architecture`) run inside Stage 1 and 2, so a
